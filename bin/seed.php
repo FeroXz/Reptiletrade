@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Reptilienmarkt\Domain\Geo\Country;
 use Reptilienmarkt\Domain\Geo\PostalCodeRepository;
+use Reptilienmarkt\Domain\Setting\Settings;
 use Reptilienmarkt\Domain\Species\BnatschgStatus;
 use Reptilienmarkt\Domain\Species\CareLevel;
 use Reptilienmarkt\Domain\Species\CitesAppendix;
@@ -14,6 +15,8 @@ use Reptilienmarkt\Domain\Species\MorphRepository;
 use Reptilienmarkt\Domain\Species\Species;
 use Reptilienmarkt\Domain\Species\SpeciesRepository;
 use Reptilienmarkt\Infra\Geo\PostalCodeImporter;
+use Reptilienmarkt\Legal\LegalText;
+use Reptilienmarkt\Legal\LegalTextRepository;
 use Reptilienmarkt\Support\Container;
 
 if (\PHP_SAPI !== 'cli') {
@@ -138,6 +141,48 @@ printf("  %d Eintraege\n", $written);
 foreach (Country::cases() as $country) {
     printf("    %s: %d\n", $country->value, $postalCodeRepository->count($country));
 }
+
+echo "Rechtstexte ...\n";
+
+$legalTextRepository = $container->get(LegalTextRepository::class);
+$legalTextFile = $readJson($dataPath . '/legal_texts.json');
+/** @var list<array<string, mixed>> $legalTextRows */
+$legalTextRows = is_array($legalTextFile['texte'] ?? null) ? $legalTextFile['texte'] : [];
+
+$inserted = 0;
+foreach ($legalTextRows as $row) {
+    // insertIfMissing statt save: der Seed darf redaktionelle Aenderungen
+    // niemals ueberschreiben. last_reviewed_at bleibt leer, damit jeder Text
+    // im Admin als "nie geprueft" auftaucht.
+    $created = $legalTextRepository->insertIfMissing(new LegalText(
+        null,
+        (string) $row['key'],
+        (string) $row['title'],
+        (string) $row['body'],
+        isset($row['jurisdiction']) && is_string($row['jurisdiction']) ? $row['jurisdiction'] : 'DE',
+        isset($row['source_reference']) && is_string($row['source_reference']) ? $row['source_reference'] : null,
+    ));
+
+    if ($created) {
+        ++$inserted;
+    }
+}
+
+printf("  %d neu angelegt, %d insgesamt\n", $inserted, count($legalTextRepository->all()));
+
+echo "Betriebsschalter ...\n";
+
+$settings = $container->get(Settings::class);
+foreach ([
+    ['legal.gefahrtier_enforcement', true, 'Gefahrtierregel global aktiv (Regel 5)'],
+    ['legal.review_max_age_months', 12, 'Ab wann ein Rechtstext als ueberfaellig gilt'],
+] as [$key, $value, $description]) {
+    if (!$settings->has($key)) {
+        $settings->set($key, $value, $description);
+    }
+}
+
+printf("  %d Schalter gesetzt\n", 2);
 
 echo <<<'TEXT'
 

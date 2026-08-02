@@ -1,0 +1,62 @@
+{
+  "_hinweis": "Ausgangstexte für die Tabelle legal_texts. KEINE RECHTSBERATUNG. bin/seed.php legt sie nur an, wenn der Schlüssel noch fehlt — redaktionelle Änderungen werden nie überschrieben. last_reviewed_at bleibt bewusst leer: Jeder Text erscheint dadurch im Admin als 'nie geprüft', bis ihn jemand freigegeben hat.",
+  "_stand": "2026-08-02",
+  "texte": [
+    {
+      "key": "legal.anhang_a",
+      "jurisdiction": "DE",
+      "title": "Vermarktungsgenehmigung erforderlich (Anhang A)",
+      "source_reference": "Art. 8 Abs. 1 und 3 EG-VO 338/97, § 44 BNatSchG",
+      "body": "Diese Art ist in Anhang A der EG-Verordnung 338/97 geführt. Verkauf, Kauf, Tausch und jedes Anbieten zu diesen Zwecken sind grundsätzlich verboten und nur mit einer gültigen EU-Vermarktungsgenehmigung der zuständigen Behörde zulässig.\n\nBitte trage die Bescheinigungsnummer ein und lade die Bescheinigung hoch. Die Anzeige wird erst nach Prüfung durch unser Team freigeschaltet. Die Bescheinigung ist tierbezogen — sie gilt nicht für Geschwistertiere aus demselben Gelege."
+    },
+    {
+      "key": "legal.anhang_b",
+      "jurisdiction": "DE",
+      "title": "Herkunftsnachweis erforderlich (Anhang B)",
+      "source_reference": "Art. 8 Abs. 5 EG-VO 338/97, § 46 BNatSchG",
+      "body": "Diese Art ist in Anhang B der EG-Verordnung 338/97 geführt. Für das Anbieten und den Verkauf musst du die rechtmäßige Herkunft nachweisen können — etwa durch Herkunftsnachweis des Vorbesitzers, Einfuhrgenehmigung oder eigene Nachzuchtdokumentation.\n\nBehörden können den Nachweis jederzeit verlangen. Bewahre ihn auf und gib ihn beim Verkauf an die Käuferin oder den Käufer weiter."
+    },
+    {
+      "key": "legal.meldepflicht",
+      "jurisdiction": "DE",
+      "title": "Meldepflicht bei der zuständigen Behörde",
+      "source_reference": "§ 7 BArtSchV, § 44 Abs. 1 BNatSchG",
+      "body": "Für diese Art besteht eine Meldepflicht: Bestand, Zugänge und Abgänge sind der zuständigen Naturschutzbehörde unverzüglich anzuzeigen.\n\nBestätige, dass die Meldung erfolgt ist, und gib das Datum an. Zuständig ist in der Regel die untere Naturschutzbehörde deines Landkreises oder deiner kreisfreien Stadt."
+    },
+    {
+      "key": "legal.kennzeichnung",
+      "jurisdiction": "DE",
+      "title": "Kennzeichnungspflicht bei Landschildkröten",
+      "source_reference": "§ 12 f. BArtSchV, Anlage 6 BArtSchV",
+      "body": "Landschildkröten sind kennzeichnungspflichtig. Üblich sind ein Transponder (Mikrochip) oder – bei Tieren, die für einen Transponder zu klein sind – eine Fotodokumentation der Bauchpanzerzeichnung.\n\nGib an, wie das Tier gekennzeichnet ist. Bei einem Transponder trage die Chipnummer ein; sie muss mit der Angabe auf der Bescheinigung übereinstimmen."
+    },
+    {
+      "key": "legal.gefahrtier",
+      "jurisdiction": "DE",
+      "title": "Gefahrtier – Landesrecht beachten",
+      "source_reference": "Gefahrtierverordnungen und Landesgesetze der Bundesländer",
+      "body": "Diese Art gilt als Gefahrtier. Haltung, Abgabe und Erwerb sind Landesrecht und je nach Bundesland unterschiedlich geregelt: Manche Länder verlangen eine Erlaubnis oder Anzeige, andere verbieten die Haltung ganz, wieder andere kennen keine besondere Regelung.\n\nPrüfe vor Abgabe und Erwerb die Vorschriften am Wohnort beider Seiten. Die Plattform kann diese Prüfung nicht für dich übernehmen."
+    },
+    {
+      "key": "legal.tierschutz_abgabe",
+      "jurisdiction": "DE",
+      "title": "Mindestalter und Mindestgewicht bei der Abgabe",
+      "source_reference": "§ 1 und § 2 TierSchG; Betreibervorgabe dieser Plattform",
+      "body": "Jungtiere dürfen erst abgegeben werden, wenn sie selbstständig fressen und stabil zugenommen haben. Diese Plattform setzt dafür je Art ein Mindestalter und ein Mindestgewicht voraus; Anzeigen darunter werden nicht veröffentlicht.\n\nDie Werte sind eine Vorgabe des Plattformbetreibers aus Tierschutzsicht und keine gesetzliche Grenze — die Verantwortung für eine tierschutzgerechte Abgabe bleibt bei dir."
+    },
+    {
+      "key": "legal.tiertransport",
+      "jurisdiction": "DE",
+      "title": "Kein Paketversand – nur zertifizierter Tiertransport",
+      "source_reference": "§ 1 TierSchG, VO (EG) 1/2005, Beförderungsbedingungen der Paketdienste",
+      "body": "Der Versand lebender Tiere über Paketdienste ist auf dieser Plattform ausnahmslos untersagt und nach den Beförderungsbedingungen der Paketdienste ohnehin ausgeschlossen.\n\nZulässig sind ausschließlich die persönliche Übergabe, die Übergabe auf einer Börse oder ein zertifizierter Tiertransport durch einen zugelassenen Transportunternehmer. Anzeigen, die Paketversand anbieten, werden gesperrt."
+    },
+    {
+      "key": "legal.gewerblichkeit",
+      "jurisdiction": "DE",
+      "title": "Gewerbliche Tätigkeit – Erlaubnis nach § 11 TierSchG",
+      "source_reference": "§ 11 Abs. 1 Nr. 8 TierSchG, § 5 TMG, § 312 ff. BGB",
+      "body": "Wer gewerbsmäßig mit Wirbeltieren handelt oder züchtet, braucht eine Erlaubnis der zuständigen Veterinärbehörde nach § 11 TierSchG. Gewerbsmäßigkeit hängt nicht an einer festen Stückzahl, sondern an Planmäßigkeit, Dauer und Gewinnerzielungsabsicht.\n\nDein Anzeigenaufkommen legt eine gewerbliche Tätigkeit nahe. Trage deine Erlaubnisnummer und ein Impressum ein. Als gewerbliche Anbieterin oder gewerblicher Anbieter treffen dich zusätzlich Impressumspflicht und Widerrufsrecht gegenüber Verbrauchern."
+    }
+  ]
+}

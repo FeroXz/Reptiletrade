@@ -11,7 +11,7 @@ Architekturentscheidungen (Router, SQLite vs. PostgreSQL, Migrationsstrategie, K
 | Phase | Inhalt | Status |
 |---|---|---|
 | 1 | Datenmodell und Migrationen | umgesetzt |
-| 2 | Rechts-Engine (`LegalGuard`) | offen |
+| 2 | Rechts-Engine (`LegalGuard`) | umgesetzt |
 | 3 | Suche und Browsing | offen |
 | 4 | Anzeige erstellen | offen |
 | 5 | Nutzer, Vertrauen, Kommunikation | offen |
@@ -53,6 +53,35 @@ vendor/bin/phpunit
 vendor/bin/php-cs-fixer fix --dry-run --diff
 vendor/bin/phpstan analyse            # Level 8
 ```
+
+## Rechts-Engine
+
+`Reptilienmarkt\Legal\LegalGuard` ist bei jedem Listing-Submit und bei jeder Statusänderung auf
+`aktiv` aufzurufen:
+
+```php
+$decision = $container->get(LegalGuard::class)->evaluate($context);
+
+$decision->blocked;         // Veröffentlichung nicht möglich
+$decision->requiresReview;  // Status "pruefung", Admin-Freigabe nötig
+$decision->requiredFields;  // Feldnamen für den Formularschritt "Rechtsnachweise"
+$decision->notices;         // Hinweistexte aus der Tabelle legal_texts
+$decision->auditPayload();  // Begründungen für audit_log.data_json
+```
+
+Das Regelwerk steht vollständig in [`config/legal_rules.php`](config/legal_rules.php), die Hinweistexte
+in der Tabelle `legal_texts`. Beides ist ohne Codeänderung pflegbar; jede Regel lässt sich einzeln
+über `enabled` abschalten. Ein Tippfehler in der Konfiguration führt beim Aufbau der Engine zu einem
+Fehler und nicht zu einer stillschweigend übersprungenen Regel.
+
+`LegalTextReview::warning()` liefert dem Admin-Dashboard die Meldung über Rechtstexte, deren Prüfung
+länger als `review_max_age_months` zurückliegt. Nie geprüfte Texte zählen als überfällig — nach dem
+Seed sind das zunächst alle.
+
+> **Keine Rechtsberatung.** Die Engine setzt um, was der Betreiber konfiguriert hat. Der vollständige
+> Disclaimer steht in `Reptilienmarkt\Legal\Disclaimer` und gehört über jede Admin-Ansicht der
+> Rechts-Engine. Die Pflicht, Regelwerk, Rechtstexte und Artenstamm zu prüfen und aktuell zu halten,
+> liegt beim Betreiber.
 
 ## Datensätze
 
