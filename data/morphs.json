@@ -1,0 +1,73 @@
+{
+  "_hinweis": "Merkmalskatalog je Art. Vererbungsmodi entsprechen dem gaengigen Stand der Zuchtpraxis; strittige Faelle sind in der Beschreibung vermerkt. is_lethal_combo = 1 bedeutet: die homozygote Form ist nicht lebensfaehig — die Plattform warnt beim Anlegen entsprechender Verpaarungsangaben.",
+  "_stand": "2026-08-02",
+  "morphs": {
+    "Pogona vitticeps": [
+      {"name":"Hypomelanistic","aliases":["Hypo"],"inheritance":"recessive","allele_group":null,"is_lethal_combo":0,"description":"Reduziertes Melanin, durchscheinende Krallen."},
+      {"name":"Translucent","aliases":["Trans"],"inheritance":"recessive","allele_group":null,"is_lethal_combo":0,"description":"Durchscheinende Haut, oft schwarze Augen."},
+      {"name":"Leatherback","aliases":["Leather"],"inheritance":"incomplete_dominant","allele_group":"leatherback","is_lethal_combo":0,"description":"Reduzierte Beschuppung. Homozygot = Silkback."},
+      {"name":"Silkback","aliases":["Silky"],"inheritance":"incomplete_dominant","allele_group":"leatherback","is_lethal_combo":0,"description":"Homozygote Leatherback-Form ohne Schuppen. Tierschutzrelevant: gestoerte Haeutung, Wasserverlust, Lichtempfindlichkeit."},
+      {"name":"Dunner","aliases":[],"inheritance":"dominant","allele_group":null,"is_lethal_combo":0,"description":"Abweichende Schuppen- und Zeichnungsrichtung."},
+      {"name":"Witblits","aliases":[],"inheritance":"recessive","allele_group":"zero_witblits","is_lethal_combo":0,"description":"Zeichnungslos, meist beige. Allel zu Zero."},
+      {"name":"Zero","aliases":[],"inheritance":"recessive","allele_group":"zero_witblits","is_lethal_combo":0,"description":"Zeichnungs- und farblos, silbrig-grau. Allel zu Witblits."},
+      {"name":"Genetic Stripe","aliases":["Gen Stripe"],"inheritance":"recessive","allele_group":null,"is_lethal_combo":0,"description":"Durchgehender Ruecken-Laengsstreifen."},
+      {"name":"Paradox","aliases":[],"inheritance":"paradox","allele_group":null,"is_lethal_combo":0,"description":"Nicht vererbbare Farbflecken, entwicklungsbedingt."},
+      {"name":"Red","aliases":["Blood Red"],"inheritance":"line_bred","allele_group":null,"is_lethal_combo":0,"description":"Rotintensitaet, ueber Selektion verstaerkt."},
+      {"name":"Citrus","aliases":["Citrus Tiger"],"inheritance":"line_bred","allele_group":null,"is_lethal_combo":0,"description":"Gelbintensitaet, ueber Selektion verstaerkt."},
+      {"name":"German Giant","aliases":["Giant"],"inheritance":"polygenic","allele_group":null,"is_lethal_combo":0,"description":"Ueberdurchschnittliche Endgroesse."}
+    ],
+    "Python regius": [
+      {"name":"Albino","aliases":["Amelanistic","Amel"],"inheritance":"recessive","allele_group":"albino","is_lethal_combo":0,"description":"Kein Melanin, gelb-weiss mit roten Augen."},
+      {"name":"Lavender Albino","aliases":["Lav Albino"],"inheritance":"recessive","allele_group":null,"is_lethal_combo":0,"description":"Albino mit lavendelfarbenem Grundton."},
+      {"name":"Piebald","aliases":["Pied"],"inheritance":"recessive","allele_group":null,"is_lethal_combo":0,"description":"Unpigmentierte weisse Flaechen mit scharfer Abgrenzung."},
+      {"name":"Clown","aliases":[],"inheritance":"recessive","allele_group":null,"is_lethal_combo":0,"description":"Reduzierte Seitenzeichnung, durchgehender Rueckenstreifen."},
+      {"name":"Ghost","aliases":["Hypo"],"inheritance":"recessive","allele_group":null,"is_lethal_combo":0,"description":"Aufgehellt durch reduziertes Melanin."},
+      {"name":"Pastel","aliases":[],"inheritance":"incomplete_dominant","allele_group":"pastel","is_lethal_combo":0,"description":"Aufhellung und Kopfzeichnung. Homozygot = Super Pastel."},
+      {"name":"Mojave","aliases":[],"inheritance":"incomplete_dominant","allele_group":"bel_complex","is_lethal_combo":0,"description":"Teil des Blue-Eyed-Leucistic-Komplexes."},
+      {"name":"Lesser","aliases":["Lesser Platinum"],"inheritance":"incomplete_dominant","allele_group":"bel_complex","is_lethal_combo":0,"description":"Teil des Blue-Eyed-Leucistic-Komplexes."},
+      {"name":"Butter","aliases":[],"inheritance":"incomplete_dominant","allele_group":"bel_complex","is_lethal_combo":0,"description":"Teil des Blue-Eyed-Leucistic-Komplexes."},
+      {"name":"Yellow Belly","aliases":["YB"],"inheritance":"incomplete_dominant","allele_group":"yellowbelly","is_lethal_combo":0,"description":"Homozygot = Ivory."},
+      {"name":"Fire","aliases":[],"inheritance":"incomplete_dominant","allele_group":"fire","is_lethal_combo":0,"description":"Homozygot = Black Eyed Leucistic."},
+      {"name":"Enchi","aliases":[],"inheritance":"incomplete_dominant","allele_group":null,"is_lethal_combo":0,"description":"Verbreiterte Seitenzeichnung, Farbverstaerkung."},
+      {"name":"Cinnamon","aliases":["Cinny"],"inheritance":"incomplete_dominant","allele_group":"black_pastel","is_lethal_combo":0,"description":"Allel zu Black Pastel. Superformen neigen zu Kielrueckenbildung und Kopfdefekten."},
+      {"name":"Black Pastel","aliases":["BP"],"inheritance":"incomplete_dominant","allele_group":"black_pastel","is_lethal_combo":0,"description":"Allel zu Cinnamon. Superformen tierschutzrelevant."},
+      {"name":"Banana","aliases":["Coral Glow"],"inheritance":"incomplete_dominant","allele_group":null,"is_lethal_combo":0,"description":"Geschlechtsgebundene Vererbung ueber Maker-Maennchen."},
+      {"name":"Spider","aliases":[],"inheritance":"dominant","allele_group":null,"is_lethal_combo":1,"description":"Homozygote Form nicht lebensfaehig. Merkmalsgekoppelter neurologischer Wobble — tierschutzrelevant."},
+      {"name":"Champagne","aliases":[],"inheritance":"dominant","allele_group":null,"is_lethal_combo":1,"description":"Homozygote Form nicht lebensfaehig. Wobble moeglich."},
+      {"name":"Hidden Gene Woma","aliases":["HGW"],"inheritance":"dominant","allele_group":null,"is_lethal_combo":1,"description":"Homozygote Form nicht lebensfaehig."},
+      {"name":"Desert","aliases":[],"inheritance":"dominant","allele_group":null,"is_lethal_combo":0,"description":"Weibchen sind praktisch durchgehend unfruchtbar — Zucht mit Desert-Weibchen gilt als tierschutzwidrig."}
+    ],
+    "Eublepharis macularius": [
+      {"name":"Albino Tremper","aliases":["Tremper"],"inheritance":"recessive","allele_group":"albino","is_lethal_combo":0,"description":"Eine von drei nicht zueinander allelen Albino-Linien."},
+      {"name":"Albino Bell","aliases":["Bell"],"inheritance":"recessive","allele_group":"albino_bell","is_lethal_combo":0,"description":"Eigene Albino-Linie, nicht kompatibel mit Tremper oder Rainwater."},
+      {"name":"Albino Rainwater","aliases":["Rainwater","Las Vegas"],"inheritance":"recessive","allele_group":"albino_rainwater","is_lethal_combo":0,"description":"Eigene Albino-Linie, nicht kompatibel mit Tremper oder Bell."},
+      {"name":"Blizzard","aliases":[],"inheritance":"recessive","allele_group":null,"is_lethal_combo":0,"description":"Vollstaendig zeichnungslos."},
+      {"name":"Murphy Patternless","aliases":["Patternless"],"inheritance":"recessive","allele_group":null,"is_lethal_combo":0,"description":"Zeichnungslos, meist gruen-grau."},
+      {"name":"Eclipse","aliases":[],"inheritance":"recessive","allele_group":"eclipse","is_lethal_combo":0,"description":"Volluniforme Augen, oft mit weissen Fuessen."},
+      {"name":"Marble Eye","aliases":[],"inheritance":"recessive","allele_group":null,"is_lethal_combo":0,"description":"Marmorierte Irisstruktur."},
+      {"name":"Mack Snow","aliases":["Snow"],"inheritance":"incomplete_dominant","allele_group":"mack_snow","is_lethal_combo":0,"description":"Homozygot = Super Snow."},
+      {"name":"Super Snow","aliases":[],"inheritance":"incomplete_dominant","allele_group":"mack_snow","is_lethal_combo":0,"description":"Homozygote Mack-Snow-Form mit volluniformen Augen."},
+      {"name":"Giant","aliases":[],"inheritance":"incomplete_dominant","allele_group":"giant","is_lethal_combo":0,"description":"Homozygot = Super Giant."},
+      {"name":"White & Yellow","aliases":["W&Y"],"inheritance":"dominant","allele_group":null,"is_lethal_combo":0,"description":"Weiss-gelbe Aufhellung."},
+      {"name":"Enigma","aliases":[],"inheritance":"dominant","allele_group":null,"is_lethal_combo":0,"description":"Merkmalsgekoppeltes Enigma-Syndrom (Gleichgewichtsstoerungen, Kreiseln) — tierschutzrelevant."},
+      {"name":"Lemon Frost","aliases":[],"inheritance":"dominant","allele_group":null,"is_lethal_combo":0,"description":"Merkmalsgekoppelte Iridophoren-Tumore — tierschutzrelevant."},
+      {"name":"Tangerine","aliases":["Tang"],"inheritance":"polygenic","allele_group":null,"is_lethal_combo":0,"description":"Orangeintensitaet, ueber Selektion verstaerkt."},
+      {"name":"Bold Stripe","aliases":[],"inheritance":"line_bred","allele_group":null,"is_lethal_combo":0,"description":"Kontrastreicher Laengsstreifen."},
+      {"name":"Jungle","aliases":[],"inheritance":"line_bred","allele_group":null,"is_lethal_combo":0,"description":"Unregelmaessig aufgebrochene Baenderung."}
+    ],
+    "Correlophus ciliatus": [
+      {"name":"Harlequin","aliases":["Harley"],"inheritance":"line_bred","allele_group":null,"is_lethal_combo":0,"description":"Ausgedehnte Flankenzeichnung bis auf den Ruecken."},
+      {"name":"Extreme Harlequin","aliases":["Extreme"],"inheritance":"line_bred","allele_group":null,"is_lethal_combo":0,"description":"Harlequin mit stark ausgedehnter Zeichnung."},
+      {"name":"Pinstripe","aliases":["Pin"],"inheritance":"polygenic","allele_group":null,"is_lethal_combo":0,"description":"Erhabene Schuppenreihen entlang der Rueckenkante."},
+      {"name":"Flame","aliases":[],"inheritance":"line_bred","allele_group":null,"is_lethal_combo":0,"description":"Kontrastierender Rueckenbereich."},
+      {"name":"Dalmatian","aliases":["Dal"],"inheritance":"polygenic","allele_group":null,"is_lethal_combo":0,"description":"Punktzeichnung; Anzahl der Punkte selektiv steigerbar."},
+      {"name":"Lilly White","aliases":["LW"],"inheritance":"incomplete_dominant","allele_group":"lilly_white","is_lethal_combo":1,"description":"Homozygote Form nicht lebensfaehig — Verpaarung LW x LW ist zu vermeiden."},
+      {"name":"Axanthic","aliases":["Axo"],"inheritance":"recessive","allele_group":null,"is_lethal_combo":0,"description":"Fehlende gelbe und rote Pigmente, graue Erscheinung."},
+      {"name":"Cappuccino","aliases":["Capp"],"inheritance":"incomplete_dominant","allele_group":"cappuccino","is_lethal_combo":0,"description":"Homozygot = Super Cappuccino (Frappuccino)."},
+      {"name":"Phantom","aliases":[],"inheritance":"incomplete_dominant","allele_group":null,"is_lethal_combo":0,"description":"Reduzierte Flankenzeichnung mit dunklem Saum."},
+      {"name":"Empty Back","aliases":["EB"],"inheritance":"line_bred","allele_group":null,"is_lethal_combo":0,"description":"Zeichnungsfreier Rueckenbereich."},
+      {"name":"Tricolor","aliases":[],"inheritance":"line_bred","allele_group":null,"is_lethal_combo":0,"description":"Drei deutlich getrennte Farbtoene."},
+      {"name":"Brindle","aliases":[],"inheritance":"polygenic","allele_group":null,"is_lethal_combo":0,"description":"Streifige, gestromte Zeichnung."}
+    ]
+  }
+}

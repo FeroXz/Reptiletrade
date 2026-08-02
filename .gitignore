@@ -1,0 +1,13 @@
+/vendor/
+/.env
+/storage/db/*.sqlite
+/storage/db/*.sqlite-shm
+/storage/db/*.sqlite-wal
+/storage/private/*
+!/storage/private/.gitkeep
+/public/uploads/*
+!/public/uploads/.gitkeep
+/.php-cs-fixer.cache
+/.phpunit.cache/
+/tests/tmp/
+/tools/bin/*.phar
