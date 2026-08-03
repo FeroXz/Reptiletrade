@@ -205,10 +205,6 @@ final readonly class MessageController
 
     private function guardCsrf(Request $request): void
     {
-        $token = $request->body['_csrf'] ?? null;
-
-        if (!\is_string($token) || !$this->session->verifyCsrf($token)) {
-            throw HttpException::badRequest('Das Formular ist abgelaufen. Bitte lade die Seite neu.');
-        }
+        $this->session->assertCsrf($request);
     }
 }

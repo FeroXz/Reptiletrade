@@ -9,7 +9,6 @@ use Reptilienmarkt\Domain\Audit\AuditLog;
 use Reptilienmarkt\Domain\Auth\AuthenticationException;
 use Reptilienmarkt\Domain\Auth\AuthenticationService;
 use Reptilienmarkt\Domain\Auth\RegistrationException;
-use Reptilienmarkt\Http\HttpException;
 use Reptilienmarkt\Http\Message\Request;
 use Reptilienmarkt\Http\Message\Response;
 use Reptilienmarkt\Http\Session\SessionManager;
@@ -134,11 +133,7 @@ final readonly class AuthController
 
     private function guardCsrf(Request $request): void
     {
-        $token = $request->body['_csrf'] ?? null;
-
-        if (!\is_string($token) || !$this->session->verifyCsrf($token)) {
-            throw HttpException::badRequest('Das Formular ist abgelaufen. Bitte lade die Seite neu.');
-        }
+        $this->session->assertCsrf($request);
     }
 
     private function input(Request $request, string $name): string

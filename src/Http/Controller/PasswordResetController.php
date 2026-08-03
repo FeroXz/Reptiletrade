@@ -8,7 +8,6 @@ use Reptilienmarkt\Domain\Auth\TokenException;
 use Reptilienmarkt\Domain\Trust\RateLimiter;
 use Reptilienmarkt\Domain\User\AccountException;
 use Reptilienmarkt\Domain\User\AccountService;
-use Reptilienmarkt\Http\HttpException;
 use Reptilienmarkt\Http\Message\Request;
 use Reptilienmarkt\Http\Message\Response;
 use Reptilienmarkt\Http\Session\SessionManager;
@@ -98,10 +97,6 @@ final readonly class PasswordResetController
 
     private function guardCsrf(Request $request): void
     {
-        $token = $request->body['_csrf'] ?? null;
-
-        if (!\is_string($token) || !$this->session->verifyCsrf($token)) {
-            throw HttpException::badRequest('Das Formular ist abgelaufen. Bitte lade die Seite neu.');
-        }
+        $this->session->assertCsrf($request);
     }
 }

@@ -14,7 +14,6 @@ use Reptilienmarkt\Domain\User\AccountService;
 use Reptilienmarkt\Domain\User\UserDocument;
 use Reptilienmarkt\Domain\User\UserDocumentRepository;
 use Reptilienmarkt\Domain\User\UserDocumentType;
-use Reptilienmarkt\Http\HttpException;
 use Reptilienmarkt\Http\Message\Request;
 use Reptilienmarkt\Http\Message\Response;
 use Reptilienmarkt\Http\Session\SessionManager;
@@ -271,10 +270,6 @@ final readonly class AccountController
 
     private function guardCsrf(Request $request): void
     {
-        $token = $request->body['_csrf'] ?? null;
-
-        if (!\is_string($token) || !$this->session->verifyCsrf($token)) {
-            throw HttpException::badRequest('Das Formular ist abgelaufen. Bitte lade die Seite neu.');
-        }
+        $this->session->assertCsrf($request);
     }
 }

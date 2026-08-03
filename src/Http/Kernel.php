@@ -33,8 +33,18 @@ final readonly class Kernel
 
     public function handle(Request $request): Response
     {
+        // Die Fehlerbehandlung sitzt *innerhalb* der Middleware-Kette, nicht
+        // darum herum. Sonst verlaesst eine Ausnahme die Kette nach oben, und
+        // was die Middleware danach tun wollte, faellt aus — allen voran das
+        // Setzen des Sitzungs-Cookies. Eine Fehlerseite ohne Cookie ist
+        // heimtueckisch: Der naechste Versuch scheitert genauso, weil die
+        // Sitzung nie beim Browser ankam.
         $handler = function (Request $request): Response {
-            return $this->dispatch($request);
+            try {
+                return $this->dispatch($request);
+            } catch (Throwable $exception) {
+                return $this->handleException($request, $exception);
+            }
         };
 
         foreach (array_reverse($this->middleware) as $middleware) {
@@ -45,6 +55,7 @@ final readonly class Kernel
         try {
             return $this->withSecurityHeaders($handler($request));
         } catch (Throwable $exception) {
+            // Hier landet nur noch, was in der Middleware selbst schiefgeht.
             return $this->withSecurityHeaders($this->handleException($request, $exception));
         }
     }
@@ -136,9 +147,24 @@ final readonly class Kernel
 
     private function withSecurityHeaders(Response $response): Response
     {
-        return $response
+        $response = $response
             ->withHeader('x-content-type-options', 'nosniff')
             ->withHeader('referrer-policy', 'strict-origin-when-cross-origin')
             ->withHeader('x-frame-options', 'DENY');
+
+        // HTML-Seiten sind hier nie allgemeingueltig: Die Kopfzeile zeigt den
+        // angemeldeten Namen, Formulare tragen einen sitzungsgebundenen
+        // CSRF-Token. Legt ein vorgelagerter Zwischenspeicher so eine Seite ab,
+        // bekommt der naechste Besucher einen fremden Token — und damit bei
+        // jedem Absenden "Das Formular ist abgelaufen". Statische Dateien
+        // liefert der Webserver aus, die sind davon nicht betroffen.
+        $contentType = $response->headers['content-type'] ?? '';
+
+        if (\is_string($contentType) && str_contains($contentType, 'text/html')
+            && !isset($response->headers['cache-control'])) {
+            $response = $response->withHeader('cache-control', 'private, no-store');
+        }
+
+        return $response;
     }
 }

@@ -76,6 +76,7 @@ npm install && npm run build
 | `php tools/smoke_wizard.php [--behalten]` | Abnahme Phase 4: Anzeige komplett anlegen und veröffentlichen |
 | `php bin/billing.php status` | Tarife, Boosts und Schalterstellung anzeigen |
 | `php bin/billing.php ablauf` | Abgelaufene Top-Platzierungen und Abos aufräumen |
+| `php bin/doctor.php` | Selbsttest: Erweiterungen, `.env`, Rechte, Datenbank, Sitzungen, Aufträge |
 | `php bin/admin.php anlegen --email=…` | Verwaltungskonto anlegen (Passwort wird abgefragt) |
 | `php bin/admin.php ernennen --email=…` | Vorhandenes Konto zum Administrator machen |
 | `php bin/admin.php passwort --email=…` | Passwort setzen, offene Sitzungen beenden |
@@ -149,6 +150,12 @@ dieselbe URL erneut und tauscht nur den Ergebnisbereich aus (`history.pushState`
 funktioniert alles unverändert — jede Facette ist ein echter Link, jeder Filter ein echtes Formular.
 
 ## Konto und Sitzung
+
+Das `Secure`-Flag des Sitzungs-Cookies leitet sich aus der tatsächlichen Verbindung ab, nicht aus
+`APP_URL`: Ein `Secure`-Cookie auf einer HTTP-Seite wird vom Browser verworfen, und ohne Cookie gibt
+es keine Sitzung, ohne Sitzung keinen CSRF-Token — jedes Formular endet dann mit „Das Formular ist
+abgelaufen“. Eine falsch gesetzte Variable darf die Anmeldung nicht unmöglich machen. Hinter einem
+TLS-Proxy erkennt die Anwendung die Verschlüsselung an `X-Forwarded-Proto`.
 
 Eigene Implementierung, kein Fremdpaket. Passwörter mit Argon2id (64 MB, 4 Durchläufe); veraltete
 Kosten werden bei der nächsten Anmeldung stillschweigend nachgezogen. Sitzungen liegen in der Tabelle

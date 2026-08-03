@@ -97,14 +97,52 @@ echo "Rauchtest Phase 7 — Verwaltung, Datenauskunft, Betrieb\n\n";
 // --------------------------------------------------- 1) Zugang zur Verwaltung
 echo "Zugang\n";
 
-$nutzer = new SmokeBrowser($containerFabrik);
+$nutzer = new BetriebsBrowser($containerFabrik);
 $nutzerEmail = 'rauchtest-nutzer-' . bin2hex(random_bytes(4)) . '@example.tld';
-$nutzer->get('/registrieren');
-$nutzer->post('/registrieren', [
+
+// Ueber eine unverschluesselte Verbindung — der Fall, an dem die Registrierung
+// auf der Live-Seite scheiterte: Das Cookie trug ein Secure-Flag aus APP_URL,
+// der Browser verwarf es, und der CSRF-Token kam nie wieder an.
+$formular = $nutzer->get('/registrieren');
+$cookie = (string) ($formular->headers['set-cookie'] ?? '');
+
+pruefe($formular->status === 200, 'Das Registrierungsformular antwortet mit 200', 'Status ' . $formular->status);
+pruefe(str_contains($cookie, 'rm_session='), 'Die Antwort setzt ein Sitzungs-Cookie', 'kein Set-Cookie');
+pruefe(
+    !str_contains($cookie, 'Secure'),
+    'Ueber http traegt das Cookie kein Secure-Flag — sonst verwirft es der Browser',
+    'Secure steht drin: ' . $cookie,
+);
+pruefe(
+    str_contains($cookie, 'HttpOnly') && str_contains($cookie, 'SameSite=Lax'),
+    'HttpOnly und SameSite=Lax sind gesetzt',
+    $cookie,
+);
+
+$ziel = $nutzer->post('/registrieren', [
     'email' => $nutzerEmail,
     'anzeigename' => 'Rauchtest Nutzer',
     'passwort' => 'einsicheres123',
 ]);
+
+pruefe($ziel === '/meine-anzeigen/', 'Die Registrierung geht durch', 'Ziel war: ' . $ziel);
+
+// Ein Formular ohne Token muss abgewiesen werden — und die Fehlerseite muss
+// trotzdem eine Sitzung mitgeben, sonst scheitert auch der naechste Versuch.
+$ohneToken = new BetriebsBrowser($containerFabrik);
+$abweisung = $ohneToken->sendRaw('POST', '/registrieren', ['email' => 'wer@example.tld']);
+
+pruefe($abweisung->status === 400, 'Ein Formular ohne Token wird abgewiesen', 'Status ' . $abweisung->status);
+pruefe(
+    str_contains((string) ($abweisung->headers['set-cookie'] ?? ''), 'rm_session='),
+    'Auch die Fehlerseite gibt eine Sitzung mit',
+    'kein Set-Cookie auf der Fehlerseite',
+);
+pruefe(
+    str_contains((string) ($abweisung->headers['cache-control'] ?? ''), 'no-store'),
+    'HTML-Seiten landen in keinem fremden Zwischenspeicher',
+    'cache-control: ' . (string) ($abweisung->headers['cache-control'] ?? '—'),
+);
 
 $antwort = $nutzer->get('/admin/');
 pruefe(
@@ -128,7 +166,7 @@ if ($konto === null || $konto->id === null) {
 
 $befoerdern->get(VerificationRepository::class)->setRole($konto->id, Role::Admin);
 
-$admin = new SmokeBrowser($containerFabrik);
+$admin = new BetriebsBrowser($containerFabrik);
 $admin->get('/anmelden');
 $ziel = $admin->post('/anmelden', ['email' => $nutzerEmail, 'passwort' => 'einsicheres123']);
 pruefe($ziel !== '', 'Anmeldung als Verwaltung', 'kein Weiterleitungsziel');
@@ -223,7 +261,7 @@ pruefe(
 // ------------------------------------------------- 4) Auskunft und Loeschung
 echo "\nDatenauskunft und Löschung\n";
 
-$kunde = new SmokeBrowser($containerFabrik);
+$kunde = new BetriebsBrowser($containerFabrik);
 $kundeEmail = 'rauchtest-kunde-' . bin2hex(random_bytes(4)) . '@example.tld';
 $kunde->get('/registrieren');
 $kunde->post('/registrieren', [
@@ -344,7 +382,7 @@ if (!$behalten) {
 
 // ------------------------------------------------------------- Hilfsmittel
 
-final class SmokeBrowser
+final class BetriebsBrowser
 {
     private ?string $cookie = null;
 
@@ -409,6 +447,26 @@ final class SmokeBrowser
         ));
 
         return $this->redirectTarget($response, $path);
+    }
+
+    /**
+     * Absenden ohne CSRF-Token und ohne Weiterleitungspruefung — fuer den Fall,
+     * dass genau die Abweisung geprueft werden soll.
+     *
+     * @param array<string, mixed> $body
+     */
+    public function sendRaw(string $method, string $path, array $body): Response
+    {
+        return $this->send(new Request(
+            $method,
+            $path,
+            [],
+            $body,
+            $this->headers(),
+            [],
+            $this->cookies(),
+            '203.0.113.7',
+        ));
     }
 
     private function send(Request $request): Response

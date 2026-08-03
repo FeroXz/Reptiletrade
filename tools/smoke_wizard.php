@@ -207,7 +207,11 @@ $bildAnzahl = (int) $db->scalar("SELECT COUNT(*) FROM listing_media WHERE listin
 $morphString = $container->get(\Reptilienmarkt\Domain\Listing\ListingWizard::class)->morphString($listingId);
 $indexiert = (int) $db->scalar('SELECT COUNT(*) FROM listing_search WHERE rowid = :id', ['id' => $listingId]);
 
-pruefe($status === 'aktiv', 'Status ist "aktiv"', 'Status ist "' . (string) $status . '"');
+// Seit Phase 5 gehen die ersten Anzeigen eines frischen Kontos in die
+// Vorpruefung — genau das passiert hier, denn der Rauchtest legt jedes Mal ein
+// neues Konto an. "aktiv" waere jetzt das falsche Ergebnis: Es hiesse, die
+// Vorpruefung greift nicht.
+pruefe($status === 'pruefung', 'Status ist "pruefung" (Vorprüfung neuer Konten)', 'Status ist "' . (string) $status . '"');
 pruefe($morphAnzahl === 3, 'Drei Merkmale gespeichert', $morphAnzahl . ' Merkmale gespeichert');
 pruefe($bildAnzahl === 1, 'Ein Bild gespeichert', $bildAnzahl . ' Bilder gespeichert');
 pruefe($morphString === 'Hypo Trans het Zero', 'Morph-String "Hypo Trans het Zero"', 'Morph-String "' . $morphString . '"');

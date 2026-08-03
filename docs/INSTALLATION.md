@@ -286,6 +286,7 @@ unter `/admin/`, und im Kopf der Seite erscheint der Punkt „Verwaltung“.
 Weitere Befehle:
 
 ```bash
+php bin/doctor.php                                   # Selbsttest der Installation
 php bin/admin.php liste                              # alle Admins und Moderatoren
 php bin/admin.php ernennen --email=vorhandenes@konto  # bestehendes Konto befördern
 php bin/admin.php passwort --email=du@deine-domain.tld  # Passwort neu setzen
@@ -334,6 +335,18 @@ mehr beschreiben. Deshalb `crontab -u www-data`.
 
 ## 8. Abnahme
 
+Ein Befehl prüft die ganze Installation:
+
+```bash
+php bin/doctor.php
+```
+
+Er geht PHP-Erweiterungen, SQLite-Fähigkeiten, `.env`, Schreibrechte, Datenbank,
+Sitzungen und den Auftragsstand durch und nennt zu jedem Fund den nächsten
+Schritt. Rückgabewert `0` heißt sauber, `1` heißt: mindestens ein echter Fehler.
+
+Danach von Hand:
+
 ```bash
 php bin/migrate.php status        # alles angewandt
 php bin/admin.php liste           # mindestens ein Admin
@@ -349,6 +362,43 @@ Rewrite-Regel — siehe unten.
 ---
 
 ## 9. Typische Fehler und ihre Ursache
+
+### Jedes Formular meldet „Das Formular ist abgelaufen“
+
+Registrierung, Anmeldung, Nachricht — alles endet mit `400`. Das heißt fast nie,
+dass das Formular wirklich zu lange offen lag: Der Browser schickt das
+Sitzungs-Cookie nicht mit, also findet der Server keinen CSRF-Token.
+
+Die Meldung unterscheidet die beiden Fälle. Steht dort „Deine Sitzung ist nicht
+angekommen“, fehlt das Cookie; steht dort „Das Formular ist abgelaufen“, war
+wirklich ein alter Token im Spiel.
+
+Prüfen:
+
+```bash
+php bin/doctor.php                        # Sitzungen schreib-/lesbar?
+grep -c csrf.no_session storage/logs/*.log   # kommt das Cookie nie an?
+```
+
+Mögliche Ursachen:
+
+1. **Ein vorgelagerter Zwischenspeicher** (Varnish, nginx `proxy_cache`, eine
+   aggressive CDN-Regel) legt die HTML-Seite ab und liefert allen Besuchern
+   denselben Token, ohne `Set-Cookie`. Die Anwendung schickt auf jeder
+   HTML-Antwort `Cache-Control: private, no-store` — dieser Kopf darf unterwegs
+   nicht überschrieben werden. HTML gehört hier in keinen gemeinsamen Cache.
+2. **Cookies im Browser blockiert**, etwa in einem strengen privaten Fenster.
+   Das trifft nur einzelne Besucher, nicht alle.
+3. **Uhrzeit des Servers falsch** — läuft sie mehr als einen Tag vor, ist jede
+   neue Sitzung sofort abgelaufen: `timedatectl` prüfen.
+
+> Bis Version vom 04.08.2026 gab es hier eine vierte, häufigere Ursache: Das
+> `Secure`-Flag des Cookies wurde aus `APP_URL` abgeleitet. Stand dort `https`,
+> lief die Seite aber über `http`, verwarf der Browser das Cookie stillschweigend
+> — und **kein einziges Formular** kam je durch. Das Flag hängt jetzt an der
+> tatsächlichen Verbindung. Hinter einem TLS-Proxy setzt es die Anwendung, wenn
+> der Proxy `X-Forwarded-Proto: https` mitschickt; fehlt der Kopf, läuft die
+> Seite trotzdem, nur ohne das zusätzliche Flag.
 
 ### Startseite läuft, jede Unterseite meldet 404
 

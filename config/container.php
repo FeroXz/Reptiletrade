@@ -337,11 +337,13 @@ $container->set(AuthenticationService::class, static fn(Container $c): Authentic
     $c->get(Clock::class),
 ));
 
+// Das Secure-Flag des Cookies kommt nicht mehr aus APP_URL, sondern aus der
+// tatsaechlichen Verbindung — siehe Request::detectSecure().
 $container->set(SessionManager::class, static fn(Container $c): SessionManager => new SessionManager(
     $c->get(SessionRepository::class),
     $c->get(Clock::class),
     1440,
-    str_starts_with(Env::string('APP_URL', 'https://example.tld'), 'https://'),
+    $c->get(Logger::class),
 ));
 
 $container->set(CurrentUser::class, static fn(Container $c): CurrentUser => new CurrentUser(

@@ -9,7 +9,6 @@ use Reptilienmarkt\Domain\Privacy\AccountDeletionService;
 use Reptilienmarkt\Domain\Privacy\DataExportService;
 use Reptilienmarkt\Domain\Privacy\PrivacyException;
 use Reptilienmarkt\Domain\User\UserRepository;
-use Reptilienmarkt\Http\HttpException;
 use Reptilienmarkt\Http\Message\Request;
 use Reptilienmarkt\Http\Message\Response;
 use Reptilienmarkt\Http\Session\SessionManager;
@@ -113,10 +112,6 @@ final readonly class PrivacyController
 
     private function guardCsrf(Request $request): void
     {
-        $token = $request->body['_csrf'] ?? null;
-
-        if (!\is_string($token) || !$this->session->verifyCsrf($token)) {
-            throw HttpException::badRequest('Das Formular ist abgelaufen. Bitte lade die Seite neu.');
-        }
+        $this->session->assertCsrf($request);
     }
 }

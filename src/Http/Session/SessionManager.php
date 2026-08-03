@@ -7,8 +7,11 @@ namespace Reptilienmarkt\Http\Session;
 use DateTimeImmutable;
 use Reptilienmarkt\Domain\Auth\Session;
 use Reptilienmarkt\Domain\Auth\SessionRepository;
+use Reptilienmarkt\Http\HttpException;
 use Reptilienmarkt\Http\Message\Request;
 use Reptilienmarkt\Support\Clock;
+use Reptilienmarkt\Support\Log\Logger;
+use Reptilienmarkt\Support\Log\NullLogger;
 use RuntimeException;
 
 /**
@@ -27,17 +30,23 @@ final class SessionManager
 
     private bool $cookieMustBeSent = false;
 
+    /**
+     * Wird beim Start aus der Anfrage uebernommen. Siehe cookieHeader().
+     */
+    private bool $secureRequest = false;
+
     public function __construct(
         private readonly SessionRepository $repository,
         private readonly Clock $clock,
         private readonly int $lifetimeMinutes = 1440,
-        private readonly bool $secureCookie = true,
+        private readonly Logger $logger = new NullLogger(),
     ) {}
 
     public function start(Request $request): void
     {
         $id = $request->cookies[self::COOKIE_NAME] ?? null;
         $now = $this->clock->now();
+        $this->secureRequest = $request->secure;
 
         if (\is_string($id) && $id !== '') {
             $existing = $this->repository->find($id);
@@ -201,6 +210,49 @@ final class SessionManager
         return hash_equals($expected, $token);
     }
 
+    /**
+     * Prueft den Token eines Formulars und wirft, wenn er nicht stimmt.
+     *
+     * An einer Stelle statt in dreizehn Controllern, weil die Unterscheidung
+     * darunter zaehlt: Ein *abgelaufener* Token ist ein normaler Vorgang — die
+     * Seite lag lange offen. Gar *kein* Token in der Sitzung heisst dagegen,
+     * dass die Sitzung selbst nicht ankommt, und das liegt fast immer am
+     * Cookie. Wer beides gleich beantwortet, schickt den Betreiber auf die
+     * falsche Faehrte.
+     *
+     * @throws HttpException
+     */
+    public function assertCsrf(Request $request): void
+    {
+        $token = $request->body[self::CSRF_KEY] ?? null;
+
+        if (\is_string($token) && $this->verifyCsrf($token)) {
+            return;
+        }
+
+        $vorhanden = \is_string($this->get(self::CSRF_KEY)) && $this->get(self::CSRF_KEY) !== '';
+
+        $this->logger->warning($vorhanden ? 'csrf.token_mismatch' : 'csrf.no_session', [
+            'pfad' => $request->path,
+            'methode' => $request->method,
+            'ip' => $request->clientIp,
+            'cookie_gesendet' => isset($request->cookies[self::COOKIE_NAME]),
+            'verbindung' => $request->secure ? 'https' : 'http',
+        ]);
+
+        if ($vorhanden) {
+            throw HttpException::badRequest(
+                'Das Formular ist abgelaufen. Bitte lade die Seite neu und sende es noch einmal ab.',
+            );
+        }
+
+        throw HttpException::badRequest(
+            'Deine Sitzung ist nicht angekommen. Das passiert, wenn der Browser unser Cookie nicht '
+            . 'annimmt — etwa weil Cookies blockiert sind oder die Seite in einem privaten Fenster '
+            . 'ohne Cookies läuft. Bitte Cookies für diese Seite erlauben und es noch einmal versuchen.',
+        );
+    }
+
     public function commit(): void
     {
         if ($this->session !== null) {
@@ -222,7 +274,14 @@ final class SessionManager
             'SameSite=Lax',
         ];
 
-        if ($this->secureCookie) {
+        // Secure haengt an der tatsaechlichen Verbindung, nicht an einer
+        // Einstellung. Frueher kam das Flag aus APP_URL — stand dort https,
+        // lief die Seite aber ueber http, verwarf der Browser das Cookie
+        // stillschweigend. Ergebnis: bei jeder Anfrage eine neue Sitzung, nie
+        // ein gueltiger CSRF-Token, und jedes Formular endete mit
+        // "Das Formular ist abgelaufen". Eine falsch gesetzte Variable darf
+        // die Anmeldung nicht unmoeglich machen.
+        if ($this->secureRequest) {
             $parts[] = 'Secure';
         }
 

@@ -19,6 +19,7 @@ final class Request
      * @param array<string, string>              $cookies
      * @param array<string, UploadedFile>        $files
      * @param ?string                            $rawBody Ungeparster Rumpf — nur wo er gebraucht wird
+     * @param bool                               $secure  Kam die Anfrage ueber TLS herein?
      */
     public function __construct(
         public readonly string $method,
@@ -31,6 +32,7 @@ final class Request
         public readonly ?string $clientIp = null,
         public readonly array $files = [],
         public readonly ?string $rawBody = null,
+        public readonly bool $secure = false,
     ) {}
 
     /**
@@ -100,7 +102,50 @@ final class Request
             $server['REMOTE_ADDR'] ?? null,
             $files,
             $raw,
+            self::detectSecure($server, $headers),
         );
+    }
+
+    /**
+     * Laeuft die Verbindung ueber TLS?
+     *
+     * Daran haengt das Secure-Flag des Sitzungs-Cookies. Es aus der
+     * tatsaechlichen Verbindung abzuleiten statt aus einer Einstellung ist der
+     * Unterschied zwischen "funktioniert ueberall" und "funktioniert, solange
+     * jemand daran gedacht hat": Ein Secure-Cookie auf einer HTTP-Seite wird
+     * vom Browser verworfen — und ohne Cookie gibt es keine Sitzung, ohne
+     * Sitzung keinen CSRF-Token, und jedes Formular endet mit
+     * "Das Formular ist abgelaufen".
+     *
+     * Die Weiterleitungs-Kopfzeilen eines vorgelagerten Proxys werden dabei
+     * geglaubt. Das ist hier ungefaehrlich: Wer sie faelscht, faelscht sie in
+     * seiner eigenen Anfrage und beschaedigt hoechstens seine eigene Sitzung.
+     * An das Cookie eines anderen kommt er dadurch nicht.
+     *
+     * @param array<string, string> $server
+     * @param array<string, string> $headers
+     */
+    private static function detectSecure(array $server, array $headers): bool
+    {
+        $https = strtolower($server['HTTPS'] ?? '');
+
+        if ($https !== '' && $https !== 'off') {
+            return true;
+        }
+
+        if (($server['REQUEST_SCHEME'] ?? '') === 'https' || ($server['SERVER_PORT'] ?? '') === '443') {
+            return true;
+        }
+
+        $forwarded = strtolower($headers['x-forwarded-proto'] ?? '');
+
+        if ($forwarded !== '') {
+            // Bei mehreren Proxys steht hier eine Liste; der erste Eintrag ist
+            // der Browser.
+            return str_starts_with(trim(explode(',', $forwarded)[0]), 'https');
+        }
+
+        return strtolower($headers['x-forwarded-ssl'] ?? '') === 'on';
     }
 
     public function attribute(string $name, ?string $default = null): ?string
