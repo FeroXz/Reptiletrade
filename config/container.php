@@ -2,30 +2,59 @@
 
 declare(strict_types=1);
 
+use Reptilienmarkt\Domain\Audit\AuditLog;
+use Reptilienmarkt\Domain\Auth\AuthenticationService;
+use Reptilienmarkt\Domain\Auth\PasswordHasher;
+use Reptilienmarkt\Domain\Auth\SessionRepository;
 use Reptilienmarkt\Domain\Geo\PostalCodeRepository;
+use Reptilienmarkt\Domain\Listing\GeneticsCalculator;
+use Reptilienmarkt\Domain\Listing\LegalDocumentRepository;
+use Reptilienmarkt\Domain\Listing\ListingMediaRepository;
+use Reptilienmarkt\Domain\Listing\ListingRepository;
+use Reptilienmarkt\Domain\Listing\ListingWizard;
+use Reptilienmarkt\Domain\Listing\MorphStringGenerator;
 use Reptilienmarkt\Domain\Search\ListingSearchRepository;
 use Reptilienmarkt\Domain\Search\SearchIndex;
 use Reptilienmarkt\Domain\Setting\Settings;
 use Reptilienmarkt\Domain\Species\MorphRepository;
 use Reptilienmarkt\Domain\Species\SpeciesRepository;
+use Reptilienmarkt\Domain\User\UserRepository;
 use Reptilienmarkt\Http\Controller\ApiController;
+use Reptilienmarkt\Http\Controller\AuthController;
+use Reptilienmarkt\Http\Controller\LegalDocumentController;
+use Reptilienmarkt\Http\Controller\ListingController;
+use Reptilienmarkt\Http\Controller\ListingWizardController;
 use Reptilienmarkt\Http\Controller\MarketController;
+use Reptilienmarkt\Http\Controller\MediaController;
 use Reptilienmarkt\Http\Controller\SpeciesController;
 use Reptilienmarkt\Http\Kernel;
+use Reptilienmarkt\Http\Middleware\SessionMiddleware;
 use Reptilienmarkt\Http\Routing\Router;
 use Reptilienmarkt\Http\Search\SearchRequestParser;
+use Reptilienmarkt\Http\Session\CurrentUser;
+use Reptilienmarkt\Http\Session\SessionManager;
+use Reptilienmarkt\Http\Session\Viewer;
 use Reptilienmarkt\Http\View\TwigFactory;
 use Reptilienmarkt\Infra\Persistence\Database;
 use Reptilienmarkt\Infra\Persistence\Migrator;
+use Reptilienmarkt\Infra\Persistence\PdoAuditLog;
+use Reptilienmarkt\Infra\Persistence\PdoLegalDocumentRepository;
 use Reptilienmarkt\Infra\Persistence\PdoLegalTextRepository;
+use Reptilienmarkt\Infra\Persistence\PdoListingMediaRepository;
+use Reptilienmarkt\Infra\Persistence\PdoListingRepository;
 use Reptilienmarkt\Infra\Persistence\PdoMorphRepository;
 use Reptilienmarkt\Infra\Persistence\PdoPostalCodeRepository;
+use Reptilienmarkt\Infra\Persistence\PdoSessionRepository;
 use Reptilienmarkt\Infra\Persistence\PdoSettings;
 use Reptilienmarkt\Infra\Persistence\PdoSpeciesRepository;
+use Reptilienmarkt\Infra\Persistence\PdoUserRepository;
 use Reptilienmarkt\Infra\Search\Fts5SearchIndex;
 use Reptilienmarkt\Infra\Search\ListingIndexer;
 use Reptilienmarkt\Infra\Search\ListingQuery;
 use Reptilienmarkt\Infra\Search\PdoListingSearchRepository;
+use Reptilienmarkt\Infra\Storage\ImagePipeline;
+use Reptilienmarkt\Infra\Storage\PrivateStorage;
+use Reptilienmarkt\Infra\Storage\PublicImageStorage;
 use Reptilienmarkt\Legal\LegalGuard;
 use Reptilienmarkt\Legal\LegalRuleFactory;
 use Reptilienmarkt\Legal\LegalTextRepository;
@@ -168,9 +197,113 @@ $container->set(ApiController::class, static fn(Container $c): ApiController => 
     $c->get(SearchRequestParser::class),
 ));
 
+// ------------------------------------------------------- Konto und Sitzung
+$container->set(UserRepository::class, static fn(Container $c): UserRepository => new PdoUserRepository($c->get(Database::class)));
+$container->set(SessionRepository::class, static fn(Container $c): SessionRepository => new PdoSessionRepository($c->get(Database::class)));
+$container->set(AuditLog::class, static fn(Container $c): AuditLog => new PdoAuditLog($c->get(Database::class)));
+$container->set(PasswordHasher::class, static fn(): PasswordHasher => new PasswordHasher());
+
+$container->set(AuthenticationService::class, static fn(Container $c): AuthenticationService => new AuthenticationService(
+    $c->get(UserRepository::class),
+    $c->get(PasswordHasher::class),
+    $c->get(Clock::class),
+));
+
+$container->set(SessionManager::class, static fn(Container $c): SessionManager => new SessionManager(
+    $c->get(SessionRepository::class),
+    $c->get(Clock::class),
+    1440,
+    str_starts_with(Env::string('APP_URL', 'https://example.tld'), 'https://'),
+));
+
+$container->set(CurrentUser::class, static fn(Container $c): CurrentUser => new CurrentUser(
+    $c->get(SessionManager::class),
+    $c->get(UserRepository::class),
+));
+$container->set(Viewer::class, static fn(Container $c): Viewer => $c->get(CurrentUser::class));
+
+// ------------------------------------------------------ Anzeigen und Ablage
+$container->set(ListingRepository::class, static fn(Container $c): ListingRepository => new PdoListingRepository($c->get(Database::class)));
+$container->set(ListingMediaRepository::class, static fn(Container $c): ListingMediaRepository => new PdoListingMediaRepository($c->get(Database::class)));
+$container->set(LegalDocumentRepository::class, static fn(Container $c): LegalDocumentRepository => new PdoLegalDocumentRepository($c->get(Database::class)));
+$container->set(GeneticsCalculator::class, static fn(): GeneticsCalculator => new MorphStringGenerator());
+
+$container->set(ImagePipeline::class, static fn(): ImagePipeline => new ImagePipeline());
+
+$container->set(PublicImageStorage::class, static fn(): PublicImageStorage => new PublicImageStorage(
+    $root . '/' . ltrim(Env::string('STORAGE_PUBLIC', 'public/uploads'), '/'),
+));
+
+$container->set(PrivateStorage::class, static fn(): PrivateStorage => new PrivateStorage(
+    $root . '/' . ltrim(Env::string('STORAGE_PRIVATE', 'storage/private'), '/'),
+));
+
+$container->set(ListingWizard::class, static fn(Container $c): ListingWizard => new ListingWizard(
+    $c->get(ListingRepository::class),
+    $c->get(ListingMediaRepository::class),
+    $c->get(LegalDocumentRepository::class),
+    $c->get(SpeciesRepository::class),
+    $c->get(PostalCodeRepository::class),
+    $c->get(UserRepository::class),
+    $c->get(LegalGuard::class),
+    $c->get(GeneticsCalculator::class),
+    $c->get(AuditLog::class),
+    $c->get(Clock::class),
+));
+
+$container->set(AuthController::class, static fn(Container $c): AuthController => new AuthController(
+    $c->get(AuthenticationService::class),
+    $c->get(SessionManager::class),
+    $c->get(CurrentUser::class),
+    $c->get(AuditLog::class),
+    $c->get(Environment::class),
+));
+
+$container->set(ListingWizardController::class, static fn(Container $c): ListingWizardController => new ListingWizardController(
+    $c->get(ListingRepository::class),
+    $c->get(ListingMediaRepository::class),
+    $c->get(LegalDocumentRepository::class),
+    $c->get(SpeciesRepository::class),
+    $c->get(MorphRepository::class),
+    $c->get(PostalCodeRepository::class),
+    $c->get(ListingWizard::class),
+    $c->get(ListingIndexer::class),
+    $c->get(Viewer::class),
+    $c->get(SessionManager::class),
+    $c->get(Environment::class),
+));
+
+$container->set(MediaController::class, static fn(Container $c): MediaController => new MediaController(
+    $c->get(ListingRepository::class),
+    $c->get(ListingMediaRepository::class),
+    $c->get(LegalDocumentRepository::class),
+    $c->get(ImagePipeline::class),
+    $c->get(PublicImageStorage::class),
+    $c->get(PrivateStorage::class),
+    $c->get(Viewer::class),
+    $c->get(SessionManager::class),
+));
+
+$container->set(LegalDocumentController::class, static fn(Container $c): LegalDocumentController => new LegalDocumentController(
+    $c->get(LegalDocumentRepository::class),
+    $c->get(ListingRepository::class),
+    $c->get(Viewer::class),
+    $c->get(PrivateStorage::class),
+));
+
+$container->set(ListingController::class, static fn(Container $c): ListingController => new ListingController(
+    $c->get(ListingRepository::class),
+    $c->get(ListingMediaRepository::class),
+    $c->get(SpeciesRepository::class),
+    $c->get(ListingWizard::class),
+    $c->get(Viewer::class),
+    $c->get(Environment::class),
+));
+
 $container->set(Kernel::class, static fn(Container $c): Kernel => new Kernel(
     $c->get(Router::class),
     $c,
+    [new SessionMiddleware($c->get(SessionManager::class))],
     Env::bool('APP_DEBUG'),
 ));
 

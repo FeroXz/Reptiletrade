@@ -1,0 +1,35 @@
+{% extends 'layout/basis.html.twig' %}
+{% block titel %}Registrieren — Reptilienmarkt{% endblock %}
+
+{% block inhalt %}
+    <div class="mx-auto max-w-sm space-y-4">
+        {% include 'partials/meldungen.html.twig' %}
+
+        <form method="post" action="/registrieren" class="karte space-y-3 p-6">
+            <h1 class="text-lg font-semibold">Konto anlegen</h1>
+            <input type="hidden" name="_csrf" value="{{ csrf }}">
+
+            <div>
+                <label class="text-sm" for="anzeigename">Anzeigename</label>
+                <input class="feld" id="anzeigename" type="text" name="anzeigename" required
+                       value="{{ eingaben.anzeigename|default('') }}">
+            </div>
+
+            <div>
+                <label class="text-sm" for="email">E-Mail</label>
+                <input class="feld" id="email" type="email" name="email" required autocomplete="email"
+                       value="{{ eingaben.email|default('') }}">
+            </div>
+
+            <div>
+                <label class="text-sm" for="passwort">Passwort</label>
+                <input class="feld" id="passwort" type="password" name="passwort" required minlength="10"
+                       autocomplete="new-password">
+                <p class="mt-1 text-xs gedaempft">Mindestens 10 Zeichen.</p>
+            </div>
+
+            <button type="submit" class="knopf knopf-primaer w-full justify-center">Konto anlegen</button>
+            <p class="text-sm gedaempft">Schon registriert? <a class="underline" href="/anmelden">Anmelden</a></p>
+        </form>
+    </div>
+{% endblock %}

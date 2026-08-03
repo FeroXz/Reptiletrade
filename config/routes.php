@@ -3,7 +3,12 @@
 declare(strict_types=1);
 
 use Reptilienmarkt\Http\Controller\ApiController;
+use Reptilienmarkt\Http\Controller\AuthController;
+use Reptilienmarkt\Http\Controller\LegalDocumentController;
+use Reptilienmarkt\Http\Controller\ListingController;
+use Reptilienmarkt\Http\Controller\ListingWizardController;
 use Reptilienmarkt\Http\Controller\MarketController;
+use Reptilienmarkt\Http\Controller\MediaController;
 use Reptilienmarkt\Http\Controller\SpeciesController;
 use Reptilienmarkt\Http\Routing\Router;
 
@@ -20,6 +25,34 @@ $router->get('/markt/{art}/{morphs}/{region}/', MarketController::class, 'search
 
 // Artenprofil als Landingpage
 $router->get('/art/{slug}/', SpeciesController::class, 'show', 'art');
+
+// Konto
+$router->get('/registrieren', AuthController::class, 'showRegister', 'registrieren');
+$router->post('/registrieren', AuthController::class, 'register', 'registrieren.absenden');
+$router->get('/anmelden', AuthController::class, 'showLogin', 'anmelden');
+$router->post('/anmelden', AuthController::class, 'login', 'anmelden.absenden');
+$router->post('/abmelden', AuthController::class, 'logout', 'abmelden');
+
+// Anzeigenassistent
+$router->get('/meine-anzeigen/', ListingWizardController::class, 'mine', 'meine-anzeigen');
+$router->get('/anzeige/neu', ListingWizardController::class, 'start', 'anzeige.neu');
+$router->post('/anzeige/neu', ListingWizardController::class, 'create', 'anzeige.anlegen');
+$router->get('/anzeige/{id}/schritt/{schritt}', ListingWizardController::class, 'step', 'anzeige.schritt');
+$router->post('/anzeige/{id}/schritt/{schritt}', ListingWizardController::class, 'save', 'anzeige.schritt.speichern');
+$router->post('/anzeige/{id}/autosave/{schritt}', ListingWizardController::class, 'autosave', 'anzeige.autosave');
+$router->post('/anzeige/{id}/veroeffentlichen', ListingWizardController::class, 'publish', 'anzeige.veroeffentlichen');
+
+// Medien und Nachweise
+$router->post('/anzeige/{id}/bilder', MediaController::class, 'uploadImage', 'anzeige.bild.hochladen');
+$router->post('/anzeige/{id}/bilder/{media}/loeschen', MediaController::class, 'deleteImage', 'anzeige.bild.loeschen');
+$router->post('/anzeige/{id}/bilder/{media}/titelbild', MediaController::class, 'setPrimaryImage', 'anzeige.bild.titel');
+$router->post('/anzeige/{id}/nachweise', MediaController::class, 'uploadLegalDocument', 'anzeige.nachweis.hochladen');
+
+// Rechtsnachweise liegen ausserhalb des Webroots — ausschliesslich hierueber abrufbar.
+$router->get('/nachweis/{id}', LegalDocumentController::class, 'download', 'nachweis.download');
+
+// Oeffentliche Detailseite
+$router->get('/anzeige/{id}/', ListingController::class, 'show', 'anzeige.detail');
 
 // REST-API auf denselben Domain-Services — Grundlage der spaeteren PWA
 $router->get('/api/v1/listings', ApiController::class, 'listings', 'api.listings');

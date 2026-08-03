@@ -1,0 +1,41 @@
+{% extends 'layout/basis.html.twig' %}
+{% block titel %}Meine Anzeigen — Reptilienmarkt{% endblock %}
+
+{% block inhalt %}
+    <div class="mx-auto max-w-3xl space-y-4">
+        {% include 'partials/meldungen.html.twig' %}
+
+        <div class="flex items-center justify-between">
+            <h1 class="text-xl font-semibold">Meine Anzeigen</h1>
+            <a class="knopf knopf-primaer" href="/anzeige/neu">Neue Anzeige</a>
+        </div>
+
+        {% if anzeigen is empty %}
+            <p class="karte p-8 text-center text-sm gedaempft">Noch keine Anzeigen angelegt.</p>
+        {% else %}
+            <ul class="space-y-2">
+                {% for anzeige in anzeigen %}
+                    <li class="karte flex items-center justify-between gap-3 p-4">
+                        <div class="min-w-0">
+                            <p class="truncate text-sm font-medium">{{ anzeige.title|default('(Entwurf ohne Titel)') }}</p>
+                            <p class="text-xs gedaempft">
+                                {{ arten[anzeige.speciesId]|default('Unbekannte Art') }} · {{ anzeige.type.label }} · {{ anzeige.status.label }}
+                            </p>
+                        </div>
+                        <div class="flex shrink-0 gap-2">
+                            {% if anzeige.status.value in ['entwurf', 'pruefung'] %}
+                                <a class="knopf" href="/anzeige/{{ anzeige.id }}/schritt/1">Bearbeiten</a>
+                            {% endif %}
+                            <a class="knopf" href="/anzeige/{{ anzeige.id }}/">Ansehen</a>
+                        </div>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+        <form method="post" action="/abmelden">
+            <input type="hidden" name="_csrf" value="{{ csrf }}">
+            <button class="knopf" type="submit">Abmelden</button>
+        </form>
+    </div>
+{% endblock %}

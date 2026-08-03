@@ -17,6 +17,7 @@ final class Request
      * @param array<string, string>              $headers
      * @param array<string, string>              $attributes Vom Router gefuellte Pfadparameter
      * @param array<string, string>              $cookies
+     * @param array<string, UploadedFile>        $files
      */
     public function __construct(
         public readonly string $method,
@@ -27,7 +28,13 @@ final class Request
         private array $attributes = [],
         public readonly array $cookies = [],
         public readonly ?string $clientIp = null,
+        public readonly array $files = [],
     ) {}
+
+    public function file(string $name): ?UploadedFile
+    {
+        return $this->files[$name] ?? null;
+    }
 
     public static function fromGlobals(): self
     {
@@ -55,6 +62,16 @@ final class Request
         /** @var array<string, string> $cookies */
         $cookies = $_COOKIE;
 
+        $files = [];
+        /** @var array<string, array<string, mixed>> $uploads */
+        $uploads = $_FILES;
+        foreach ($uploads as $name => $entry) {
+            $file = UploadedFile::fromGlobalEntry($entry);
+            if ($file !== null) {
+                $files[$name] = $file;
+            }
+        }
+
         return new self(
             strtoupper($server['REQUEST_METHOD'] ?? 'GET'),
             rawurldecode($path),
@@ -64,6 +81,7 @@ final class Request
             [],
             $cookies,
             $server['REMOTE_ADDR'] ?? null,
+            $files,
         );
     }
 

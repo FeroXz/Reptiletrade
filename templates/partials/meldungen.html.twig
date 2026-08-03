@@ -1,0 +1,9 @@
+{% if meldungen is defined and meldungen is not empty %}
+    <div class="space-y-2">
+        {% for typ, text in meldungen %}
+            <p class="karte px-4 py-2 text-sm {{ typ == 'fehler' ? 'border-red-300 text-red-800' : 'border-primary-300 text-primary-800' }}">
+                {{ text }}
+            </p>
+        {% endfor %}
+    </div>
+{% endif %}

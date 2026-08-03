@@ -1,0 +1,84 @@
+{% extends 'layout/basis.html.twig' %}
+
+{% block titel %}{{ listing.title }} — {{ art.commonNameDe }} — Reptilienmarkt{% endblock %}
+{% block beschreibung %}{{ listing.description|slice(0, 160) }}{% endblock %}
+
+{% block inhalt %}
+    <article class="mx-auto max-w-4xl space-y-5">
+        {% if not listing.status.isPubliclyVisible %}
+            <p class="karte border-amber-300 p-3 text-sm">
+                Diese Anzeige ist noch nicht öffentlich sichtbar (Status: {{ listing.status.label }}).
+            </p>
+        {% endif %}
+
+        {% if medien is not empty %}
+            <div class="grid gap-2 sm:grid-cols-2">
+                {% for bild in medien %}
+                    <img src="/uploads/{{ bild.path }}" alt="{{ listing.title }}" loading="lazy"
+                         class="karte w-full object-cover {{ loop.first ? 'sm:col-span-2 aspect-video' : 'aspect-4/3' }}">
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <header class="karte space-y-1 p-6">
+            <h1 class="text-2xl font-semibold">{{ listing.title }}</h1>
+            <p class="gedaempft">
+                <a class="underline" href="/art/{{ art.slug }}/">{{ art.commonNameDe }}</a>
+                <span class="italic">({{ art.scientificName }})</span>
+            </p>
+            {% if morph_string %}
+                <p class="text-primary-700">{{ morph_string }}</p>
+                <p class="text-xs gedaempft">Genotyp: {{ genotyp }}</p>
+            {% endif %}
+
+            <p class="pt-2 text-xl font-semibold">
+                {% if listing.priceCents %}
+                    {{ (listing.priceCents / 100)|number_format(2, ',', '.') }} {{ listing.currency }}{{ listing.negotiable ? ' VB' : '' }}
+                {% else %}
+                    {{ listing.type.value == 'tausch' ? 'Nur Tausch' : 'Preis auf Anfrage' }}
+                {% endif %}
+            </p>
+        </header>
+
+        <section class="karte p-6">
+            <h2 class="text-base font-semibold">Details</h2>
+            <dl class="mt-3 grid gap-3 sm:grid-cols-3">
+                {% for feld in [
+                    { t: 'Anzeigenart', w: listing.type.label },
+                    { t: 'Geschlecht', w: listing.sex.label },
+                    { t: 'Herkunft', w: listing.cbStatus.label },
+                    { t: 'Schlupfdatum', w: listing.hatchDate ? listing.hatchDate|date('d.m.Y') : '—' },
+                    { t: 'Gewicht', w: listing.weightG ? listing.weightG ~ ' g' : '—' },
+                    { t: 'Anzahl', w: listing.countAvailable },
+                    { t: 'Übergabe', w: listing.handover.label },
+                    { t: 'Standort', w: listing.postalCode ? (listing.country.value ~ '-' ~ listing.postalCode) : '—' }
+                ] %}
+                    <div>
+                        <dt class="text-xs uppercase tracking-wide gedaempft">{{ feld.t }}</dt>
+                        <dd class="text-sm font-medium">{{ feld.w }}</dd>
+                    </div>
+                {% endfor %}
+            </dl>
+        </section>
+
+        {% if listing.description %}
+            <section class="karte p-6">
+                <h2 class="text-base font-semibold">Beschreibung</h2>
+                <p class="mt-2 whitespace-pre-line text-sm">{{ listing.description }}</p>
+            </section>
+        {% endif %}
+
+        {% if listing.tradeWanted %}
+            <section class="karte p-6">
+                <h2 class="text-base font-semibold">Tauschwunsch</h2>
+                <p class="mt-2 text-sm">{{ listing.tradeWanted }}</p>
+            </section>
+        {% endif %}
+
+        {% if ist_eigene %}
+            <p class="text-right">
+                <a class="knopf" href="/meine-anzeigen/">Zu meinen Anzeigen</a>
+            </p>
+        {% endif %}
+    </article>
+{% endblock %}

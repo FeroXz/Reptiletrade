@@ -13,7 +13,7 @@ Architekturentscheidungen (Router, SQLite vs. PostgreSQL, Migrationsstrategie, K
 | 1 | Datenmodell und Migrationen | umgesetzt |
 | 2 | Rechts-Engine (`LegalGuard`) | umgesetzt |
 | 3 | Suche und Browsing | umgesetzt |
-| 4 | Anzeige erstellen | offen |
+| 4 | Anzeige erstellen | umgesetzt |
 | 5 | Nutzer, Vertrauen, Kommunikation | offen |
 | 6 | Monetarisierung (vorbereiten) | offen |
 | 7 | Admin, DSGVO, Betrieb | offen |
@@ -64,6 +64,7 @@ npm install && npm run build
 | `php bin/reindex.php` | Volltextindex vollständig neu aufbauen |
 | `php tools/generate_demo_listings.php --anzahl=50000` | Demo-Anzeigen für Messungen (nicht in Produktion) |
 | `php tools/benchmark_search.php --schreiben` | Suche messen und `docs/SUCHE.md` schreiben |
+| `php tools/smoke_wizard.php [--behalten]` | Abnahme Phase 4: Anzeige komplett anlegen und veröffentlichen |
 
 ## Qualitätssicherung
 
@@ -126,6 +127,47 @@ Die Trefferliste wird serverseitig gerendert. `public/assets/markt.js` fängt Fi
 dieselbe URL erneut und tauscht nur den Ergebnisbereich aus (`history.pushState`). Ohne JavaScript
 funktioniert alles unverändert — jede Facette ist ein echter Link, jeder Filter ein echtes Formular.
 
+## Konto und Sitzung
+
+Eigene Implementierung, kein Fremdpaket. Passwörter mit Argon2id (64 MB, 4 Durchläufe); veraltete
+Kosten werden bei der nächsten Anmeldung stillschweigend nachgezogen. Sitzungen liegen in der Tabelle
+`sessions`, nicht in PHP-Filesessions — die Kennung wird bei jeder Anmeldung neu vergeben, damit eine
+vorher untergeschobene Kennung wertlos ist.
+
+Unbekannte E-Mail und falsches Passwort ergeben dieselbe Meldung und dieselbe Rechenzeit; nach
+`AuthenticationService::MAX_FAILED_ATTEMPTS` Fehlversuchen ist das Konto 15 Minuten gesperrt. Jedes
+Formular trägt einen CSRF-Token, geprüft mit `hash_equals`.
+
+## Anzeigenassistent
+
+Sieben Schritte, jeder speichert sofort in den Entwurf — es gibt keinen Zustand, der nur im Browser
+lebt. Der Fortschritt wird aus dem Entwurf abgeleitet, nicht gespeichert, deshalb nimmt der Assistent
+auch auf einem anderen Gerät an der richtigen Stelle wieder auf. `public/assets/anzeige.js` speichert
+zwischendurch über `/anzeige/{id}/autosave/{schritt}`; ohne JavaScript bleibt jeder Schritt ein
+normales Formular.
+
+Der Morph-String entsteht aus den ausgewählten Merkmalen: sichtbare zuerst, dann `het`, dann
+`66%/50% poss. het` — aus drei Merkmalen wird `Hypo Trans het Zero`. Der Generator liegt hinter
+`GeneticsCalculator`, damit eine spätere Vererbungsrechnung ihn ersetzen kann, ohne den Assistenten
+anzufassen. Er meldet außerdem unmögliche Kombinationen (letale Paarungen, `het` auf einem dominanten
+Merkmal, zwei Merkmale desselben Genorts).
+
+Vor dem Veröffentlichen läuft `LegalGuard`. Die Entscheidung landet in jedem Fall im Audit-Log —
+`listing.published` oder `listing.publish_blocked` mit den auslösenden Regeln.
+
+### Bilder und Rechtsnachweise
+
+Bilder werden **neu gezeichnet statt bearbeitet**: dekodieren, EXIF-Ausrichtung einrechnen, auf eine
+frische Leinwand kopieren, als WebP schreiben. Damit überlebt kein Metadatenblock — weder EXIF mit
+GPS-Koordinaten noch IPTC oder XMP. Der Test dazu baut ein JPEG mit echten GPS-Koordinaten, weist
+nach, dass sie darin stehen, und prüft danach das Ergebnis.
+
+Rechtsnachweise liegen unter `storage/private/` außerhalb des Webroots. Es gibt keine URL, die auf
+eine dieser Dateien zeigt; die Auslieferung läuft ausschließlich über
+`LegalDocumentController::download()`, der erst die Anmeldung, dann die Zugehörigkeit prüft. Ein
+fremdes Dokument beantwortet er mit **404, nicht 403** — ein 403 würde bestätigen, dass es die Datei
+gibt.
+
 ## Datensätze
 
 Alle Datensätze liegen lokal im Repository, zur Laufzeit gibt es keinen API-Aufruf. Herkunft,
@@ -152,5 +194,5 @@ src/Support/  Env, Container
 storage/      db/, private/ (Rechtsdokumente, außerhalb des Webroots)
 templates/    Twig
 tests/
-tools/        Werkzeuge zum Erzeugen der Datensätze (laufen nicht im Betrieb)
+tools/        Werkzeuge für Datensätze, Messungen und Abnahme (laufen nicht im Betrieb)
 ```

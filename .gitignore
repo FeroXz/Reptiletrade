@@ -12,5 +12,6 @@
 /tests/tmp/
 /tools/bin/*.phar
 /storage/cache/
+/storage/smoke/
 /node_modules/
 /package-lock.json

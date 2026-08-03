@@ -1,0 +1,33 @@
+{% extends 'layout/basis.html.twig' %}
+{% block titel %}Anzeige erstellen — Reptilienmarkt{% endblock %}
+
+{% block inhalt %}
+    <div class="mx-auto max-w-xl space-y-4">
+        {% include 'partials/meldungen.html.twig' %}
+
+        <form method="post" action="/anzeige/neu" class="karte space-y-4 p-6">
+            <input type="hidden" name="_csrf" value="{{ csrf }}">
+            <h1 class="text-lg font-semibold">Neue Anzeige</h1>
+            <p class="text-sm gedaempft">Zwei Angaben genügen zum Start — den Rest füllst du Schritt für Schritt aus.</p>
+
+            <label class="block">
+                <span class="text-sm">Anzeigenart</span>
+                <select class="feld" name="typ" required>
+                    {% for typ in typen %}<option value="{{ typ.value }}">{{ typ.label }}</option>{% endfor %}
+                </select>
+            </label>
+
+            <label class="block">
+                <span class="text-sm">Tierart</span>
+                <input class="feld" list="artenliste" name="art_suche" placeholder="z. B. Bartagame"
+                       autocomplete="off" data-art-autocomplete required>
+                <input type="hidden" name="art_id" data-art-id>
+                <datalist id="artenliste"></datalist>
+            </label>
+
+            <button class="knopf knopf-primaer w-full justify-center" type="submit">Entwurf anlegen</button>
+        </form>
+    </div>
+{% endblock %}
+
+{% block skripte %}<script src="/assets/anzeige.js" defer></script>{% endblock %}

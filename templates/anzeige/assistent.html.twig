@@ -1,0 +1,410 @@
+{% extends 'layout/basis.html.twig' %}
+
+{% block titel %}Anzeige erstellen — Schritt {{ schritt.value }}: {{ schritt.label }}{% endblock %}
+
+{% block inhalt %}
+    <div class="mx-auto max-w-3xl space-y-5">
+
+        {# Fortschritt #}
+        <ol class="flex flex-wrap gap-1 text-xs">
+            {% for s in schritte %}
+                {% set fertig = s in erledigt %}
+                <li>
+                    <a class="knopf {{ s == schritt ? 'knopf-primaer' : (fertig ? 'facette-aktiv' : '') }}"
+                       href="/anzeige/{{ listing.id }}/schritt/{{ s.value }}">
+                        {{ s.value }}. {{ s.label }}
+                    </a>
+                </li>
+            {% endfor %}
+        </ol>
+
+        {% include 'partials/meldungen.html.twig' %}
+
+        {% if genetik_warnungen is not empty %}
+            <div class="karte space-y-1 border-amber-300 p-4">
+                <h2 class="text-sm font-semibold">Hinweise zur Genetik</h2>
+                {% for warnung in genetik_warnungen %}
+                    <p class="text-sm">{{ warnung }}</p>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <form method="post" action="/anzeige/{{ listing.id }}/schritt/{{ schritt.value }}"
+              class="karte space-y-4 p-6" data-autosave="/anzeige/{{ listing.id }}/autosave/{{ schritt.value }}">
+            <input type="hidden" name="_csrf" value="{{ csrf }}">
+
+            <header>
+                <h1 class="text-lg font-semibold">Schritt {{ schritt.value }}: {{ schritt.label }}</h1>
+                <p class="text-sm gedaempft">{{ art.commonNameDe }} · <span class="italic">{{ art.scientificName }}</span></p>
+            </header>
+
+            {# ---------------------------------------------------- 1 Typ und Art #}
+            {% if schritt.value == 1 %}
+                <p class="text-sm gedaempft">Anzeigenart und Tierart lassen sich hier noch ändern.</p>
+                <div class="grid gap-3 sm:grid-cols-2">
+                    <label class="block">
+                        <span class="text-sm">Anzeigenart</span>
+                        <select class="feld" name="typ">
+                            {% for typ in typen %}
+                                <option value="{{ typ.value }}" {{ listing.type == typ ? 'selected' : '' }}>{{ typ.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    <label class="block">
+                        <span class="text-sm">Art</span>
+                        <input class="feld" list="artenliste" name="art_suche" value="{{ art.commonNameDe }}"
+                               autocomplete="off" data-art-autocomplete>
+                        <input type="hidden" name="art_id" value="{{ listing.speciesId }}" data-art-id>
+                        <datalist id="artenliste"></datalist>
+                    </label>
+                </div>
+
+            {# ---------------------------------------------------- 2 Merkmale #}
+            {% elseif schritt.value == 2 %}
+                {% if verfuegbare_morphs is empty %}
+                    <p class="text-sm gedaempft">Für diese Art ist noch kein Merkmalskatalog hinterlegt.</p>
+                {% else %}
+                    <p class="text-sm gedaempft">
+                        Wähle je Merkmal die Ausprägung. Aus der Auswahl entsteht automatisch der Morph-String.
+                    </p>
+                    <div class="max-h-96 space-y-1 overflow-y-auto">
+                        {% for morph in verfuegbare_morphs %}
+                            <div class="flex items-center justify-between gap-3 border-b py-1.5" style="border-color: var(--rand)">
+                                <div class="min-w-0">
+                                    <span class="text-sm">{{ morph.name }}</span>
+                                    <span class="ml-1 text-xs gedaempft">{{ morph.inheritance.label }}</span>
+                                    {% if morph.isLethalCombo %}
+                                        <span class="ml-1 text-xs text-amber-700">homozygot letal</span>
+                                    {% endif %}
+                                </div>
+                                <select class="feld w-44" name="morph[{{ morph.id }}]">
+                                    <option value="">— nicht vorhanden —</option>
+                                    {% for zyg in zygositaeten %}
+                                        {% if zyg.value == 'visual' or morph.inheritance.allowsHeterozygous %}
+                                            <option value="{{ zyg.value }}"
+                                                {{ gewaehlte_morphs[morph.id]|default('') == zyg.value ? 'selected' : '' }}>
+                                                {{ zyg.label }}
+                                            </option>
+                                        {% endif %}
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+            {# ---------------------------------------------------- 3 Details #}
+            {% elseif schritt.value == 3 %}
+                <label class="block">
+                    <span class="text-sm">Titel</span>
+                    <input class="feld" name="titel" maxlength="120" required value="{{ listing.title }}">
+                </label>
+
+                <label class="block">
+                    <span class="text-sm">Beschreibung</span>
+                    <textarea class="feld" name="beschreibung" rows="6" maxlength="5000">{{ listing.description }}</textarea>
+                </label>
+
+                <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <label class="block">
+                        <span class="text-sm">Geschlecht</span>
+                        <select class="feld" name="geschlecht">
+                            {% for g in geschlechter %}
+                                <option value="{{ g.value }}" {{ listing.sex == g ? 'selected' : '' }}>{{ g.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    <label class="block">
+                        <span class="text-sm">Schlupfdatum</span>
+                        <input class="feld" type="date" name="schlupfdatum"
+                               value="{{ listing.hatchDate ? listing.hatchDate|date('Y-m-d') : '' }}">
+                    </label>
+                    <label class="block">
+                        <span class="text-sm">Gewicht (g)</span>
+                        <input class="feld" type="number" min="1" name="gewicht" value="{{ listing.weightG }}">
+                    </label>
+                    <label class="block">
+                        <span class="text-sm">Anzahl</span>
+                        <input class="feld" type="number" min="1" name="anzahl" value="{{ listing.countAvailable }}">
+                    </label>
+                </div>
+
+                <label class="block sm:w-1/2">
+                    <span class="text-sm">Herkunft</span>
+                    <select class="feld" name="herkunft">
+                        {% for h in herkuenfte %}
+                            <option value="{{ h.value }}" {{ listing.cbStatus == h ? 'selected' : '' }}>{{ h.label }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+
+            {# ---------------------------------------------------- 4 Bilder #}
+            {% elseif schritt.value == 4 %}
+                <p class="text-sm gedaempft">
+                    Bis zu {{ max_bilder }} Bilder. Sie werden vor dem Hochladen im Browser verkleinert und auf dem
+                    Server neu gezeichnet — dabei gehen alle Metadaten verloren, auch GPS-Koordinaten aus der Kamera.
+                </p>
+
+                {% if medien is not empty %}
+                    <div class="grid grid-cols-3 gap-3 sm:grid-cols-4">
+                        {% for bild in medien %}
+                            <figure class="karte overflow-hidden">
+                                <img src="/uploads/{{ bild.thumbnailPath }}" alt="" class="aspect-square w-full object-cover">
+                                <figcaption class="flex items-center justify-between gap-1 p-1.5 text-xs">
+                                    {% if bild.isPrimary %}
+                                        <span class="text-primary-700">Titelbild</span>
+                                    {% else %}
+                                        <button form="titelbild-{{ bild.id }}" class="underline" type="submit">Titelbild</button>
+                                    {% endif %}
+                                    <button form="loeschen-{{ bild.id }}" class="underline" type="submit">Löschen</button>
+                                </figcaption>
+                            </figure>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+            {# ---------------------------------------------------- 5 Nachweise #}
+            {% elseif schritt.value == 5 %}
+                {% if entscheidung.notices is empty and pflichtfelder is empty %}
+                    <p class="text-sm gedaempft">Für diese Art sind keine besonderen Nachweise nötig.</p>
+                {% endif %}
+
+                {% for hinweis in entscheidung.notices %}
+                    <div class="karte p-4 {{ hinweis.severity.value == 'kritisch' ? 'border-red-300' : '' }}">
+                        <h3 class="text-sm font-semibold">{{ hinweis.title }}</h3>
+                        <p class="mt-1 whitespace-pre-line text-sm">{{ hinweis.body }}</p>
+                        {% if hinweis.sourceReference %}
+                            <p class="mt-1 text-xs gedaempft">{{ hinweis.sourceReference }}</p>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+
+                {% if 'meldung_bestaetigt' in pflichtfelder %}
+                    <label class="flex items-center gap-2 text-sm">
+                        <input type="checkbox" name="meldung_bestaetigt" value="1"
+                            {{ listing.confirmation('meldung_bestaetigt') ? 'checked' : '' }}>
+                        Die Meldung bei der zuständigen Behörde ist erfolgt.
+                    </label>
+                    <label class="block sm:w-1/2">
+                        <span class="text-sm">Datum der Meldung</span>
+                        <input class="feld" type="date" name="meldung_datum"
+                               value="{{ listing.confirmation('meldung_datum') }}">
+                    </label>
+                {% endif %}
+
+                {% if 'kennzeichnung_art' in pflichtfelder %}
+                    <label class="block sm:w-1/2">
+                        <span class="text-sm">Kennzeichnung</span>
+                        <select class="feld" name="kennzeichnung_art">
+                            <option value="">— bitte wählen —</option>
+                            {% for wert, beschriftung in { 'transponder': 'Transponder', 'fotodokumentation': 'Fotodokumentation' } %}
+                                <option value="{{ wert }}"
+                                    {{ listing.confirmation('kennzeichnung_art') == wert ? 'selected' : '' }}>{{ beschriftung }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    <label class="block sm:w-1/2">
+                        <span class="text-sm">Chipnummer (bei Transponder)</span>
+                        <input class="feld" name="kennzeichnung_nummer" value="{{ listing.confirmation('kennzeichnung_nummer') }}">
+                    </label>
+                {% endif %}
+
+                {% for art_nachweis in nachweis_arten %}
+                    {% if ('legal_docs.' ~ art_nachweis.value) in pflichtfelder
+                        or ('legal_docs.' ~ art_nachweis.value ~ '.reference_number') in pflichtfelder %}
+                        <fieldset class="karte space-y-2 p-4">
+                            <legend class="px-1 text-sm font-semibold">{{ art_nachweis.label }}</legend>
+                            {% set vorhanden = null %}
+                            {% for n in nachweise %}{% if n.docType == art_nachweis %}{% set vorhanden = n %}{% endif %}{% endfor %}
+
+                            {% if art_nachweis.requiresReferenceNumber %}
+                                <label class="block">
+                                    <span class="text-sm">Referenznummer</span>
+                                    <input class="feld" name="nachweis_{{ art_nachweis.value }}_nummer"
+                                           value="{{ vorhanden ? vorhanden.referenceNumber : '' }}">
+                                </label>
+                                <label class="block">
+                                    <span class="text-sm">Ausstellende Behörde</span>
+                                    <input class="feld" name="nachweis_{{ art_nachweis.value }}_behoerde"
+                                           value="{{ vorhanden ? vorhanden.issuingAuthority : '' }}">
+                                </label>
+                            {% endif %}
+
+                            <p class="text-xs gedaempft">
+                                {% if vorhanden and vorhanden.hasFile %}
+                                    Datei hinterlegt: <a class="underline" href="/nachweis/{{ vorhanden.id }}">{{ vorhanden.originalFilename }}</a>
+                                    — nur für dich und die Moderation abrufbar.
+                                {% else %}
+                                    Noch keine Datei hinterlegt.
+                                {% endif %}
+                            </p>
+                        </fieldset>
+                    {% endif %}
+                {% endfor %}
+
+            {# ---------------------------------------------------- 6 Preis und Standort #}
+            {% elseif schritt.value == 6 %}
+                <div class="grid gap-3 sm:grid-cols-2">
+                    <label class="block">
+                        <span class="text-sm">Preis</span>
+                        <input class="feld" name="preis" inputmode="decimal"
+                               value="{{ listing.priceCents ? (listing.priceCents / 100)|number_format(2, ',', '') : '' }}">
+                    </label>
+                    <label class="mt-6 flex items-center gap-2 text-sm">
+                        <input type="checkbox" name="verhandelbar" value="1" {{ listing.negotiable ? 'checked' : '' }}>
+                        Verhandelbar
+                    </label>
+                </div>
+
+                <label class="block">
+                    <span class="text-sm">Tauschwunsch</span>
+                    <input class="feld" name="tauschwunsch" value="{{ listing.tradeWanted }}">
+                </label>
+
+                <div class="grid gap-3 sm:grid-cols-3">
+                    <label class="block">
+                        <span class="text-sm">Land</span>
+                        <select class="feld" name="land">
+                            {% for land in laender %}
+                                <option value="{{ land.value }}" {{ listing.country == land ? 'selected' : '' }}>{{ land.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    <label class="block">
+                        <span class="text-sm">Postleitzahl</span>
+                        <input class="feld" name="plz" inputmode="numeric" value="{{ listing.postalCode }}">
+                    </label>
+                    <label class="block">
+                        <span class="text-sm">Übergabe</span>
+                        <select class="feld" name="uebergabe">
+                            {% for u in uebergaben %}
+                                <option value="{{ u.value }}" {{ listing.handover == u ? 'selected' : '' }}>{{ u.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                </div>
+
+            {# ---------------------------------------------------- 7 Vorschau #}
+            {% else %}
+                <div class="space-y-3">
+                    <div>
+                        <h2 class="text-base font-semibold">{{ listing.title|default('(ohne Titel)') }}</h2>
+                        <p class="text-sm gedaempft">{{ art.commonNameDe }}</p>
+                        {% if morph_string %}
+                            <p class="text-sm text-primary-700">{{ morph_string }}</p>
+                            <p class="text-xs gedaempft">Genotyp: {{ genotyp }}</p>
+                        {% endif %}
+                    </div>
+
+                    {% if medien is not empty %}
+                        <div class="grid grid-cols-4 gap-2">
+                            {% for bild in medien|slice(0, 4) %}
+                                <img src="/uploads/{{ bild.thumbnailPath }}" alt="" class="aspect-square w-full rounded object-cover">
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    {% if vollstaendigkeit is not empty %}
+                        <div class="karte border-red-300 p-4">
+                            <h3 class="text-sm font-semibold">Noch offen</h3>
+                            <ul class="mt-1 list-inside list-disc text-sm">
+                                {% for fehler in vollstaendigkeit %}<li>{{ fehler }}</li>{% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+
+                    {% if entscheidung.blocked %}
+                        <div class="karte border-red-300 p-4">
+                            <h3 class="text-sm font-semibold">Die Rechtsprüfung blockiert die Veröffentlichung</h3>
+                            <ul class="mt-1 list-inside list-disc text-sm">
+                                {% for grund in entscheidung.blockingReasons %}
+                                    <li>{{ grund.rule }}: {{ grund.code|replace({'_': ' '}) }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% elseif entscheidung.requiresReview %}
+                        <p class="karte p-4 text-sm">
+                            Diese Anzeige wird nach dem Einreichen von uns geprüft und erst danach freigeschaltet.
+                        </p>
+                    {% endif %}
+                </div>
+            {% endif %}
+
+            {# Navigation #}
+            <div class="flex items-center justify-between gap-3 border-t pt-4" style="border-color: var(--rand)">
+                {% if schritt.previous %}
+                    <a class="knopf" href="/anzeige/{{ listing.id }}/schritt/{{ schritt.previous.value }}">Zurück</a>
+                {% else %}<span></span>{% endif %}
+
+                <div class="flex items-center gap-2">
+                    <span class="text-xs gedaempft" data-autosave-status></span>
+                    {% if schritt.value == 7 %}
+                        <button class="knopf" type="submit">Speichern</button>
+                    {% else %}
+                        <button class="knopf knopf-primaer" type="submit">Weiter</button>
+                    {% endif %}
+                </div>
+            </div>
+        </form>
+
+        {# Formulare ausserhalb des Hauptformulars — HTML erlaubt keine Verschachtelung #}
+        {% if schritt.value == 4 %}
+            <form class="karte space-y-3 p-6" method="post" enctype="multipart/form-data"
+                  action="/anzeige/{{ listing.id }}/bilder" data-bild-upload>
+                <input type="hidden" name="_csrf" value="{{ csrf }}">
+                <label class="block">
+                    <span class="text-sm">Bild hinzufügen</span>
+                    <input class="feld" type="file" name="bild" accept="image/jpeg,image/png,image/webp" required>
+                </label>
+                <button class="knopf knopf-primaer" type="submit">Hochladen</button>
+            </form>
+
+            {% for bild in medien %}
+                <form id="loeschen-{{ bild.id }}" method="post" action="/anzeige/{{ listing.id }}/bilder/{{ bild.id }}/loeschen">
+                    <input type="hidden" name="_csrf" value="{{ csrf }}">
+                </form>
+                {% if not bild.isPrimary %}
+                    <form id="titelbild-{{ bild.id }}" method="post" action="/anzeige/{{ listing.id }}/bilder/{{ bild.id }}/titelbild">
+                        <input type="hidden" name="_csrf" value="{{ csrf }}">
+                    </form>
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+
+        {% if schritt.value == 5 %}
+            <form class="karte space-y-3 p-6" method="post" enctype="multipart/form-data"
+                  action="/anzeige/{{ listing.id }}/nachweise">
+                <input type="hidden" name="_csrf" value="{{ csrf }}">
+                <h2 class="text-sm font-semibold">Nachweis hochladen</h2>
+                <p class="text-xs gedaempft">
+                    Nachweise liegen außerhalb des Webverzeichnisses und sind nur für dich und die Moderation abrufbar.
+                </p>
+                <label class="block">
+                    <span class="text-sm">Art des Nachweises</span>
+                    <select class="feld" name="art">
+                        {% for a in nachweis_arten %}<option value="{{ a.value }}">{{ a.label }}</option>{% endfor %}
+                    </select>
+                </label>
+                <label class="block">
+                    <span class="text-sm">Datei (PDF oder Bild)</span>
+                    <input class="feld" type="file" name="datei" accept="application/pdf,image/*" required>
+                </label>
+                <button class="knopf" type="submit">Hochladen</button>
+            </form>
+        {% endif %}
+
+        {% if schritt.value == 7 %}
+            <form method="post" action="/anzeige/{{ listing.id }}/veroeffentlichen" class="text-right">
+                <input type="hidden" name="_csrf" value="{{ csrf }}">
+                <button class="knopf knopf-primaer" type="submit"
+                    {{ entscheidung.blocked or vollstaendigkeit is not empty ? 'disabled' : '' }}>
+                    {{ entscheidung.requiresReview ? 'Zur Prüfung einreichen' : 'Veröffentlichen' }}
+                </button>
+            </form>
+        {% endif %}
+    </div>
+{% endblock %}
+
+{% block skripte %}
+    <script src="/assets/anzeige.js" defer></script>
+{% endblock %}
