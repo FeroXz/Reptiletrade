@@ -20,6 +20,9 @@ declare(strict_types=1);
 
 use Reptilienmarkt\Domain\Job\JobRunner;
 use Reptilienmarkt\Domain\Job\JobScheduler;
+use Reptilienmarkt\Domain\User\Role;
+use Reptilienmarkt\Domain\User\UserRepository;
+use Reptilienmarkt\Domain\User\VerificationRepository;
 use Reptilienmarkt\Http\Kernel;
 use Reptilienmarkt\Http\Message\Request;
 use Reptilienmarkt\Http\Message\Response;
@@ -113,9 +116,17 @@ pruefe(
 $antwort = $nutzer->get('/admin/artenstamm');
 pruefe($antwort->status === 404, 'Auch der Artenstamm ist fuer Nichtadmins nicht vorhanden', 'Status ' . $antwort->status);
 
-// Dasselbe Konto zum Admin machen — der Weg dorthin fuehrt ueber die Datenbank,
-// nicht ueber eine Oberflaeche. Genau so soll es sein.
-$database->execute("UPDATE users SET role = 'admin' WHERE email_canonical = :email", ['email' => strtolower($nutzerEmail)]);
+// Dasselbe Konto zum Admin machen — ueber denselben Weg wie
+// "php bin/admin.php ernennen". Es gibt keine Oberflaeche dafuer, und das ist
+// Absicht: Der erste Administrator entsteht auf dem Server, nicht im Browser.
+$befoerdern = $containerFabrik();
+$konto = $befoerdern->get(UserRepository::class)->findByEmail($nutzerEmail);
+
+if ($konto === null || $konto->id === null) {
+    fehler('Das eben angelegte Konto ist nicht auffindbar.');
+}
+
+$befoerdern->get(VerificationRepository::class)->setRole($konto->id, Role::Admin);
 
 $admin = new SmokeBrowser($containerFabrik);
 $admin->get('/anmelden');

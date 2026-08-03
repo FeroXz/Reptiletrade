@@ -7,6 +7,7 @@
 !/storage/private/.gitkeep
 /public/uploads/*
 !/public/uploads/.gitkeep
+!/public/uploads/.htaccess
 /.php-cs-fixer.cache
 /.phpunit.cache/
 /tests/tmp/

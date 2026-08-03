@@ -3,6 +3,9 @@
 Verkaufs- und Tauschplattform für Terrarientiere im DACH-Raum. Eigenständige PHP-Anwendung,
 kein CMS-Plugin.
 
+**Installation auf einem Server:** [`docs/INSTALLATION.md`](docs/INSTALLATION.md) — Document Root,
+Rechte, Webserver-Konfiguration, Administratorkonto, Cron, und was bei typischen Fehlern zu tun ist.
+
 Architekturentscheidungen (Router, SQLite vs. PostgreSQL, Migrationsstrategie, Klassenübersicht):
 [`docs/ARCHITEKTUR.md`](docs/ARCHITEKTUR.md).
 
@@ -29,12 +32,18 @@ Repository.
 
 ## Einrichtung
 
+Für einen echten Server: [`docs/INSTALLATION.md`](docs/INSTALLATION.md). Lokal genügt:
+
 ```bash
 composer install
 cp .env.example .env          # APP_ENV=local für die Entwicklung
 php bin/migrate.php up
 php bin/seed.php
+php bin/admin.php anlegen --email=admin@localhost.test
 ```
+
+> **Der Document Root ist `public/`, nicht die Projektwurzel.** Zeigt die Domain eine Ebene zu hoch,
+> sind `.env`, die SQLite-Datei und alle Rechtsnachweise über den Browser abrufbar.
 
 `bin/seed.php` legt Artenstamm, Merkmalskatalog, Postleitzahlen, Rechtstexte und Betriebsschalter an
 (Laufzeit unter einer Sekunde).
@@ -67,6 +76,10 @@ npm install && npm run build
 | `php tools/smoke_wizard.php [--behalten]` | Abnahme Phase 4: Anzeige komplett anlegen und veröffentlichen |
 | `php bin/billing.php status` | Tarife, Boosts und Schalterstellung anzeigen |
 | `php bin/billing.php ablauf` | Abgelaufene Top-Platzierungen und Abos aufräumen |
+| `php bin/admin.php anlegen --email=…` | Verwaltungskonto anlegen (Passwort wird abgefragt) |
+| `php bin/admin.php ernennen --email=…` | Vorhandenes Konto zum Administrator machen |
+| `php bin/admin.php passwort --email=…` | Passwort setzen, offene Sitzungen beenden |
+| `php bin/admin.php liste` | Alle Verwaltungs- und Moderationskonten |
 | `php bin/cron.php` | Fällige wiederkehrende Aufgaben einplanen (ein Cron-Eintrag genügt) |
 | `php bin/cron.php plan` | Den Zeitplan anzeigen |
 | `php bin/cron.php jetzt TYP` | Einen Auftrag von Hand einplanen |
@@ -305,6 +318,12 @@ Rechtsentscheidungen und Moderationsvorgänge und wird **nie** rotiert.
 
 ## Verwaltung
 
+Es gibt **kein voreingestelltes Administratorkonto** und keinen Einrichtungsassistenten im Browser:
+Ein mitgeliefertes Standardpasswort wird vergessen, und eine offene Einrichtungsseite ist so lange
+eine offene Tür, wie sie niemand schließt. Der erste Administrator entsteht auf der Kommandozeile
+mit `php bin/admin.php anlegen --email=…`; wer den Zugang verliert, setzt ihn dort neu. Eine
+Hintertür gibt es nicht.
+
 `/admin/` verlangt die Rolle `admin`; Moderation reicht nicht. Wer keine hat, bekommt 404 statt 403 —
 die Verwaltung muss sich nicht dadurch verraten, dass sie einen Zugriff ablehnt.
 
@@ -371,7 +390,7 @@ Lizenzen und Genauigkeit stehen in [`data/README.md`](data/README.md).
 ## Verzeichnisse
 
 ```
-bin/          CLI: migrate, seed, import_postal_codes, worker, cron, backup
+bin/          CLI: migrate, seed, import_postal_codes, admin, worker, cron, backup
 config/       .env-Laden, Container
 data/         Artenstamm, Merkmalskatalog, Postleitzahlen
 docs/         Architekturplan

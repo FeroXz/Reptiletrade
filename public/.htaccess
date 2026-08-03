@@ -1,0 +1,40 @@
+# Apache-Konfiguration fuer das oeffentliche Verzeichnis.
+#
+# Sie greift nur, wenn der VirtualHost "AllowOverride All" erlaubt. Steht dort
+# die Voreinstellung "AllowOverride None", wird diese Datei stillschweigend
+# ignoriert — dann laeuft die Startseite, und jede Unterseite antwortet 404.
+# Das ist der haeufigste Installationsfehler; siehe docs/INSTALLATION.md.
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Vorhandene Dateien und Verzeichnisse (Assets, Uploads) direkt ausliefern,
+    # alles andere an den Front-Controller. REQUEST_URI bleibt dabei erhalten —
+    # daran haengt das Routing.
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    RewriteRule ^ index.php [L]
+</IfModule>
+
+# Punktdateien (.env, .git, Editor-Reste) sind nie oeffentlich. Im
+# Auslieferungszustand liegt hier ohnehin keine — aber ein versehentlich
+# hierher kopiertes .env waere der Totalschaden.
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css "access plus 1 year"
+    ExpiresByType application/javascript "access plus 1 year"
+    ExpiresByType image/webp "access plus 1 month"
+    ExpiresByType image/jpeg "access plus 1 month"
+</IfModule>
