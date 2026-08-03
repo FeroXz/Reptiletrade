@@ -16,7 +16,7 @@ Architekturentscheidungen (Router, SQLite vs. PostgreSQL, Migrationsstrategie, K
 | 4 | Anzeige erstellen | umgesetzt |
 | 5 | Nutzer, Vertrauen, Kommunikation | umgesetzt |
 | 6 | Monetarisierung (vorbereitet, **nicht aktiviert**) | umgesetzt |
-| 7 | Admin, DSGVO, Betrieb | offen |
+| 7 | Admin, DSGVO, Betrieb | umgesetzt |
 
 ## Voraussetzungen
 
@@ -67,6 +67,12 @@ npm install && npm run build
 | `php tools/smoke_wizard.php [--behalten]` | Abnahme Phase 4: Anzeige komplett anlegen und veröffentlichen |
 | `php bin/billing.php status` | Tarife, Boosts und Schalterstellung anzeigen |
 | `php bin/billing.php ablauf` | Abgelaufene Top-Platzierungen und Abos aufräumen |
+| `php bin/cron.php` | Fällige wiederkehrende Aufgaben einplanen (ein Cron-Eintrag genügt) |
+| `php bin/cron.php plan` | Den Zeitplan anzeigen |
+| `php bin/cron.php jetzt TYP` | Einen Auftrag von Hand einplanen |
+| `php bin/worker.php [--einmal]` | Aufträge abarbeiten |
+| `php bin/backup.php [--ziel=… --behalten=N]` | Datenbank sichern (`VACUUM INTO`) |
+| `php tools/smoke_betrieb.php [--behalten]` | Abnahme Phase 7: Verwaltung, Auskunft, Löschung, Betrieb |
 
 ## Qualitätssicherung
 
@@ -256,6 +262,85 @@ und keine der Pflichten, die daran hängen.
 > Vor dem Umlegen des Schalters gehören AGB, Widerrufsbelehrung und Preisangaben nach PAngV geprüft.
 > Das ist keine Codefrage, und der Code prüft es auch nicht.
 
+## Betrieb
+
+Wiederkehrende Arbeit läuft über eine Auftragstabelle und `bin/worker.php`, nicht über einen
+Message-Broker: Ein Broker wäre ein zweiter Dienst, den jemand betreiben, überwachen und sichern
+müsste — für eine Handvoll Aufgaben pro Stunde ist das kein guter Tausch.
+
+Der Zeitplan steht in `Reptilienmarkt\Domain\Job\JobScheduler` und damit im Code, nicht in der
+Crontab. Auf dem Server genügen zwei Einträge:
+
+```cron
+0  * * * *  php /pfad/bin/cron.php          # fällige Aufgaben einplanen
+*/5 * * * *  php /pfad/bin/worker.php --einmal
+30 2 * * *  php /pfad/bin/backup.php
+```
+
+| Auftrag | Wann | Zweck |
+|---|---|---|
+| `listing.archive` | stündlich | Abgelaufene Anzeigen abschalten |
+| `billing.expire` | stündlich | Abgelaufene Top-Platzierungen und Abos beenden |
+| `retention.enforce` | 03:00 UTC | Aufbewahrungsfristen umsetzen |
+| `media.cleanup` | 04:00 UTC | Verwaiste Bilddateien entfernen |
+| `log.rotate` | 04:00 UTC | Alte Protokolldateien entfernen |
+| `listing.expiry_notice` | 06:00 UTC | Erinnerung an ablaufende Anzeigen (T-7, T-1) |
+| `saved_search.alert` | 07:00 UTC | Treffer zu gespeicherten Suchen melden |
+| `search.reindex` | nur von Hand | Volltextindex neu aufbauen |
+
+Ein fehlgeschlagener Auftrag hält den Worker nicht an: Er wird mit wachsendem Abstand
+(1, 5, 15, 60 Minuten) wiederholt und gilt erst nach aufgebrauchten Versuchen als gescheitert.
+Gescheiterte Aufträge werden **nicht** aufgeräumt — sie stehen im Dashboard und warten auf einen
+Menschen. Bricht ein Worker mitten im Lauf ab, gibt der nächste Lauf den Auftrag nach 30 Minuten
+wieder frei.
+
+Gesichert wird über `VACUUM INTO`, nicht über `cp`: Eine Dateikopie im laufenden Betrieb erwischt
+die Datenbank mitten in einer Transaktion und liefert im WAL-Modus eine Datei ohne das zugehörige
+Write-Ahead-Log. Die Sicherung ist dann still unbrauchbar und fällt erst beim Zurückspielen auf.
+
+Protokolle sind JSON-Zeilen unter `LOG_DIRECTORY`, eine Datei je Tag. Bekannte Geheimnisfelder
+(Passwort, Token, Secret, Cookie, Authorization) werden vor dem Schreiben ersetzt. Der Audit-Trail
+in der Datenbank ist etwas anderes: Er ist per Trigger append-only, dokumentiert
+Rechtsentscheidungen und Moderationsvorgänge und wird **nie** rotiert.
+
+## Verwaltung
+
+`/admin/` verlangt die Rolle `admin`; Moderation reicht nicht. Wer keine hat, bekommt 404 statt 403 —
+die Verwaltung muss sich nicht dadurch verraten, dass sie einen Zugriff ablehnt.
+
+Das Dashboard zeigt zuerst, was auf eine Entscheidung wartet (Meldungen, Anzeigen in Prüfung,
+Nachweise, markierte Nachrichten), dann Bestandszahlen, Anzeigen pro Tag, die meistgehandelten Arten
+und schließlich den Betriebsstand samt Aufbewahrungsfristen und gescheiterten Aufträgen.
+
+Unter `/admin/artenstamm` lassen sich Arten und Merkmale als CSV oder JSON exportieren und wieder
+einlesen. Der Import ist zweistufig: erst die ganze Datei prüfen, dann schreiben. Eine einzige
+beanstandete Zeile verhindert den Import vollständig — beim Schutzstatus ist ein halber Datensatz
+gefährlicher als gar keiner. Zugeordnet wird über den wissenschaftlichen Namen, nicht über die
+Kennung; unbekannte Spalten werden übergangen, damit ein Export aus einer neueren Fassung einlesbar
+bleibt. Ein Probelauf prüft, ohne zu schreiben.
+
+## Datenschutz
+
+`/konto/daten` bündelt beide Betroffenenrechte, ohne Rückfrage und ohne Begründungspflicht:
+
+**Auskunft (Art. 15).** Ein JSON-Download mit allem, was zum Konto gespeichert ist. Nicht enthalten
+sind Passwort-Hash und TOTP-Geheimnis: Das sind Zugangsmittel, keine Daten über die Person, und ihre
+Ausgabe nützte nur jemandem mit übernommener Sitzung.
+
+**Löschung (Art. 17).** Verlangt Passwort **und** das getippte Wort `LÖSCHEN` — eine übernommene
+Sitzung soll kein Konto auslöschen können, und ein Fehlklick wäre unwiderruflich. Gibt es zum Konto
+keine Bewertungen, wird vollständig gelöscht. Gibt es welche, wird **anonymisiert statt gelöscht**:
+Eine Bewertung ist die Aussage über einen Handel mit zwei Beteiligten, und sie mitzulöschen würde die
+Bewertungshistorie der Gegenseite verfälschen. Übrig bleibt ein Konto ohne Namen, Adresse und
+Kontaktdaten; Anzeigen werden abgeschaltet, Bilder und Nachweise gelöscht. Ein laufendes Abo
+blockiert die Löschung, weil es danach nicht mehr kündbar wäre.
+
+Die Fristen stehen in [`config/aufbewahrung.php`](config/aufbewahrung.php) — je Datenart eine, weil
+die Gründe verschieden sind: Rechtsnachweise belegen im Streitfall die Rechtmäßigkeit einer Abgabe
+und liegen zehn Jahre, Identitätsnachweise haben ihren Zweck nach der Prüfung erfüllt und gehen nach
+30 Tagen. Eine Frist von `0` schaltet die jeweilige Löschung ab; das ist eine Betreiberentscheidung,
+kein Fehler.
+
 ## Identitätsquelle
 
 Die Plattform läuft vollständig eigenständig. `IDENTITY_PROVIDER=local` bedient die eigene
@@ -286,7 +371,7 @@ Lizenzen und Genauigkeit stehen in [`data/README.md`](data/README.md).
 ## Verzeichnisse
 
 ```
-bin/          CLI: migrate, seed, import_postal_codes
+bin/          CLI: migrate, seed, import_postal_codes, worker, cron, backup
 config/       .env-Laden, Container
 data/         Artenstamm, Merkmalskatalog, Postleitzahlen
 docs/         Architekturplan

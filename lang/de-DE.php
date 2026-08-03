@@ -150,6 +150,71 @@ return [
     'nachzucht.beschreibung' => 'Beschreibung',
     'nachzucht.zustand' => 'Zustand',
 
+    // ------------------------------------------------------------ Verwaltung
+    'admin.titel' => 'Verwaltung',
+    'admin.artenstamm' => 'Artenstamm',
+    'admin.moderation' => 'Moderation',
+    'admin.zurueck' => 'Zurück zur Übersicht',
+    'admin.offene_meldungen' => 'Offene Meldungen',
+    'admin.anzeigen_pruefung' => 'Anzeigen in Prüfung',
+    'admin.nachweise_offen' => 'Nachweise offen',
+    'admin.markierte_nachrichten' => 'Markierte Nachrichten',
+    'admin.aktive_anzeigen' => 'Aktive Anzeigen',
+    'admin.aktive_konten' => 'Aktive Konten',
+    'admin.neue_konten' => 'Neue Konten (7 Tage)',
+    'admin.anzeigen_pro_tag' => 'Anzeigen pro Tag',
+    'admin.top_arten' => 'Meistgehandelte Arten',
+    'admin.keine_daten' => 'Noch keine Daten.',
+    'admin.rechtstexte' => 'Rechtstexte',
+    'admin.rechtstexte_aktuell' => 'Alle Rechtstexte sind innerhalb der Prüffrist.',
+    'admin.rechtstexte_faellig' => '{anzahl} Texte sind zur Überprüfung fällig.',
+    'admin.nie_geprueft' => 'nie geprüft',
+    'admin.betrieb' => 'Betrieb',
+    'admin.jobs_wartend' => '{anzahl} Aufträge warten',
+    'admin.jobs_fehlgeschlagen' => '{anzahl} fehlgeschlagen',
+    'admin.fristen' => 'Aufbewahrungsfristen',
+    'admin.frist_aus' => 'keine Löschung',
+    'admin.artenstamm_warnung' => 'Der Artenstamm ist die Grundlage der Rechtsprüfung: '
+        . 'Schutzstatus, Melde- und Dokumentationspflicht kommen von hier. Ein falscher Import '
+        . 'ändert nicht nur eine Liste, sondern die Hinweise auf allen betroffenen Anzeigen.',
+    'admin.import_ergebnis' => 'Letzter Import',
+    'admin.import_nichts_geschrieben' => 'Der Import wird erst geschrieben, wenn keine Zeile mehr beanstandet wird.',
+    'admin.arten' => 'Arten',
+    'admin.arten_erklaerung' => 'Wissenschaftlicher Name, Schutzstatus, Abgabegrenzen.',
+    'admin.morphs' => 'Merkmale',
+    'admin.morphs_erklaerung' => 'Farb- und Zeichnungsmerkmale mit Erbgang, jeweils zu einer Art.',
+    'admin.export_csv' => 'Als CSV laden',
+    'admin.export_json' => 'Als JSON laden',
+    'admin.datei' => 'Datei',
+    'admin.format_erkennung' => 'CSV oder JSON. Das Format wird an der Dateiendung erkannt.',
+    'admin.probelauf' => 'Probelauf — nur prüfen, nichts schreiben.',
+    'admin.import_starten' => 'Import starten',
+    'admin.spalten' => 'Erwartete Spalten',
+    'admin.spalten_erklaerung' => 'Zugeordnet wird über die Kopfzeile. Unbekannte Spalten werden übergangen, '
+        . 'ein Export aus einer neueren Fassung bleibt also einlesbar. '
+        . 'Geschrieben wird über den wissenschaftlichen Namen: Vorhandenes wird aktualisiert, Neues angelegt.',
+
+    // ------------------------------------------------------------ Meine Daten
+    'daten.titel' => 'Meine Daten',
+    'daten.zurueck' => 'Zurück zum Konto',
+    'daten.auskunft' => 'Datenauskunft',
+    'daten.auskunft_erklaerung' => 'Du bekommst alles, was zu deinem Konto gespeichert ist, '
+        . 'als JSON-Datei — ohne Rückfrage, ohne Begründung, sofort.',
+    'daten.auskunft_ohne' => 'Nicht enthalten sind Passwort-Hash und Zwei-Faktor-Geheimnis: '
+        . 'Das sind Schlüssel zu deinem Konto, keine Daten über dich.',
+    'daten.auskunft_laden' => 'Auskunft herunterladen',
+    'daten.loeschen' => 'Konto löschen',
+    'daten.anzeigen' => 'Anzeigen',
+    'daten.gespraeche' => 'Gespräche',
+    'daten.bewertungen_erhalten' => 'Erhaltene Bewertungen',
+    'daten.bewertungen_abgegeben' => 'Abgegebene Bewertungen',
+    'daten.unwiderruflich' => 'Die Löschung lässt sich nicht rückgängig machen. '
+        . 'Lade dir vorher deine Auskunft herunter, wenn du deine Daten behalten willst.',
+    'daten.loeschen_oeffnen' => 'Löschung vorbereiten',
+    'daten.passwort' => 'Passwort',
+    'daten.bestaetigung' => 'Tippe LÖSCHEN zur Bestätigung',
+    'daten.loeschen_endgueltig' => 'Konto endgültig löschen',
+
     // ----------------------------------------------------------------- Mail
     'mail.email_verify.betreff' => 'Bitte bestätige deine E-Mail-Adresse',
     'mail.email_verify.text' => "Hallo {name},\n\n"
@@ -167,4 +232,16 @@ return [
     'mail.nachricht.betreff' => 'Neue Nachricht zu deiner Anzeige',
     'mail.nachricht.text' => "Hallo {name},\n\n"
         . "zu \"{anzeige}\" ist eine neue Nachricht eingegangen.\n\n{link}",
+    'mail.ablauf.betreff.eins' => 'Deine Anzeige läuft morgen ab',
+    'mail.ablauf.betreff.viele' => 'Deine Anzeige läuft in {anzahl} Tagen ab',
+    'mail.ablauf.text.eins' => "Hallo {name},\n\n"
+        . "deine Anzeige \"{anzeige}\" läuft morgen ab.\n\n"
+        . "Verlängern oder beenden kannst du sie hier:\n{link}\n",
+    'mail.ablauf.text.viele' => "Hallo {name},\n\n"
+        . "deine Anzeige \"{anzeige}\" läuft in {anzahl} Tagen ab.\n\n"
+        . "Verlängern oder beenden kannst du sie hier:\n{link}\n",
+    'mail.suchtreffer.betreff' => 'Neue Treffer zu "{suche}"',
+    'mail.suchtreffer.text' => "Hallo {name},\n\n"
+        . "zu deiner gespeicherten Suche \"{suche}\" gibt es neue Anzeigen:\n\n{treffer}\n\n"
+        . "Benachrichtigungen ändern: {link}\n",
 ];

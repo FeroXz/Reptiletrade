@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Reptilienmarkt\Http\Controller\AccountController;
+use Reptilienmarkt\Http\Controller\AdminController;
 use Reptilienmarkt\Http\Controller\AnnouncementController;
 use Reptilienmarkt\Http\Controller\ApiController;
 use Reptilienmarkt\Http\Controller\AuthController;
@@ -15,6 +16,7 @@ use Reptilienmarkt\Http\Controller\MediaController;
 use Reptilienmarkt\Http\Controller\MessageController;
 use Reptilienmarkt\Http\Controller\ModerationController;
 use Reptilienmarkt\Http\Controller\PasswordResetController;
+use Reptilienmarkt\Http\Controller\PrivacyController;
 use Reptilienmarkt\Http\Controller\ProfileController;
 use Reptilienmarkt\Http\Controller\ReportController;
 use Reptilienmarkt\Http\Controller\SpeciesController;
@@ -91,6 +93,17 @@ $router->post('/api/v1/zahlungen/webhook', BillingController::class, 'webhook', 
 $router->get('/konto/nachzuchten', AnnouncementController::class, 'index', 'nachzuchten');
 $router->post('/konto/nachzuchten', AnnouncementController::class, 'create', 'nachzuchten.anlegen');
 $router->post('/konto/nachzuchten/{id}/status', AnnouncementController::class, 'changeStatus', 'nachzuchten.status');
+
+// DSGVO: Datenauskunft und Kontoloeschung
+$router->get('/konto/daten', PrivacyController::class, 'show', 'daten');
+$router->get('/konto/daten/export', PrivacyController::class, 'download', 'daten.export');
+$router->post('/konto/loeschen', PrivacyController::class, 'delete', 'konto.loeschen');
+
+// Administration (Rolle admin — Moderation reicht hier nicht)
+$router->get('/admin/', AdminController::class, 'dashboard', 'admin');
+$router->get('/admin/artenstamm', AdminController::class, 'catalog', 'admin.artenstamm');
+$router->get('/admin/artenstamm/{art}/export', AdminController::class, 'exportCatalog', 'admin.artenstamm.export');
+$router->post('/admin/artenstamm/{art}/import', AdminController::class, 'importCatalog', 'admin.artenstamm.import');
 
 // Moderation
 $router->get('/moderation/', ModerationController::class, 'queue', 'moderation');

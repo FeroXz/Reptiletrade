@@ -1,0 +1,77 @@
+{% extends 'layout/basis.html.twig' %}
+{% block titel %}Meine Daten — Reptilienmarkt{% endblock %}
+{% block kopf %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block inhalt %}
+    <div class="mx-auto max-w-2xl space-y-6">
+        {% include 'partials/meldungen.html.twig' %}
+
+        <div class="flex flex-wrap items-baseline justify-between gap-3">
+            <h1 class="text-xl font-semibold">{{ t('daten.titel') }}</h1>
+            <a class="text-sm underline" href="/konto/">{{ t('daten.zurueck') }}</a>
+        </div>
+
+        {# --------------------------------------------------------- Auskunft #}
+        <section class="karte space-y-3 p-6">
+            <h2 class="font-semibold">{{ t('daten.auskunft') }}</h2>
+            <p class="text-sm">{{ t('daten.auskunft_erklaerung') }}</p>
+            <p class="text-sm gedaempft">{{ t('daten.auskunft_ohne') }}</p>
+            <a class="knopf knopf-primaer inline-block" href="/konto/daten/export" download>
+                {{ t('daten.auskunft_laden') }}
+            </a>
+        </section>
+
+        {# --------------------------------------------------------- Loeschung #}
+        <section class="karte space-y-4 p-6">
+            <h2 class="font-semibold">{{ t('daten.loeschen') }}</h2>
+
+            <p class="text-sm">{{ vorschau.explanation }}</p>
+
+            <ul class="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
+                <li class="flex justify-between gap-4">
+                    <span class="gedaempft">{{ t('daten.anzeigen') }}</span>
+                    <span>{{ vorschau.listings }}</span>
+                </li>
+                <li class="flex justify-between gap-4">
+                    <span class="gedaempft">{{ t('daten.gespraeche') }}</span>
+                    <span>{{ vorschau.conversations }}</span>
+                </li>
+                <li class="flex justify-between gap-4">
+                    <span class="gedaempft">{{ t('daten.bewertungen_erhalten') }}</span>
+                    <span>{{ vorschau.reviewsReceived }}</span>
+                </li>
+                <li class="flex justify-between gap-4">
+                    <span class="gedaempft">{{ t('daten.bewertungen_abgegeben') }}</span>
+                    <span>{{ vorschau.reviewsGiven }}</span>
+                </li>
+            </ul>
+
+            <p class="karte border-amber-300 p-4 text-sm">{{ t('daten.unwiderruflich') }}</p>
+
+            {# Zugeklappt, damit das Formular nicht zufaellig unter der Hand
+               ausgefuellt wird — aufklappen ist die erste bewusste Handlung. #}
+            <details x-data="{ offen: false }" @toggle="offen = $event.target.open">
+                <summary class="cursor-pointer text-sm underline">{{ t('daten.loeschen_oeffnen') }}</summary>
+
+                <form method="post" action="/konto/loeschen" class="mt-4 space-y-3">
+                    <input type="hidden" name="_csrf" value="{{ csrf }}">
+
+                    <div>
+                        <label class="text-sm" for="passwort">{{ t('daten.passwort') }}</label>
+                        <input class="feld" id="passwort" type="password" name="passwort"
+                               autocomplete="current-password" required>
+                    </div>
+
+                    <div>
+                        <label class="text-sm" for="bestaetigung">{{ t('daten.bestaetigung') }}</label>
+                        <input class="feld" id="bestaetigung" type="text" name="bestaetigung"
+                               autocomplete="off" autocapitalize="characters" spellcheck="false" required
+                               placeholder="LÖSCHEN">
+                    </div>
+
+                    <button type="submit" class="knopf knopf-warnung">{{ t('daten.loeschen_endgueltig') }}</button>
+                </form>
+            </details>
+        </section>
+    </div>
+{% endblock %}

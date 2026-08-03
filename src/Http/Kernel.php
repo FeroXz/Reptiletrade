@@ -10,6 +10,8 @@ use Reptilienmarkt\Http\Middleware\Middleware;
 use Reptilienmarkt\Http\Routing\Router;
 use Reptilienmarkt\Http\Session\NotAuthenticatedException;
 use Reptilienmarkt\Support\Container;
+use Reptilienmarkt\Support\Log\Logger;
+use Reptilienmarkt\Support\Log\NullLogger;
 use Throwable;
 
 /**
@@ -26,6 +28,7 @@ final readonly class Kernel
         private Container $container,
         private array $middleware = [],
         private bool $debug = false,
+        private Logger $logger = new NullLogger(),
     ) {}
 
     public function handle(Request $request): Response
@@ -98,16 +101,22 @@ final readonly class Kernel
         return $this->error($request, 500, 'Interner Fehler');
     }
 
+    /**
+     * Fehler gehen ins Anwendungsprotokoll, nicht in den Audit-Trail: Der eine
+     * dokumentiert Technik, der andere fachliche Entscheidungen. Wer beides
+     * vermischt, hat entweder ein unbrauchbares Protokoll oder einen wertlosen
+     * Nachweis.
+     */
     private function logError(Request $request, Throwable $exception): void
     {
-        error_log(json_encode([
-            'zeitpunkt' => gmdate('c'),
-            'stufe' => 'error',
+        $this->logger->error('http.unhandled_exception', [
+            'methode' => $request->method,
             'pfad' => $request->path,
             'ausnahme' => $exception::class,
             'meldung' => $exception->getMessage(),
             'datei' => $exception->getFile() . ':' . $exception->getLine(),
-        ], \JSON_UNESCAPED_UNICODE | \JSON_UNESCAPED_SLASHES) ?: $exception->getMessage());
+            'ip' => $request->clientIp,
+        ]);
     }
 
     private function error(Request $request, int $status, string $message): Response

@@ -82,6 +82,14 @@
         color: white;
     }
 
+    /* Fuer Handlungen, die sich nicht zuruecknehmen lassen — Kontoloeschung,
+       endgueltiges Verwerfen. Rot ist hier kein Schmuck, sondern die Warnung. */
+    .knopf-warnung {
+        background: oklch(0.55 0.19 25);
+        border-color: oklch(0.55 0.19 25);
+        color: white;
+    }
+
     .facette-aktiv {
         background: var(--color-primary-50);
         border-color: var(--color-primary-300);

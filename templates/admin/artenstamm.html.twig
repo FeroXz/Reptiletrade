@@ -1,0 +1,80 @@
+{% extends 'layout/basis.html.twig' %}
+{% block titel %}Artenstamm — Reptilienmarkt{% endblock %}
+{% block kopf %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block inhalt %}
+    <div class="mx-auto max-w-4xl space-y-6">
+        {% include 'partials/meldungen.html.twig' %}
+
+        <div class="flex flex-wrap items-baseline justify-between gap-3">
+            <h1 class="text-xl font-semibold">{{ t('admin.artenstamm') }}</h1>
+            <a class="text-sm underline" href="/admin/">{{ t('admin.zurueck') }}</a>
+        </div>
+
+        <p class="karte border-amber-300 p-4 text-sm">{{ t('admin.artenstamm_warnung') }}</p>
+
+        {# Das Ergebnis des letzten Imports. Eine Fehlerliste mit vierzig Zeilen
+           gehoert in die Ansicht, nicht in eine Flash-Meldung. #}
+        {% if ergebnis %}
+            <section class="karte space-y-2 p-6">
+                <h2 class="font-semibold">{{ t('admin.import_ergebnis') }}</h2>
+                <p class="text-sm">{{ ergebnis.meldung }}</p>
+
+                {% if ergebnis.fehler is not empty %}
+                    <ul class="max-h-64 space-y-1 overflow-y-auto text-sm">
+                        {% for fehler in ergebnis.fehler %}
+                            <li class="border-t pt-1" style="border-color: var(--rand)">{{ fehler }}</li>
+                        {% endfor %}
+                    </ul>
+                    <p class="text-sm gedaempft">{{ t('admin.import_nichts_geschrieben') }}</p>
+                {% endif %}
+            </section>
+        {% endif %}
+
+        {% for bereich in [
+            { schluessel: 'arten', titel: t('admin.arten'), erklaerung: t('admin.arten_erklaerung'), spalten: spalten_arten },
+            { schluessel: 'morphs', titel: t('admin.morphs'), erklaerung: t('admin.morphs_erklaerung'), spalten: spalten_morphs }
+        ] %}
+            <section class="karte space-y-4 p-6">
+                <div>
+                    <h2 class="font-semibold">{{ bereich.titel }}</h2>
+                    <p class="text-sm gedaempft">{{ bereich.erklaerung }}</p>
+                </div>
+
+                <div class="flex flex-wrap gap-2">
+                    <a class="knopf" href="/admin/artenstamm/{{ bereich.schluessel }}/export?format=csv">
+                        {{ t('admin.export_csv') }}
+                    </a>
+                    <a class="knopf" href="/admin/artenstamm/{{ bereich.schluessel }}/export?format=json">
+                        {{ t('admin.export_json') }}
+                    </a>
+                </div>
+
+                <form method="post" action="/admin/artenstamm/{{ bereich.schluessel }}/import"
+                      enctype="multipart/form-data" class="space-y-3 border-t pt-4" style="border-color: var(--rand)">
+                    <input type="hidden" name="_csrf" value="{{ csrf }}">
+
+                    <div>
+                        <label class="text-sm" for="datei_{{ bereich.schluessel }}">{{ t('admin.datei') }}</label>
+                        <input class="feld" id="datei_{{ bereich.schluessel }}" type="file" name="datei"
+                               accept=".csv,.json,text/csv,application/json" required>
+                        <p class="mt-1 text-xs gedaempft">{{ t('admin.format_erkennung') }}</p>
+                    </div>
+
+                    <label class="flex items-start gap-2 text-sm">
+                        <input type="checkbox" name="probelauf" value="1" checked>
+                        <span>{{ t('admin.probelauf') }}</span>
+                    </label>
+
+                    <button type="submit" class="knopf knopf-primaer">{{ t('admin.import_starten') }}</button>
+                </form>
+
+                <details class="border-t pt-4 text-sm" style="border-color: var(--rand)">
+                    <summary class="cursor-pointer">{{ t('admin.spalten') }}</summary>
+                    <p class="mt-2 break-words font-mono text-xs">{{ bereich.spalten|join(', ') }}</p>
+                    <p class="mt-2 gedaempft">{{ t('admin.spalten_erklaerung') }}</p>
+                </details>
+            </section>
+        {% endfor %}
+    </div>
+{% endblock %}

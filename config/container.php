@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use Reptilienmarkt\Domain\Admin\DashboardService;
+use Reptilienmarkt\Domain\Admin\SpeciesCatalogService;
 use Reptilienmarkt\Domain\Audit\AuditLog;
 use Reptilienmarkt\Domain\Auth\AuthenticationService;
 use Reptilienmarkt\Domain\Auth\PasswordHasher;
@@ -22,6 +24,10 @@ use Reptilienmarkt\Domain\Breeding\BreedingAnnouncementService;
 use Reptilienmarkt\Domain\Geo\PostalCodeRepository;
 use Reptilienmarkt\Domain\Identity\IdentityProvider;
 use Reptilienmarkt\Domain\Identity\LocalIdentityProvider;
+use Reptilienmarkt\Domain\Job\JobHandler;
+use Reptilienmarkt\Domain\Job\JobRepository;
+use Reptilienmarkt\Domain\Job\JobRunner;
+use Reptilienmarkt\Domain\Job\JobScheduler;
 use Reptilienmarkt\Domain\Listing\GeneticsCalculator;
 use Reptilienmarkt\Domain\Listing\LegalDocumentRepository;
 use Reptilienmarkt\Domain\Listing\ListingMediaRepository;
@@ -34,6 +40,9 @@ use Reptilienmarkt\Domain\Message\MessageRepository;
 use Reptilienmarkt\Domain\Message\MessagingService;
 use Reptilienmarkt\Domain\Moderation\ReportRepository;
 use Reptilienmarkt\Domain\Moderation\ReportService;
+use Reptilienmarkt\Domain\Privacy\AccountDeletionService;
+use Reptilienmarkt\Domain\Privacy\DataExportService;
+use Reptilienmarkt\Domain\Privacy\RetentionPolicy;
 use Reptilienmarkt\Domain\Review\ReviewRepository;
 use Reptilienmarkt\Domain\Review\ReviewService;
 use Reptilienmarkt\Domain\Search\ListingSearchRepository;
@@ -54,6 +63,7 @@ use Reptilienmarkt\Domain\User\UserDocumentRepository;
 use Reptilienmarkt\Domain\User\UserRepository;
 use Reptilienmarkt\Domain\User\VerificationRepository;
 use Reptilienmarkt\Http\Controller\AccountController;
+use Reptilienmarkt\Http\Controller\AdminController;
 use Reptilienmarkt\Http\Controller\AnnouncementController;
 use Reptilienmarkt\Http\Controller\ApiController;
 use Reptilienmarkt\Http\Controller\AuthController;
@@ -66,6 +76,7 @@ use Reptilienmarkt\Http\Controller\MediaController;
 use Reptilienmarkt\Http\Controller\MessageController;
 use Reptilienmarkt\Http\Controller\ModerationController;
 use Reptilienmarkt\Http\Controller\PasswordResetController;
+use Reptilienmarkt\Http\Controller\PrivacyController;
 use Reptilienmarkt\Http\Controller\ProfileController;
 use Reptilienmarkt\Http\Controller\ReportController;
 use Reptilienmarkt\Http\Controller\SpeciesController;
@@ -78,6 +89,14 @@ use Reptilienmarkt\Http\Session\SessionManager;
 use Reptilienmarkt\Http\Session\Viewer;
 use Reptilienmarkt\Http\View\TwigFactory;
 use Reptilienmarkt\Http\View\ViewContext;
+use Reptilienmarkt\Infra\Job\Handler\BoostExpiryHandler;
+use Reptilienmarkt\Infra\Job\Handler\ListingArchiveHandler;
+use Reptilienmarkt\Infra\Job\Handler\ListingExpiryNoticeHandler;
+use Reptilienmarkt\Infra\Job\Handler\LogRotationHandler;
+use Reptilienmarkt\Infra\Job\Handler\MediaCleanupHandler;
+use Reptilienmarkt\Infra\Job\Handler\RetentionHandler;
+use Reptilienmarkt\Infra\Job\Handler\SavedSearchAlertHandler;
+use Reptilienmarkt\Infra\Job\Handler\SearchReindexHandler;
 use Reptilienmarkt\Infra\Mail\FileMailer;
 use Reptilienmarkt\Infra\Mail\SendmailMailer;
 use Reptilienmarkt\Infra\Payment\NullPaymentProvider;
@@ -89,6 +108,7 @@ use Reptilienmarkt\Infra\Persistence\PdoBoostRepository;
 use Reptilienmarkt\Infra\Persistence\PdoBreederProfileRepository;
 use Reptilienmarkt\Infra\Persistence\PdoBreedingAnnouncementRepository;
 use Reptilienmarkt\Infra\Persistence\PdoConversationRepository;
+use Reptilienmarkt\Infra\Persistence\PdoJobRepository;
 use Reptilienmarkt\Infra\Persistence\PdoLegalDocumentRepository;
 use Reptilienmarkt\Infra\Persistence\PdoLegalTextRepository;
 use Reptilienmarkt\Infra\Persistence\PdoListingMediaRepository;
@@ -123,6 +143,9 @@ use Reptilienmarkt\Legal\LegalTextReview;
 use Reptilienmarkt\Support\Clock;
 use Reptilienmarkt\Support\Container;
 use Reptilienmarkt\Support\Env;
+use Reptilienmarkt\Support\Log\JsonLogger;
+use Reptilienmarkt\Support\Log\Logger;
+use Reptilienmarkt\Support\Log\LogLevel;
 use Reptilienmarkt\Support\SystemClock;
 use Reptilienmarkt\Support\Translator;
 use Twig\Environment;
@@ -164,6 +187,23 @@ $container->set(LegalTextRepository::class, static fn(Container $c): LegalTextRe
 $container->set(Settings::class, static fn(Container $c): Settings => new PdoSettings($c->get(Database::class)));
 
 $container->set(Clock::class, static fn(): Clock => new SystemClock(Env::string('APP_TIMEZONE', 'Europe/Berlin')));
+
+// Anwendungsprotokoll — getrennt vom Audit-Trail. Eine Datei je Tag, damit
+// die Rotation ueberhaupt etwas zum Aufraeumen hat.
+$container->set('paths.logs', static fn(): string => $root . '/' . ltrim(Env::string('LOG_DIRECTORY', 'storage/logs'), '/'));
+
+$container->set(Logger::class, static fn(Container $c): Logger => new JsonLogger(
+    $c->get('paths.logs') . '/app-' . gmdate('Y-m-d') . '.log',
+    LogLevel::tryFrom(Env::string('LOG_LEVEL', 'info')) ?? LogLevel::Info,
+    Env::string('APP_ENV', 'production'),
+));
+
+$container->set(RetentionPolicy::class, static function (Container $c) use ($root): RetentionPolicy {
+    /** @var array<string, mixed> $config */
+    $config = require $root . '/config/aufbewahrung.php';
+
+    return new RetentionPolicy($config, $c->get(Clock::class));
+});
 
 // Die Plattform laeuft ohne fremde Identitaetsquelle. Ein anderer Wert als
 // "local" braucht eine eigene Umsetzung des Interfaces — bis dahin ist ein
@@ -647,11 +687,132 @@ $container->set(AnnouncementController::class, static fn(Container $c): Announce
     $c->get(Environment::class),
 ));
 
+// ------------------------------------------- Auftraege und Betrieb (Phase 7)
+$container->set(JobRepository::class, static fn(Container $c): JobRepository => new PdoJobRepository($c->get(Database::class)));
+
+/**
+ * Die Handler. Der Schluessel ist der Auftragstyp — dieselbe Zeichenkette,
+ * die in der Tabelle steht und die der Scheduler einplant.
+ *
+ * @return array<string, JobHandler>
+ */
+$container->set('jobs.handlers', static function (Container $c) use ($root): array {
+    $handlers = [
+        new ListingExpiryNoticeHandler(
+            $c->get(Database::class),
+            $c->get(Mailer::class),
+            $c->get(RetentionPolicy::class),
+            $c->get(Translator::class),
+            $c->get(Clock::class),
+            Env::string('APP_URL', 'https://example.tld'),
+        ),
+        new ListingArchiveHandler($c->get(Database::class), $c->get(ListingIndexer::class), $c->get(Clock::class)),
+        new SavedSearchAlertHandler(
+            $c->get(Database::class),
+            $c->get(Mailer::class),
+            $c->get(Translator::class),
+            $c->get(Clock::class),
+            Env::string('APP_URL', 'https://example.tld'),
+        ),
+        new MediaCleanupHandler(
+            $c->get(Database::class),
+            $root . '/' . ltrim(Env::string('STORAGE_PUBLIC', 'public/uploads'), '/'),
+            $c->get(Logger::class),
+        ),
+        new RetentionHandler(
+            $c->get(Database::class),
+            $c->get(RetentionPolicy::class),
+            $c->get(PrivateStorage::class),
+            $c->get(Logger::class),
+        ),
+        new BoostExpiryHandler($c->get(BoostService::class), $c->get(BillingService::class)),
+        new SearchReindexHandler($c->get(ListingIndexer::class)),
+        new LogRotationHandler($c->get('paths.logs'), $c->get(RetentionPolicy::class)),
+    ];
+
+    $indiziert = [];
+    foreach ($handlers as $handler) {
+        $indiziert[$handler->type()] = $handler;
+    }
+
+    return $indiziert;
+});
+
+$container->set(JobRunner::class, static function (Container $c): JobRunner {
+    /** @var array<string, JobHandler> $handlers */
+    $handlers = $c->get('jobs.handlers');
+
+    return new JobRunner(
+        $c->get(JobRepository::class),
+        $handlers,
+        $c->get(Clock::class),
+        $c->get(Logger::class),
+        // Die Worker-Kennung macht im Protokoll unterscheidbar, wer was
+        // angefasst hat.
+        gethostname() . ':' . getmypid(),
+    );
+});
+
+$container->set(JobScheduler::class, static fn(Container $c): JobScheduler => new JobScheduler(
+    $c->get(JobRepository::class),
+    $c->get(Clock::class),
+));
+
+// ------------------------------------------------------------------ DSGVO
+$container->set(DataExportService::class, static fn(Container $c): DataExportService => new DataExportService(
+    $c->get(Database::class),
+    $c->get(AuditLog::class),
+    $c->get(Clock::class),
+));
+
+$container->set(AccountDeletionService::class, static fn(Container $c): AccountDeletionService => new AccountDeletionService(
+    $c->get(Database::class),
+    $c->get(PublicImageStorage::class),
+    $c->get(PrivateStorage::class),
+    $c->get(AuditLog::class),
+    $c->get(Clock::class),
+));
+
+$container->set(PrivacyController::class, static fn(Container $c): PrivacyController => new PrivacyController(
+    $c->get(DataExportService::class),
+    $c->get(AccountDeletionService::class),
+    $c->get(UserRepository::class),
+    $c->get(PasswordHasher::class),
+    $c->get(Viewer::class),
+    $c->get(SessionManager::class),
+    $c->get(Environment::class),
+));
+
+// -------------------------------------------------------------- Verwaltung
+$container->set(DashboardService::class, static fn(Container $c): DashboardService => new DashboardService(
+    $c->get(Database::class),
+    $c->get(JobRepository::class),
+    $c->get(LegalTextReview::class),
+    $c->get(Clock::class),
+));
+
+$container->set(SpeciesCatalogService::class, static fn(Container $c): SpeciesCatalogService => new SpeciesCatalogService(
+    $c->get(SpeciesRepository::class),
+    $c->get(MorphRepository::class),
+    $c->get(AuditLog::class),
+));
+
+$container->set(AdminController::class, static fn(Container $c): AdminController => new AdminController(
+    $c->get(DashboardService::class),
+    $c->get(SpeciesCatalogService::class),
+    $c->get(JobRepository::class),
+    $c->get(RetentionPolicy::class),
+    $c->get(Viewer::class),
+    $c->get(SessionManager::class),
+    $c->get(Environment::class),
+));
+
 $container->set(Kernel::class, static fn(Container $c): Kernel => new Kernel(
     $c->get(Router::class),
     $c,
     [new SessionMiddleware($c->get(SessionManager::class))],
     Env::bool('APP_DEBUG'),
+    $c->get(Logger::class),
 ));
 
 return $container;

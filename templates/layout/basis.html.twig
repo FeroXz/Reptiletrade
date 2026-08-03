@@ -37,6 +37,9 @@
                 {% if betrachter.isModerator %}
                     <a href="/moderation/">Moderation</a>
                 {% endif %}
+                {% if betrachter.isAdmin %}
+                    <a href="/admin/">{{ t('admin.titel') }}</a>
+                {% endif %}
             {% else %}
                 <a href="/anmelden">Anmelden</a>
                 <a href="/registrieren" class="knopf">Registrieren</a>

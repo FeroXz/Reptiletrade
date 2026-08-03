@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Reptilienmarkt\Http\View;
 
 use Reptilienmarkt\Domain\Message\ConversationRepository;
+use Reptilienmarkt\Domain\User\Role;
 use Reptilienmarkt\Domain\User\User;
 use Reptilienmarkt\Http\Session\Viewer;
 
@@ -40,6 +41,15 @@ final class ViewContext
     public function isModerator(): bool
     {
         return $this->viewer->get()?->isModerator() ?? false;
+    }
+
+    /**
+     * Getrennt von isModerator: Die Verwaltung darf mehr als die Moderation,
+     * und der Verweis darauf soll nur dort auftauchen, wo er auch traegt.
+     */
+    public function isAdmin(): bool
+    {
+        return $this->viewer->get()?->role === Role::Admin;
     }
 
     public function unreadMessages(): int
