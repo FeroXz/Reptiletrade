@@ -15,7 +15,7 @@ Architekturentscheidungen (Router, SQLite vs. PostgreSQL, Migrationsstrategie, K
 | 3 | Suche und Browsing | umgesetzt |
 | 4 | Anzeige erstellen | umgesetzt |
 | 5 | Nutzer, Vertrauen, Kommunikation | umgesetzt |
-| 6 | Monetarisierung (vorbereiten) | offen |
+| 6 | Monetarisierung (vorbereitet, **nicht aktiviert**) | umgesetzt |
 | 7 | Admin, DSGVO, Betrieb | offen |
 
 ## Voraussetzungen
@@ -65,6 +65,8 @@ npm install && npm run build
 | `php tools/generate_demo_listings.php --anzahl=50000` | Demo-Anzeigen für Messungen (nicht in Produktion) |
 | `php tools/benchmark_search.php --schreiben` | Suche messen und `docs/SUCHE.md` schreiben |
 | `php tools/smoke_wizard.php [--behalten]` | Abnahme Phase 4: Anzeige komplett anlegen und veröffentlichen |
+| `php bin/billing.php status` | Tarife, Boosts und Schalterstellung anzeigen |
+| `php bin/billing.php ablauf` | Abgelaufene Top-Platzierungen und Abos aufräumen |
 
 ## Qualitätssicherung
 
@@ -212,6 +214,48 @@ Anhang B). Eigene Umsetzung statt Fremdpaket: dreißig Zeilen Kern, seit 2011 un
 Schnittstelle — und eine Abhängigkeit weniger genau im Anmeldeweg. Scharf wird die zweite Stufe erst,
 wenn ein Code aus der App stimmt; abschalten geht nur mit Passwort.
 
+## Monetarisierung — vorbereitet, nicht aktiviert
+
+`config/monetarisierung.php` steht auf `enabled => false`, der Zahlungsanbieter ist `keiner`. In
+diesem Zustand verhält sich die Plattform wie vorher: **keine Begrenzung der Anzeigenzahl, alle
+Merkmale offen, kein Kauf möglich**. Umgelegt wird ein Schalter, nicht ein Umbau — das Setting
+`billing.enabled` sticht die Datei, damit der Betreiber ohne Deployment ein- und ausschalten kann.
+
+`EntitlementService` ist die einzige Stelle, die den Schalter auswertet. Der Rest der Anwendung
+fragt nur „darf dieses Konto das?" und nie nach Tarif oder Abo.
+
+| | Kostenlos | Züchter |
+|---|---|---|
+| Preis | 0 € | 9,90 €/Monat, 99 €/Jahr |
+| Aktive Anzeigen | 3 | unbegrenzt |
+| Laufzeit je Anzeige | 60 Tage | 90 Tage |
+| Bilder je Anzeige | 12 | 24 |
+| Profilseite, Statistiken, Nachzucht-Ankündigungen | — | ja |
+
+Top-Platzierung: 7 Tage 4,90 €, 14 Tage 7,90 €, 30 Tage 14,90 €. Der Boost setzt
+`listings.is_featured`, wonach die Trefferliste sortiert — bewusst denormalisiert, weil ein Join auf
+die Boost-Tabelle den in Phase 3 gemessenen Abfrageplan zerstören würde. Der Preis dieser
+Entscheidung ist, dass abgelaufene Boosts aktiv abgeräumt werden müssen: `bin/billing.php ablauf`,
+später ein Job.
+
+**Zahlungsablauf.** Erst entsteht ein offener Beleg, dann führt die Rückmeldung des Anbieters ihn auf
+„bezahlt". Freigeschaltet wird ausschließlich über diese Rückmeldung, **nie** über die Rückkehr des
+Browsers von der Bezahlseite — die lässt sich aufrufen, ohne bezahlt zu haben. Mehrfachzustellung
+eines Webhooks ist der Normalfall und nicht die Ausnahme, deshalb ist die Verarbeitung idempotent.
+
+`PaymentProvider` ist bewusst schmal: Bezahlseite eröffnen, Rückmeldung entgegennehmen, Abo beenden.
+`NullPaymentProvider` ist die Voreinstellung und lehnt jeden Vorgang mit klarer Meldung ab — eine
+versehentlich freigeschaltete Kaufseite führt damit zu einem sichtbaren Fehler statt zu einer halb
+angelegten Bestellung. `StripePaymentProvider` liegt als Referenz bei, ohne SDK und ohne Aktivierung;
+die Webhook-Signatur wird nach Stripes Schema geprüft, alte Zeitstempel werden abgewiesen.
+
+**Kein Treuhandservice in v1.** Die Plattform nimmt kein Geld für Tierverkäufe entgegen, sondern nur
+für eigene Leistungen. Damit gibt es keine Zahlung zwischen Nutzern, die abgesichert werden müsste —
+und keine der Pflichten, die daran hängen.
+
+> Vor dem Umlegen des Schalters gehören AGB, Widerrufsbelehrung und Preisangaben nach PAngV geprüft.
+> Das ist keine Codefrage, und der Code prüft es auch nicht.
+
 ## Identitätsquelle
 
 Die Plattform läuft vollständig eigenständig. `IDENTITY_PROVIDER=local` bedient die eigene
@@ -252,6 +296,7 @@ src/Domain/   Entitäten, Value Objects, Repository-Interfaces (framework- und P
               Auth, Listing, Message, Moderation, Review, Trust, User, ...
 src/Infra/    PDO-Repositories, Importer
 src/Http/     Controller, Middleware
+src/Infra/Payment/  Zahlungsanbieter (Null und Stripe als Referenz)
 src/Legal/    LegalGuard und Regelwerk
 src/Support/  Env, Container
 lang/         Sprachkataloge, de-DE als Basis

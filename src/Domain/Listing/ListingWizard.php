@@ -6,6 +6,7 @@ namespace Reptilienmarkt\Domain\Listing;
 
 use Reptilienmarkt\Domain\Audit\AuditEntry;
 use Reptilienmarkt\Domain\Audit\AuditLog;
+use Reptilienmarkt\Domain\Billing\EntitlementService;
 use Reptilienmarkt\Domain\Geo\Country;
 use Reptilienmarkt\Domain\Geo\PostalCodeRepository;
 use Reptilienmarkt\Domain\Species\SpeciesRepository;
@@ -45,6 +46,7 @@ final readonly class ListingWizard
         private AuditLog $audit,
         private Clock $clock,
         private AutoModerationPolicy $autoModeration = new AutoModerationPolicy(),
+        private ?EntitlementService $entitlements = null,
     ) {}
 
     /**
@@ -178,6 +180,14 @@ final readonly class ListingWizard
     public function publish(Listing $listing, User $user, ?string $ipAddress = null): PublishResult
     {
         $errors = $this->completenessErrors($listing);
+
+        // Tarifgrenze (Phase 6). Bei abgeschalteter Monetarisierung liefert
+        // der Dienst nie einen Grund — die Zeile ist dann wirkungslos.
+        $blocker = $this->entitlements?->publishBlocker($user);
+        if ($blocker !== null) {
+            $errors[] = $blocker;
+        }
+
         $decision = $this->evaluate($listing, $user);
 
         if ($errors !== [] || $decision->blocked) {
@@ -226,7 +236,7 @@ final readonly class ListingWizard
             $listing->longitude,
             $listing->handover,
             $listing->legalConfirmations,
-            $this->clock->now()->modify(\sprintf('+%d days', self::FREE_RUNTIME_DAYS)),
+            $this->clock->now()->modify(\sprintf('+%d days', $this->runtimeDays($user))),
         ));
 
         $this->listings->updateStatus($listing->id ?? 0, $status);
@@ -241,6 +251,15 @@ final readonly class ListingWizard
         ));
 
         return new PublishResult(true, $status, $decision, autoModerated: $autoReview);
+    }
+
+    /**
+     * Laufzeit der Anzeige. Ohne Monetarisierung sind es die 60 Tage des
+     * Grundtarifs, mit Abo die Laufzeit des gebuchten Tarifs.
+     */
+    public function runtimeDays(User $user): int
+    {
+        return $this->entitlements?->forUser($user)->runtimeDays ?? self::FREE_RUNTIME_DAYS;
     }
 
     /**

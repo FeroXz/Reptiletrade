@@ -1,0 +1,103 @@
+{% extends 'layout/basis.html.twig' %}
+{% block titel %}Abrechnung — Reptilienmarkt{% endblock %}
+{% block kopf %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block inhalt %}
+    <div class="mx-auto max-w-3xl space-y-6">
+        {% include 'partials/meldungen.html.twig' %}
+
+        <h1 class="text-xl font-semibold">{{ t('abrechnung.titel') }}</h1>
+
+        {% if not aktiviert %}
+            <p class="karte border-amber-300 p-4 text-sm">
+                <strong>{{ t('tarife.vorschau') }}</strong> {{ t('abrechnung.nicht_aktiv') }}
+            </p>
+        {% endif %}
+
+        {# ------------------------------------------------------ Aktueller Tarif #}
+        <section class="karte space-y-3 p-6">
+            <div class="flex flex-wrap items-baseline justify-between gap-2">
+                <h2 class="font-semibold">{{ t('abrechnung.tarif') }}</h2>
+                <span class="text-sm">{{ rechte.plan.name }}</span>
+            </div>
+
+            <ul class="space-y-1 text-sm gedaempft">
+                <li>
+                    {% if rechte.unlimitedListings %}
+                        {{ t('abrechnung.anzeigen_unbegrenzt', {'anzahl': aktive_anzeigen}) }}
+                    {% else %}
+                        {{ t('abrechnung.anzeigen_von', {
+                            'anzahl': aktive_anzeigen,
+                            'grenze': rechte.maxActiveListings
+                        }) }}
+                    {% endif %}
+                </li>
+                <li>{{ t('tarife.laufzeit', {'tage': rechte.runtimeDays}) }}</li>
+                <li>{{ t('tarife.bilder', {'anzahl': rechte.maxImages}) }}</li>
+            </ul>
+
+            {% if abo %}
+                <div class="border-t pt-3 text-sm" style="border-color: var(--rand)">
+                    <p>
+                        {{ abo.status.label }} —
+                        {{ t('abrechnung.laeuft_bis', {'datum': abo.currentPeriodEnd.format('d.m.Y')}) }}
+                    </p>
+
+                    {% if abo.renewsAutomatically %}
+                        <form method="post" action="/konto/abrechnung/kuendigen" class="mt-2">
+                            <input type="hidden" name="_csrf" value="{{ csrf }}">
+                            <button type="submit" class="knopf">{{ t('abrechnung.kuendigen') }}</button>
+                        </form>
+                        <p class="mt-1 text-xs gedaempft">{{ t('abrechnung.kuendigung_hinweis') }}</p>
+                    {% endif %}
+                </div>
+            {% else %}
+                <p class="border-t pt-3 text-sm" style="border-color: var(--rand)">
+                    <a class="underline" href="/tarife">{{ t('abrechnung.tarife_ansehen') }}</a>
+                </p>
+            {% endif %}
+        </section>
+
+        {# ------------------------------------------------------------- Belege #}
+        <section class="space-y-2">
+            <h2 class="font-semibold">{{ t('abrechnung.belege') }}</h2>
+
+            {% if belege is empty %}
+                <p class="karte p-4 text-sm gedaempft">{{ t('abrechnung.keine_belege') }}</p>
+            {% else %}
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="text-left gedaempft">
+                                <th class="py-2">{{ t('abrechnung.datum') }}</th>
+                                <th>{{ t('abrechnung.zweck') }}</th>
+                                <th class="text-right">{{ t('abrechnung.betrag') }}</th>
+                                <th class="text-right">{{ t('abrechnung.status') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for beleg in belege %}
+                                <tr class="border-t" style="border-color: var(--rand)">
+                                    <td class="py-2">{{ beleg.createdAt ? beleg.createdAt.format('d.m.Y') : '—' }}</td>
+                                    <td>{{ beleg.purpose.label }}</td>
+                                    <td class="text-right">
+                                        {{ beleg.amount.format }}
+                                        {% if beleg.taxRate > 0 %}
+                                            <span class="block text-xs gedaempft">
+                                                {{ t('abrechnung.enthaltene_steuer', {
+                                                    'satz': beleg.taxRate,
+                                                    'betrag': beleg.taxPortion.format
+                                                }) }}
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-right">{{ beleg.status.label }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+        </section>
+    </div>
+{% endblock %}

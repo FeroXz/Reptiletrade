@@ -87,6 +87,69 @@ return [
     'schutz.auto_moderation' => 'Die ersten {anzahl} Anzeigen eines neuen Kontos werden vor der '
         . 'Veröffentlichung geprüft.',
 
+    // ---------------------------------------------------------------- Tarife
+    'tarife.titel' => 'Tarife',
+    'tarife.einleitung' => 'Inserieren ist kostenlos. Wer regelmäßig abgibt, bekommt im Züchter-Tarif mehr Platz.',
+    'tarife.kostenlos' => 'Kostenlos',
+    'tarife.aktueller_tarif' => 'Dein aktueller Tarif',
+    'tarife.ohne_vertrag' => 'Ohne Vertrag, ohne Kündigung.',
+    'tarife.buchen' => 'Buchen',
+    'tarife.noch_nicht_buchbar' => 'Noch nicht buchbar.',
+    'tarife.vorschau' => 'Vorschau.',
+    'tarife.vorschau_text' => 'Die Tarife sind vorbereitet, aber nicht aktiv. Es lässt sich nichts kaufen, '
+        . 'und es gilt keine Begrenzung der Anzeigenzahl.',
+    'tarife.anzeigen.eins' => '1 aktive Anzeige',
+    'tarife.anzeigen.viele' => '{anzahl} aktive Anzeigen',
+    'tarife.anzeigen_unbegrenzt' => 'Unbegrenzt viele aktive Anzeigen',
+    'tarife.laufzeit' => '{tage} Tage Laufzeit je Anzeige',
+    'tarife.bilder' => 'Bis zu {anzahl} Bilder je Anzeige',
+    'tarife.entspricht' => 'entspricht {betrag} pro Monat',
+    'tarife.preise_brutto' => 'Alle Preise sind Endpreise inklusive Umsatzsteuer.',
+    'tarife.kein_treuhand' => 'Wir wickeln keine Tierverkäufe ab und nehmen dafür kein Geld entgegen — '
+        . 'bezahlt wird zwischen euch, bei der Übergabe.',
+
+    // ---------------------------------------------------------------- Boost
+    'boost.titel' => 'Top-Platzierung',
+    'boost.erklaerung' => 'Eine Anzeige steht für die gebuchte Zeit oben in der Trefferliste. '
+        . 'Sie wird dadurch nicht besser gefunden, nur früher gesehen.',
+    'boost.je_tag' => '{betrag} pro Tag',
+    'boost.laeuft_bis' => 'Top-Platzierung bis {datum}',
+
+    // ----------------------------------------------------------- Abrechnung
+    'abrechnung.titel' => 'Abrechnung',
+    'abrechnung.tarif' => 'Tarif',
+    'abrechnung.nicht_aktiv' => 'Die Abrechnung ist vorbereitet, aber nicht aktiv. '
+        . 'Es wird nichts berechnet, und es gilt keine Begrenzung.',
+    'abrechnung.anzeigen_von' => '{anzahl} von {grenze} aktiven Anzeigen',
+    'abrechnung.anzeigen_unbegrenzt' => '{anzahl} aktive Anzeigen, unbegrenzt',
+    'abrechnung.laeuft_bis' => 'läuft bis {datum}',
+    'abrechnung.kuendigen' => 'Zum Laufzeitende kündigen',
+    'abrechnung.kuendigung_hinweis' => 'Bezahlt ist bezahlt: Bis zum Laufzeitende bleibt alles wie gehabt.',
+    'abrechnung.tarife_ansehen' => 'Tarife ansehen',
+    'abrechnung.belege' => 'Belege',
+    'abrechnung.keine_belege' => 'Noch keine Belege.',
+    'abrechnung.datum' => 'Datum',
+    'abrechnung.zweck' => 'Zweck',
+    'abrechnung.betrag' => 'Betrag',
+    'abrechnung.status' => 'Status',
+    'abrechnung.enthaltene_steuer' => 'darin {satz} % USt: {betrag}',
+
+    // -------------------------------------------------------------- Nachzucht
+    'nachzucht.titel' => 'Nachzucht-Ankündigungen',
+    'nachzucht.erklaerung' => 'Kündige an, was demnächst schlüpft. Sobald die Tiere da sind, '
+        . 'wird daraus eine richtige Anzeige — angekündigt wird, was es noch nicht gibt.',
+    'nachzucht.nur_zuechter' => 'Ankündigungen gehören zum Züchter-Tarif.',
+    'nachzucht.neu' => 'Neue Ankündigung',
+    'nachzucht.meine' => 'Meine Ankündigungen',
+    'nachzucht.keine' => 'Noch keine Ankündigungen.',
+    'nachzucht.art' => 'Art',
+    'nachzucht.erwartet' => 'Erwartet am',
+    'nachzucht.erwartet_am' => 'erwartet am {datum}',
+    'nachzucht.ueberschrift' => 'Überschrift',
+    'nachzucht.verpaarung' => 'Verpaarung',
+    'nachzucht.beschreibung' => 'Beschreibung',
+    'nachzucht.zustand' => 'Zustand',
+
     // ----------------------------------------------------------------- Mail
     'mail.email_verify.betreff' => 'Bitte bestätige deine E-Mail-Adresse',
     'mail.email_verify.text' => "Hallo {name},\n\n"

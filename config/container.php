@@ -9,6 +9,16 @@ use Reptilienmarkt\Domain\Auth\SessionRepository;
 use Reptilienmarkt\Domain\Auth\TokenRepository;
 use Reptilienmarkt\Domain\Auth\TokenService;
 use Reptilienmarkt\Domain\Auth\TotpAuthenticator;
+use Reptilienmarkt\Domain\Billing\BillingConfiguration;
+use Reptilienmarkt\Domain\Billing\BillingService;
+use Reptilienmarkt\Domain\Billing\BoostRepository;
+use Reptilienmarkt\Domain\Billing\BoostService;
+use Reptilienmarkt\Domain\Billing\EntitlementService;
+use Reptilienmarkt\Domain\Billing\PaymentProvider;
+use Reptilienmarkt\Domain\Billing\PaymentRepository;
+use Reptilienmarkt\Domain\Billing\SubscriptionRepository;
+use Reptilienmarkt\Domain\Breeding\BreedingAnnouncementRepository;
+use Reptilienmarkt\Domain\Breeding\BreedingAnnouncementService;
 use Reptilienmarkt\Domain\Geo\PostalCodeRepository;
 use Reptilienmarkt\Domain\Identity\IdentityProvider;
 use Reptilienmarkt\Domain\Identity\LocalIdentityProvider;
@@ -44,8 +54,10 @@ use Reptilienmarkt\Domain\User\UserDocumentRepository;
 use Reptilienmarkt\Domain\User\UserRepository;
 use Reptilienmarkt\Domain\User\VerificationRepository;
 use Reptilienmarkt\Http\Controller\AccountController;
+use Reptilienmarkt\Http\Controller\AnnouncementController;
 use Reptilienmarkt\Http\Controller\ApiController;
 use Reptilienmarkt\Http\Controller\AuthController;
+use Reptilienmarkt\Http\Controller\BillingController;
 use Reptilienmarkt\Http\Controller\LegalDocumentController;
 use Reptilienmarkt\Http\Controller\ListingController;
 use Reptilienmarkt\Http\Controller\ListingWizardController;
@@ -68,10 +80,14 @@ use Reptilienmarkt\Http\View\TwigFactory;
 use Reptilienmarkt\Http\View\ViewContext;
 use Reptilienmarkt\Infra\Mail\FileMailer;
 use Reptilienmarkt\Infra\Mail\SendmailMailer;
+use Reptilienmarkt\Infra\Payment\NullPaymentProvider;
+use Reptilienmarkt\Infra\Payment\StripePaymentProvider;
 use Reptilienmarkt\Infra\Persistence\Database;
 use Reptilienmarkt\Infra\Persistence\Migrator;
 use Reptilienmarkt\Infra\Persistence\PdoAuditLog;
+use Reptilienmarkt\Infra\Persistence\PdoBoostRepository;
 use Reptilienmarkt\Infra\Persistence\PdoBreederProfileRepository;
+use Reptilienmarkt\Infra\Persistence\PdoBreedingAnnouncementRepository;
 use Reptilienmarkt\Infra\Persistence\PdoConversationRepository;
 use Reptilienmarkt\Infra\Persistence\PdoLegalDocumentRepository;
 use Reptilienmarkt\Infra\Persistence\PdoLegalTextRepository;
@@ -79,6 +95,7 @@ use Reptilienmarkt\Infra\Persistence\PdoListingMediaRepository;
 use Reptilienmarkt\Infra\Persistence\PdoListingRepository;
 use Reptilienmarkt\Infra\Persistence\PdoMessageRepository;
 use Reptilienmarkt\Infra\Persistence\PdoMorphRepository;
+use Reptilienmarkt\Infra\Persistence\PdoPaymentRepository;
 use Reptilienmarkt\Infra\Persistence\PdoPostalCodeRepository;
 use Reptilienmarkt\Infra\Persistence\PdoRateLimitRepository;
 use Reptilienmarkt\Infra\Persistence\PdoReportRepository;
@@ -86,6 +103,7 @@ use Reptilienmarkt\Infra\Persistence\PdoReviewRepository;
 use Reptilienmarkt\Infra\Persistence\PdoSessionRepository;
 use Reptilienmarkt\Infra\Persistence\PdoSettings;
 use Reptilienmarkt\Infra\Persistence\PdoSpeciesRepository;
+use Reptilienmarkt\Infra\Persistence\PdoSubscriptionRepository;
 use Reptilienmarkt\Infra\Persistence\PdoTokenRepository;
 use Reptilienmarkt\Infra\Persistence\PdoUserDocumentRepository;
 use Reptilienmarkt\Infra\Persistence\PdoUserRepository;
@@ -320,6 +338,7 @@ $container->set(ListingWizard::class, static fn(Container $c): ListingWizard => 
     $c->get(AuditLog::class),
     $c->get(Clock::class),
     $c->get(AutoModerationPolicy::class),
+    $c->get(EntitlementService::class),
 ));
 
 $container->set(AuthController::class, static fn(Container $c): AuthController => new AuthController(
@@ -533,6 +552,98 @@ $container->set(ModerationController::class, static fn(Container $c): Moderation
     $c->get(Viewer::class),
     $c->get(SessionManager::class),
     $c->get(Clock::class),
+    $c->get(Environment::class),
+));
+
+// ---------------------------------------- Monetarisierung (Phase 6)
+// Vorbereitet, nicht aktiviert: config/monetarisierung.php steht auf
+// enabled => false, und der Null-Anbieter lehnt jeden Zahlungsvorgang ab.
+$container->set(BillingConfiguration::class, static function (Container $c) use ($root): BillingConfiguration {
+    /** @var array<string, mixed> $config */
+    $config = require $root . '/config/monetarisierung.php';
+
+    return new BillingConfiguration($config, $c->get(Settings::class));
+});
+
+$container->set(SubscriptionRepository::class, static fn(Container $c): SubscriptionRepository => new PdoSubscriptionRepository($c->get(Database::class)));
+$container->set(PaymentRepository::class, static fn(Container $c): PaymentRepository => new PdoPaymentRepository($c->get(Database::class)));
+$container->set(BoostRepository::class, static fn(Container $c): BoostRepository => new PdoBoostRepository($c->get(Database::class)));
+$container->set(BreedingAnnouncementRepository::class, static fn(Container $c): BreedingAnnouncementRepository => new PdoBreedingAnnouncementRepository($c->get(Database::class)));
+
+$container->set(PaymentProvider::class, static function (Container $c): PaymentProvider {
+    $config = $c->get(BillingConfiguration::class);
+    $name = $config->providerName();
+
+    if ($name === 'keiner') {
+        return new NullPaymentProvider();
+    }
+
+    if ($name !== 'stripe') {
+        throw new RuntimeException(sprintf('Zahlungsanbieter "%s" ist nicht umgesetzt.', $name));
+    }
+
+    /** @var array<string, mixed> $options */
+    $options = $config->providerOptions('stripe');
+    $secretEnv = is_string($options['secret_key_env'] ?? null) ? $options['secret_key_env'] : 'STRIPE_SECRET_KEY';
+    $hookEnv = is_string($options['webhook_secret_env'] ?? null) ? $options['webhook_secret_env'] : 'STRIPE_WEBHOOK_SECRET';
+
+    return new StripePaymentProvider(
+        Env::string($secretEnv),
+        Env::string($hookEnv),
+        is_string($options['api_base'] ?? null) ? $options['api_base'] : 'https://api.stripe.com/v1',
+    );
+});
+
+$container->set(EntitlementService::class, static fn(Container $c): EntitlementService => new EntitlementService(
+    $c->get(BillingConfiguration::class),
+    $c->get(SubscriptionRepository::class),
+    $c->get(UserRepository::class),
+    $c->get(Clock::class),
+));
+
+$container->set(BoostService::class, static fn(Container $c): BoostService => new BoostService(
+    $c->get(BoostRepository::class),
+    $c->get(ListingRepository::class),
+    $c->get(BillingConfiguration::class),
+    $c->get(AuditLog::class),
+    $c->get(Clock::class),
+));
+
+$container->set(BillingService::class, static fn(Container $c): BillingService => new BillingService(
+    $c->get(BillingConfiguration::class),
+    $c->get(SubscriptionRepository::class),
+    $c->get(PaymentRepository::class),
+    $c->get(BoostService::class),
+    $c->get(PaymentProvider::class),
+    $c->get(AuditLog::class),
+    $c->get(Clock::class),
+    Env::string('APP_URL', 'https://example.tld'),
+));
+
+$container->set(BreedingAnnouncementService::class, static fn(Container $c): BreedingAnnouncementService => new BreedingAnnouncementService(
+    $c->get(BreedingAnnouncementRepository::class),
+    $c->get(SpeciesRepository::class),
+    $c->get(EntitlementService::class),
+    $c->get(Clock::class),
+));
+
+$container->set(BillingController::class, static fn(Container $c): BillingController => new BillingController(
+    $c->get(BillingService::class),
+    $c->get(EntitlementService::class),
+    $c->get(BoostService::class),
+    $c->get(ListingRepository::class),
+    $c->get(UserRepository::class),
+    $c->get(Viewer::class),
+    $c->get(SessionManager::class),
+    $c->get(Environment::class),
+));
+
+$container->set(AnnouncementController::class, static fn(Container $c): AnnouncementController => new AnnouncementController(
+    $c->get(BreedingAnnouncementService::class),
+    $c->get(BreedingAnnouncementRepository::class),
+    $c->get(SpeciesRepository::class),
+    $c->get(Viewer::class),
+    $c->get(SessionManager::class),
     $c->get(Environment::class),
 ));
 

@@ -1,0 +1,105 @@
+{% extends 'layout/basis.html.twig' %}
+{% block titel %}Nachzuchten — Reptilienmarkt{% endblock %}
+{% block kopf %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block inhalt %}
+    <div class="mx-auto max-w-3xl space-y-6">
+        {% include 'partials/meldungen.html.twig' %}
+
+        <header>
+            <h1 class="text-xl font-semibold">{{ t('nachzucht.titel') }}</h1>
+            <p class="gedaempft">{{ t('nachzucht.erklaerung') }}</p>
+        </header>
+
+        {% if not darf %}
+            <p class="karte border-amber-300 p-4 text-sm">
+                {{ t('nachzucht.nur_zuechter') }}
+                <a class="underline" href="/tarife">{{ t('abrechnung.tarife_ansehen') }}</a>
+            </p>
+        {% else %}
+            <form method="post" action="/konto/nachzuchten" class="karte space-y-3 p-6">
+                <h2 class="font-semibold">{{ t('nachzucht.neu') }}</h2>
+                <input type="hidden" name="_csrf" value="{{ csrf }}">
+
+                <div class="grid gap-3 sm:grid-cols-2">
+                    <div>
+                        <label class="text-sm" for="art_id">{{ t('nachzucht.art') }}</label>
+                        <select class="feld" id="art_id" name="art_id" required>
+                            {% for art in arten %}
+                                <option value="{{ art.id }}">{{ art.commonNameDe }} ({{ art.scientificName }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-sm" for="erwartet_am">{{ t('nachzucht.erwartet') }}</label>
+                        <input class="feld" id="erwartet_am" type="date" name="erwartet_am">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-sm" for="titel">{{ t('nachzucht.ueberschrift') }}</label>
+                    <input class="feld" id="titel" type="text" name="titel" required maxlength="120"
+                           placeholder="Hypo x het Zero, Schlupf erwartet im Juni">
+                </div>
+
+                <div>
+                    <label class="text-sm" for="verpaarung">{{ t('nachzucht.verpaarung') }}</label>
+                    <input class="feld" id="verpaarung" type="text" name="verpaarung"
+                           placeholder="Hypo Trans x het Zero">
+                </div>
+
+                <div>
+                    <label class="text-sm" for="beschreibung">{{ t('nachzucht.beschreibung') }}</label>
+                    <textarea class="feld" id="beschreibung" name="beschreibung" rows="4" maxlength="2000"></textarea>
+                </div>
+
+                <button type="submit" class="knopf knopf-primaer">{{ t('allgemein.speichern') }}</button>
+            </form>
+        {% endif %}
+
+        <section class="space-y-2">
+            <h2 class="font-semibold">{{ t('nachzucht.meine') }}</h2>
+
+            {% if ankuendigungen is empty %}
+                <p class="karte p-4 text-sm gedaempft">{{ t('nachzucht.keine') }}</p>
+            {% else %}
+                <ul class="space-y-2">
+                    {% for ankuendigung in ankuendigungen %}
+                        <li class="karte space-y-2 p-4">
+                            <div class="flex flex-wrap items-baseline justify-between gap-2">
+                                <span class="font-medium">{{ ankuendigung.title }}</span>
+                                <span class="text-sm gedaempft">{{ ankuendigung.status.label }}</span>
+                            </div>
+
+                            <p class="text-sm gedaempft">
+                                {{ artnamen[ankuendigung.speciesId]|default('Unbekannte Art') }}
+                                {% if ankuendigung.expectedAt %}
+                                    — {{ t('nachzucht.erwartet_am', {'datum': ankuendigung.expectedAt.format('d.m.Y')}) }}
+                                {% endif %}
+                                {% if ankuendigung.morphNote %} — {{ ankuendigung.morphNote }}{% endif %}
+                            </p>
+
+                            {% if ankuendigung.description %}
+                                <p class="whitespace-pre-line text-sm">{{ ankuendigung.description }}</p>
+                            {% endif %}
+
+                            <form method="post" action="/konto/nachzuchten/{{ ankuendigung.id }}/status"
+                                  class="flex flex-wrap gap-2">
+                                <input type="hidden" name="_csrf" value="{{ csrf }}">
+                                <select class="feld w-auto" name="status" aria-label="{{ t('nachzucht.zustand') }}">
+                                    {% for zustand in zustaende %}
+                                        <option value="{{ zustand.value }}"
+                                                {{ zustand == ankuendigung.status ? 'selected' : '' }}>
+                                            {{ zustand.label }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                                <button type="submit" class="knopf">{{ t('allgemein.speichern') }}</button>
+                            </form>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        </section>
+    </div>
+{% endblock %}

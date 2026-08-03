@@ -55,4 +55,18 @@ interface ListingRepository
      * @return list<Listing>
      */
     public function inStatus(ListingStatus $status, int $limit = 25): array;
+
+    /**
+     * Setzt die Hervorhebung, nach der die Trefferliste sortiert. Einzige
+     * Schreibstelle ist BoostService — sonst waere nicht nachvollziehbar,
+     * warum eine Anzeige oben steht.
+     */
+    public function setFeatured(int $listingId, bool $featured): void;
+
+    /**
+     * Steht die Anzeige gerade oben? Bewusst nicht als Feld der Entitaet: Die
+     * Hervorhebung gehoert zur Trefferliste, nicht zur Anzeige selbst — wer
+     * sie bearbeitet, hat damit nichts zu tun.
+     */
+    public function isFeatured(int $listingId): bool;
 }

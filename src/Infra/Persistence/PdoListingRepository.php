@@ -203,6 +203,22 @@ final readonly class PdoListingRepository implements ListingRepository
         return array_map(fn(array $row): Listing => $this->map($row), $rows);
     }
 
+    public function setFeatured(int $listingId, bool $featured): void
+    {
+        $this->database->execute(
+            'UPDATE listings SET is_featured = :featured, updated_at = :now WHERE id = :id',
+            ['featured' => $featured ? 1 : 0, 'now' => Timestamp::now(), 'id' => $listingId],
+        );
+    }
+
+    public function isFeatured(int $listingId): bool
+    {
+        return (bool) $this->database->scalar(
+            'SELECT is_featured FROM listings WHERE id = :id',
+            ['id' => $listingId],
+        );
+    }
+
     /**
      * @return array<string, scalar|null>
      */

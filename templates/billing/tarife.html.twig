@@ -1,0 +1,101 @@
+{% extends 'layout/basis.html.twig' %}
+{% block titel %}Tarife — Reptilienmarkt{% endblock %}
+{% block beschreibung %}Kostenlos inserieren oder als Züchter unbegrenzt — die Tarife im Überblick.{% endblock %}
+
+{% block inhalt %}
+    <div class="mx-auto max-w-5xl space-y-6">
+        {% include 'partials/meldungen.html.twig' %}
+
+        <header class="space-y-2">
+            <h1 class="text-xl font-semibold">{{ t('tarife.titel') }}</h1>
+            <p class="gedaempft">{{ t('tarife.einleitung') }}</p>
+        </header>
+
+        {% if not aktiviert %}
+            {# Vorbereitet, nicht aktiviert: Preise als Vorschau, keine Kaufknöpfe. #}
+            <p class="karte border-amber-300 p-4 text-sm">
+                <strong>{{ t('tarife.vorschau') }}</strong>
+                {{ t('tarife.vorschau_text') }}
+            </p>
+        {% endif %}
+
+        <div class="grid gap-4 md:grid-cols-3">
+            {% for schluessel, tarif in tarife %}
+                <section class="karte flex flex-col gap-3 p-6">
+                    <div>
+                        <h2 class="font-semibold">{{ tarif.name }}</h2>
+                        <p class="mt-1 text-2xl font-semibold">
+                            {{ tarif.isFree ? t('tarife.kostenlos') : tarif.price.format }}
+                            {% if not tarif.isFree %}
+                                <span class="text-sm font-normal gedaempft">{{ tarif.interval.label }}</span>
+                            {% endif %}
+                        </p>
+                        {% if tarif.interval.value == 'jaehrlich' %}
+                            <p class="text-xs gedaempft">
+                                {{ t('tarife.entspricht', {'betrag': tarif.monthlyEquivalent.format}) }}
+                            </p>
+                        {% endif %}
+                    </div>
+
+                    <p class="text-sm gedaempft">{{ tarif.description }}</p>
+
+                    <ul class="space-y-1 text-sm">
+                        <li>
+                            {% if tarif.maxActiveListings is null %}
+                                {{ t('tarife.anzeigen_unbegrenzt') }}
+                            {% else %}
+                                {{ tw('tarife.anzeigen', tarif.maxActiveListings) }}
+                            {% endif %}
+                        </li>
+                        <li>{{ t('tarife.laufzeit', {'tage': tarif.runtimeDays}) }}</li>
+                        <li>{{ t('tarife.bilder', {'anzahl': tarif.maxImages}) }}</li>
+                        {% for merkmal in tarif.features %}
+                            <li>{{ merkmal.label }}</li>
+                        {% endfor %}
+                    </ul>
+
+                    <div class="mt-auto pt-2">
+                        {% if rechte and rechte.plan.key == schluessel %}
+                            <p class="text-sm font-medium">{{ t('tarife.aktueller_tarif') }}</p>
+                        {% elseif tarif.isFree %}
+                            <p class="text-sm gedaempft">{{ t('tarife.ohne_vertrag') }}</p>
+                        {% elseif kaufbar %}
+                            <form method="post" action="/konto/abrechnung/tarif">
+                                <input type="hidden" name="_csrf" value="{{ csrf }}">
+                                <input type="hidden" name="tarif" value="{{ schluessel }}">
+                                <button type="submit" class="knopf knopf-primaer w-full justify-center">
+                                    {{ t('tarife.buchen') }}
+                                </button>
+                            </form>
+                        {% else %}
+                            <p class="text-sm gedaempft">{{ t('tarife.noch_nicht_buchbar') }}</p>
+                        {% endif %}
+                    </div>
+                </section>
+            {% endfor %}
+        </div>
+
+        {# --------------------------------------------------------- Boosts #}
+        <section class="space-y-3">
+            <h2 class="font-semibold">{{ t('boost.titel') }}</h2>
+            <p class="text-sm gedaempft">{{ t('boost.erklaerung') }}</p>
+
+            <div class="grid gap-3 sm:grid-cols-3">
+                {% for boost in boosts %}
+                    <div class="karte p-4">
+                        <p class="font-medium">{{ boost.name }}</p>
+                        <p class="text-lg">{{ boost.price.format }}</p>
+                        <p class="text-xs gedaempft">
+                            {{ t('boost.je_tag', {'betrag': boost.pricePerDay.format}) }}
+                        </p>
+                    </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <p class="text-xs gedaempft">
+            {{ t('tarife.preise_brutto') }}
+            {{ t('tarife.kein_treuhand') }}
+        </p>
+    </div>
+{% endblock %}

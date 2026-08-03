@@ -3,8 +3,10 @@
 declare(strict_types=1);
 
 use Reptilienmarkt\Http\Controller\AccountController;
+use Reptilienmarkt\Http\Controller\AnnouncementController;
 use Reptilienmarkt\Http\Controller\ApiController;
 use Reptilienmarkt\Http\Controller\AuthController;
+use Reptilienmarkt\Http\Controller\BillingController;
 use Reptilienmarkt\Http\Controller\LegalDocumentController;
 use Reptilienmarkt\Http\Controller\ListingController;
 use Reptilienmarkt\Http\Controller\ListingWizardController;
@@ -73,6 +75,22 @@ $router->post('/postfach/{id}/bewerten', MessageController::class, 'review', 'po
 // Meldebutton
 $router->get('/melden/{art}/{id}', ReportController::class, 'form', 'melden');
 $router->post('/melden/{art}/{id}', ReportController::class, 'submit', 'melden.absenden');
+
+// Tarife und Abrechnung (Phase 6 — vorbereitet, ohne aktiven Zahlungsanbieter
+// zeigt die Tarifseite Preise und keine Kaufknoepfe)
+$router->get('/tarife', BillingController::class, 'plans', 'tarife');
+$router->get('/konto/abrechnung', BillingController::class, 'overview', 'abrechnung');
+$router->post('/konto/abrechnung/tarif', BillingController::class, 'subscribe', 'abrechnung.tarif');
+$router->post('/konto/abrechnung/kuendigen', BillingController::class, 'cancel', 'abrechnung.kuendigen');
+$router->post('/anzeige/{id}/boost', BillingController::class, 'boost', 'anzeige.boost');
+$router->get('/konto/zahlung/erfolg', BillingController::class, 'paymentReturn', 'zahlung.erfolg');
+$router->get('/konto/zahlung/abbruch', BillingController::class, 'paymentCancelled', 'zahlung.abbruch');
+$router->post('/api/v1/zahlungen/webhook', BillingController::class, 'webhook', 'zahlung.webhook');
+
+// Nachzucht-Ankuendigungen (Merkmal des Zuechter-Tarifs)
+$router->get('/konto/nachzuchten', AnnouncementController::class, 'index', 'nachzuchten');
+$router->post('/konto/nachzuchten', AnnouncementController::class, 'create', 'nachzuchten.anlegen');
+$router->post('/konto/nachzuchten/{id}/status', AnnouncementController::class, 'changeStatus', 'nachzuchten.status');
 
 // Moderation
 $router->get('/moderation/', ModerationController::class, 'queue', 'moderation');

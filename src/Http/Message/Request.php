@@ -18,6 +18,7 @@ final class Request
      * @param array<string, string>              $attributes Vom Router gefuellte Pfadparameter
      * @param array<string, string>              $cookies
      * @param array<string, UploadedFile>        $files
+     * @param ?string                            $rawBody Ungeparster Rumpf — nur wo er gebraucht wird
      */
     public function __construct(
         public readonly string $method,
@@ -29,7 +30,18 @@ final class Request
         public readonly array $cookies = [],
         public readonly ?string $clientIp = null,
         public readonly array $files = [],
+        public readonly ?string $rawBody = null,
     ) {}
+
+    /**
+     * Der ungeparste Rumpf. Fuer Signaturpruefungen unverzichtbar: Ein
+     * dekodiertes und neu zusammengesetztes JSON ergibt nicht mehr dieselben
+     * Bytes, und damit stimmt keine Signatur mehr.
+     */
+    public function raw(): string
+    {
+        return $this->rawBody ?? '';
+    }
 
     public function file(string $name): ?UploadedFile
     {
@@ -72,6 +84,11 @@ final class Request
             }
         }
 
+        // Nur lesen, wo es gebraucht wird: php://input laesst sich nicht
+        // zweimal lesen, und bei Uploads waere es die ganze Datei.
+        $contentType = $headers['content-type'] ?? '';
+        $raw = str_contains($contentType, 'json') ? (file_get_contents('php://input') ?: '') : null;
+
         return new self(
             strtoupper($server['REQUEST_METHOD'] ?? 'GET'),
             rawurldecode($path),
@@ -82,6 +99,7 @@ final class Request
             $cookies,
             $server['REMOTE_ADDR'] ?? null,
             $files,
+            $raw,
         );
     }
 
