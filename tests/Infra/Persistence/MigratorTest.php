@@ -62,8 +62,12 @@ final class MigratorTest extends TestCase
         self::assertCount(\count($applied), $reverted);
         self::assertSame(array_reverse($applied), $reverted);
 
-        // Uebrig bleibt nur die Verwaltungstabelle des Migrators.
-        $remaining = array_values(array_diff($this->tableNames(), ['migrations', 'sqlite_sequence']));
+        // Uebrig bleiben nur die Verwaltungstabelle des Migrators und die
+        // internen Tabellen von SQLite (sqlite_sequence, sqlite_stat1 aus ANALYZE).
+        $remaining = array_values(array_filter(
+            $this->tableNames(),
+            static fn(string $name): bool => $name !== 'migrations' && !str_starts_with($name, 'sqlite_'),
+        ));
         self::assertSame([], $remaining, 'Nach dem vollstaendigen Rollback darf keine Fachtabelle uebrig sein.');
     }
 

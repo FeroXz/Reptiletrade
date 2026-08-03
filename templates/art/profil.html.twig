@@ -1,0 +1,93 @@
+{% extends 'layout/basis.html.twig' %}
+
+{% block titel %}{{ art.commonNameDe }} ({{ art.scientificName }}) — Reptilienmarkt{% endblock %}
+{% block beschreibung %}
+    {{ art.commonNameDe }}, wissenschaftlich {{ art.scientificName }}: Schutzstatus, Haltungsdaten
+    und aktuell {{ ergebnis.total }} Anzeigen im DACH-Raum.
+{% endblock %}
+
+{% block kopf %}
+    <link rel="canonical" href="/art/{{ art.slug }}/">
+{% endblock %}
+
+{% block inhalt %}
+    <article class="space-y-6">
+        <header class="karte p-6">
+            <p class="text-sm gedaempft">{{ art.orderTaxon }}{{ art.family ? ' · ' ~ art.family : '' }}</p>
+            <h1 class="mt-1 text-2xl font-semibold">{{ art.commonNameDe }}</h1>
+            <p class="italic gedaempft">{{ art.scientificName }}</p>
+
+            <dl class="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {% for feld in [
+                    { titel: 'Endgröße', wert: art.adultSizeCm ? art.adultSizeCm ~ ' cm' : '—' },
+                    { titel: 'Lebenserwartung', wert: art.lifespanYears ? art.lifespanYears ~ ' Jahre' : '—' },
+                    { titel: 'Haltungsanspruch', wert: art.careLevel ? art.careLevel.label : '—' },
+                    { titel: 'Schutzstatus', wert: art.bnatschgStatus.label }
+                ] %}
+                    <div>
+                        <dt class="text-xs uppercase tracking-wide gedaempft">{{ feld.titel }}</dt>
+                        <dd class="text-sm font-medium">{{ feld.wert }}</dd>
+                    </div>
+                {% endfor %}
+            </dl>
+        </header>
+
+        <section class="karte p-6">
+            <h2 class="text-base font-semibold">Rechtlicher Rahmen</h2>
+            <ul class="mt-3 space-y-2 text-sm">
+                {% if art.euAnnex %}
+                    <li><strong>{{ art.euAnnex.label }}</strong> der EG-VO 338/97{% if art.citesAppendix %} · {{ art.citesAppendix.label }}{% endif %}.</li>
+                {% else %}
+                    <li>Nicht in den Anhängen der EG-VO 338/97 geführt.</li>
+                {% endif %}
+                {% if art.meldepflicht %}<li>Meldepflichtig bei der zuständigen Naturschutzbehörde.</li>{% endif %}
+                {% if art.dokuPflicht %}<li>Herkunftsnachweis erforderlich.</li>{% endif %}
+                {% if art.gefahrtier %}<li>Gilt als Gefahrtier — Landes- bzw. Kantonsrecht beachten.</li>{% endif %}
+                {% if art.minAbgabeAlterWochen or art.minAbgabeGewichtG %}
+                    <li>
+                        Abgabe auf dieser Plattform frühestens ab
+                        {% if art.minAbgabeAlterWochen %}{{ art.minAbgabeAlterWochen }} Wochen{% endif %}
+                        {%- if art.minAbgabeAlterWochen and art.minAbgabeGewichtG %} und{% endif %}
+                        {% if art.minAbgabeGewichtG %} {{ art.minAbgabeGewichtG }} g{% endif %}.
+                    </li>
+                {% endif %}
+            </ul>
+            <p class="mt-3 text-xs gedaempft">
+                Hinweise ohne Gewähr und keine Rechtsberatung. Maßgeblich ist die jeweils geltende Fassung
+                der genannten Vorschriften.
+            </p>
+        </section>
+
+        {% if morphs is not empty %}
+            <section class="karte p-6">
+                <h2 class="text-base font-semibold">Merkmale ({{ morphs|length }})</h2>
+                <div class="mt-3 flex flex-wrap gap-2">
+                    {% for morph in morphs %}
+                        <a class="knopf {{ morph.isLethalCombo ? 'facette-aktiv' : '' }}"
+                           href="/markt/{{ art.commonSlug }}/{{ morph.name|slug }}/"
+                           title="{{ morph.inheritance.label }}{{ morph.isLethalCombo ? ' · homozygot nicht lebensfähig' : '' }}">
+                            {{ morph.name }}
+                        </a>
+                    {% endfor %}
+                </div>
+            </section>
+        {% endif %}
+
+        <section>
+            <div class="mb-3 flex items-center justify-between">
+                <h2 class="text-base font-semibold">Aktuelle Anzeigen ({{ ergebnis.total }})</h2>
+                <a class="knopf" href="{{ markt_url(kriterien, url_kontext) }}">Alle ansehen</a>
+            </div>
+
+            {% if ergebnis.isEmpty %}
+                <div class="karte p-8 text-center text-sm gedaempft">Derzeit keine Anzeigen für diese Art.</div>
+            {% else %}
+                <div class="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
+                    {% for anzeige in ergebnis.listings %}
+                        {% include 'partials/kachel.html.twig' with { anzeige: anzeige } only %}
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </section>
+    </article>
+{% endblock %}

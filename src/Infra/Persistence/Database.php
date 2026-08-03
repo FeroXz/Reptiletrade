@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Reptilienmarkt\Infra\Persistence;
 
 use PDO;
+use PDOStatement;
 use RuntimeException;
 use Throwable;
 
@@ -60,10 +61,38 @@ final class Database
      */
     public function execute(string $sql, array $parameters = []): int
     {
-        $statement = $this->pdo->prepare($sql);
-        $statement->execute($parameters);
+        $statement = $this->prepare($sql, $parameters);
+        $statement->execute();
 
         return $statement->rowCount();
+    }
+
+    /**
+     * Bindet jeden Parameter mit seinem Typ.
+     *
+     * PDO bindet sonst alles als Text. Solange ein Parameter direkt gegen eine
+     * Spalte steht, rettet SQLite das ueber die Typaffinitaet der Spalte —
+     * gegen einen berechneten Ausdruck aber nicht: Text sortiert dort ueber
+     * jede Zahl, und der Vergleich waere immer wahr.
+     *
+     * @param array<string, scalar|null> $parameters
+     */
+    private function prepare(string $sql, array $parameters): PDOStatement
+    {
+        $statement = $this->pdo->prepare($sql);
+
+        foreach ($parameters as $name => $value) {
+            $type = match (true) {
+                $value === null => PDO::PARAM_NULL,
+                \is_bool($value) => PDO::PARAM_BOOL,
+                \is_int($value) => PDO::PARAM_INT,
+                default => PDO::PARAM_STR,
+            };
+
+            $statement->bindValue(\is_int($name) ? $name + 1 : ':' . $name, $value, $type);
+        }
+
+        return $statement;
     }
 
     /**
@@ -73,8 +102,8 @@ final class Database
      */
     public function select(string $sql, array $parameters = []): array
     {
-        $statement = $this->pdo->prepare($sql);
-        $statement->execute($parameters);
+        $statement = $this->prepare($sql, $parameters);
+        $statement->execute();
 
         /** @var list<array<string, mixed>> $rows */
         $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
@@ -99,8 +128,8 @@ final class Database
      */
     public function scalar(string $sql, array $parameters = []): mixed
     {
-        $statement = $this->pdo->prepare($sql);
-        $statement->execute($parameters);
+        $statement = $this->prepare($sql, $parameters);
+        $statement->execute();
 
         $value = $statement->fetchColumn();
 

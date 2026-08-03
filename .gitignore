@@ -11,3 +11,6 @@
 /.phpunit.cache/
 /tests/tmp/
 /tools/bin/*.phar
+/storage/cache/
+/node_modules/
+/package-lock.json

@@ -14,6 +14,11 @@ interface SpeciesRepository
 
     public function findBySlug(string $slug): ?Species;
 
+    /**
+     * Die Marktpfade sprechen die Nutzersprache: /markt/bartagame/
+     */
+    public function findByCommonSlug(string $slug): ?Species;
+
     public function findByScientificName(string $scientificName): ?Species;
 
     /**

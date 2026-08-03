@@ -1,0 +1,11 @@
+{% extends 'layout/basis.html.twig' %}
+
+{% block titel %}Nicht gefunden — Reptilienmarkt{% endblock %}
+
+{% block inhalt %}
+    <div class="karte mx-auto max-w-lg p-8 text-center">
+        <h1 class="text-2xl font-semibold">Nicht gefunden</h1>
+        <p class="mt-2 text-sm gedaempft">{{ meldung|default('Diese Seite gibt es nicht.') }}</p>
+        <p class="mt-6"><a class="knopf knopf-primaer" href="/markt/">Zur Marktübersicht</a></p>
+    </div>
+{% endblock %}

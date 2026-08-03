@@ -1,0 +1,50 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Reptilienmarkt\Http\View;
+
+use Reptilienmarkt\Domain\Search\SearchCriteria;
+use Reptilienmarkt\Http\Search\SearchUrlBuilder;
+use Reptilienmarkt\Http\Search\SearchUrlContext;
+use Reptilienmarkt\Support\Slugger;
+use Twig\Environment;
+use Twig\Loader\FilesystemLoader;
+use Twig\TwigFilter;
+use Twig\TwigFunction;
+
+final class TwigFactory
+{
+    public static function create(string $templatePath, bool $debug, ?string $cachePath = null): Environment
+    {
+        $twig = new Environment(new FilesystemLoader($templatePath), [
+            'debug' => $debug,
+            'strict_variables' => true,
+            'cache' => $debug || $cachePath === null ? false : $cachePath,
+            'autoescape' => 'html',
+        ]);
+
+        $twig->addFunction(new TwigFunction(
+            'markt_url',
+            static fn(SearchCriteria $criteria, SearchUrlContext $context): string => SearchUrlBuilder::build($criteria, $context),
+        ));
+
+        $twig->addFilter(new TwigFilter('slug', static fn(string $value): string => Slugger::slug($value)));
+
+        // Twig kennt kein array_values; die Kriterien-Objekte erwarten aber
+        // lueckenlose Listen, sonst schlaegt die Typpruefung fehl.
+        $twig->addFilter(new TwigFilter('werte', static function (iterable $value): array {
+            return \is_array($value) ? array_values($value) : iterator_to_array($value, false);
+        }));
+
+        $twig->addFilter(new TwigFilter('preis', static function (?int $cents, string $currency = 'EUR'): string {
+            if ($cents === null) {
+                return 'auf Anfrage';
+            }
+
+            return number_format($cents / 100, 2, ',', '.') . ' ' . $currency;
+        }));
+
+        return $twig;
+    }
+}

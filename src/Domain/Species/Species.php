@@ -28,6 +28,7 @@ final readonly class Species
         public ?int $lifespanYears = null,
         public ?int $minAbgabeAlterWochen = null,
         public ?int $minAbgabeGewichtG = null,
+        public ?string $commonSlug = null,
     ) {}
 
     public function withId(int $id): self
@@ -50,6 +51,7 @@ final readonly class Species
             $this->lifespanYears,
             $this->minAbgabeAlterWochen,
             $this->minAbgabeGewichtG,
+            $this->commonSlug,
         );
     }
 

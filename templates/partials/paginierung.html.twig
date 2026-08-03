@@ -1,0 +1,19 @@
+{% if ergebnis.pageCount > 1 %}
+    <nav class="flex items-center justify-between gap-4 pt-6" aria-label="Seitennummerierung">
+        <div class="text-sm gedaempft">
+            {{ ergebnis.firstResultNumber }}–{{ ergebnis.lastResultNumber }} von {{ ergebnis.total }}
+        </div>
+
+        <div class="flex items-center gap-2">
+            {% if ergebnis.hasPreviousPage %}
+                <a class="knopf" rel="prev" href="{{ markt_url(kriterien.withPage(ergebnis.page - 1), url_kontext) }}">Zurück</a>
+            {% endif %}
+
+            <span class="text-sm gedaempft">Seite {{ ergebnis.page }} von {{ ergebnis.pageCount }}</span>
+
+            {% if ergebnis.hasNextPage %}
+                <a class="knopf" rel="next" href="{{ markt_url(kriterien.withPage(ergebnis.page + 1), url_kontext) }}">Weiter</a>
+            {% endif %}
+        </div>
+    </nav>
+{% endif %}

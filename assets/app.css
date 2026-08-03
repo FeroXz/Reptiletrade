@@ -1,0 +1,104 @@
+@import "tailwindcss";
+
+/*
+ * Designtokens. Bewusst als CSS-Variablen und nicht nur als Tailwind-Klassen:
+ * Farben, Radien und Abstaende sollen sich an einer Stelle austauschen lassen,
+ * ohne dass Templates angefasst werden.
+ */
+@theme {
+    --color-primary-50: oklch(0.97 0.02 150);
+    --color-primary-100: oklch(0.94 0.04 150);
+    --color-primary-200: oklch(0.88 0.07 150);
+    --color-primary-300: oklch(0.8 0.11 150);
+    --color-primary-400: oklch(0.72 0.14 150);
+    --color-primary-500: oklch(0.63 0.15 150);
+    --color-primary-600: oklch(0.53 0.13 150);
+    --color-primary-700: oklch(0.44 0.11 150);
+    --color-primary-800: oklch(0.36 0.09 150);
+    --color-primary-900: oklch(0.29 0.07 150);
+
+    --color-sand-50: oklch(0.98 0.01 80);
+    --color-sand-100: oklch(0.96 0.02 80);
+    --color-sand-200: oklch(0.91 0.03 80);
+    --color-sand-300: oklch(0.84 0.04 80);
+
+    --radius-token-sm: 0.375rem;
+    --radius-token-md: 0.625rem;
+    --radius-token-lg: 1rem;
+
+    --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+@layer base {
+    :root {
+        --flaeche: var(--color-white);
+        --flaeche-gedaempft: var(--color-sand-50);
+        --rand: var(--color-sand-200);
+        --text: oklch(0.22 0.01 250);
+        --text-gedaempft: oklch(0.52 0.01 250);
+    }
+
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --flaeche: oklch(0.21 0.01 250);
+            --flaeche-gedaempft: oklch(0.26 0.01 250);
+            --rand: oklch(0.34 0.01 250);
+            --text: oklch(0.95 0.01 250);
+            --text-gedaempft: oklch(0.72 0.01 250);
+        }
+    }
+
+    body {
+        background: var(--flaeche-gedaempft);
+        color: var(--text);
+        font-family: var(--font-sans);
+    }
+}
+
+@layer components {
+    .karte {
+        background: var(--flaeche);
+        border: 1px solid var(--rand);
+        border-radius: var(--radius-token-md);
+    }
+
+    .knopf {
+        border-radius: var(--radius-token-sm);
+        padding: 0.5rem 0.9rem;
+        font-weight: 500;
+        font-size: 0.875rem;
+        line-height: 1.25rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        border: 1px solid var(--rand);
+        background: var(--flaeche);
+        color: var(--text);
+    }
+
+    .knopf-primaer {
+        background: var(--color-primary-600);
+        border-color: var(--color-primary-600);
+        color: white;
+    }
+
+    .facette-aktiv {
+        background: var(--color-primary-50);
+        border-color: var(--color-primary-300);
+        color: var(--color-primary-800);
+    }
+
+    .feld {
+        border: 1px solid var(--rand);
+        border-radius: var(--radius-token-sm);
+        background: var(--flaeche);
+        color: var(--text);
+        padding: 0.45rem 0.65rem;
+        font-size: 0.875rem;
+        width: 100%;
+    }
+
+    .gedaempft {
+        color: var(--text-gedaempft);
+    }
+}

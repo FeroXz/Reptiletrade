@@ -10,12 +10,13 @@ use Reptilienmarkt\Domain\Species\CitesAppendix;
 use Reptilienmarkt\Domain\Species\EuAnnex;
 use Reptilienmarkt\Domain\Species\Species;
 use Reptilienmarkt\Domain\Species\SpeciesRepository;
+use Reptilienmarkt\Support\Slugger;
 
 final readonly class PdoSpeciesRepository implements SpeciesRepository
 {
     private const string COLUMNS = 'id, scientific_name, common_name_de, family, order_taxon, cites_appendix, eu_annex, '
         . 'bnatschg_status, meldepflicht, doku_pflicht, gefahrtier, care_level, adult_size_cm, lifespan_years, '
-        . 'min_abgabe_alter_wochen, min_abgabe_gewicht_g, slug';
+        . 'min_abgabe_alter_wochen, min_abgabe_gewicht_g, slug, common_slug';
 
     public function __construct(private Database $database) {}
 
@@ -29,6 +30,13 @@ final readonly class PdoSpeciesRepository implements SpeciesRepository
     public function findBySlug(string $slug): ?Species
     {
         $row = $this->database->selectOne('SELECT ' . self::COLUMNS . ' FROM species WHERE slug = :slug', ['slug' => $slug]);
+
+        return $row === null ? null : $this->map($row);
+    }
+
+    public function findByCommonSlug(string $slug): ?Species
+    {
+        $row = $this->database->selectOne('SELECT ' . self::COLUMNS . ' FROM species WHERE common_slug = :slug', ['slug' => $slug]);
 
         return $row === null ? null : $this->map($row);
     }
@@ -86,6 +94,7 @@ final readonly class PdoSpeciesRepository implements SpeciesRepository
             'min_abgabe_alter_wochen' => $species->minAbgabeAlterWochen,
             'min_abgabe_gewicht_g' => $species->minAbgabeGewichtG,
             'slug' => $species->slug,
+            'common_slug' => $species->commonSlug ?? Slugger::slug($species->commonNameDe),
             'updated_at' => $now,
         ];
 
@@ -94,10 +103,10 @@ final readonly class PdoSpeciesRepository implements SpeciesRepository
         $this->database->execute(
             'INSERT INTO species (scientific_name, common_name_de, family, order_taxon, cites_appendix, eu_annex,
                 bnatschg_status, meldepflicht, doku_pflicht, gefahrtier, care_level, adult_size_cm, lifespan_years,
-                min_abgabe_alter_wochen, min_abgabe_gewicht_g, slug, created_at, updated_at)
+                min_abgabe_alter_wochen, min_abgabe_gewicht_g, slug, common_slug, created_at, updated_at)
              VALUES (:scientific_name, :common_name_de, :family, :order_taxon, :cites_appendix, :eu_annex,
                 :bnatschg_status, :meldepflicht, :doku_pflicht, :gefahrtier, :care_level, :adult_size_cm, :lifespan_years,
-                :min_abgabe_alter_wochen, :min_abgabe_gewicht_g, :slug, :updated_at, :updated_at)
+                :min_abgabe_alter_wochen, :min_abgabe_gewicht_g, :slug, :common_slug, :updated_at, :updated_at)
              ON CONFLICT(scientific_name) DO UPDATE SET
                 common_name_de = excluded.common_name_de,
                 family = excluded.family,
@@ -114,6 +123,7 @@ final readonly class PdoSpeciesRepository implements SpeciesRepository
                 min_abgabe_alter_wochen = excluded.min_abgabe_alter_wochen,
                 min_abgabe_gewicht_g = excluded.min_abgabe_gewicht_g,
                 slug = excluded.slug,
+                common_slug = excluded.common_slug,
                 updated_at = excluded.updated_at',
             $parameters,
         );
@@ -158,6 +168,7 @@ final readonly class PdoSpeciesRepository implements SpeciesRepository
             $row['lifespan_years'] === null ? null : (int) $row['lifespan_years'],
             $row['min_abgabe_alter_wochen'] === null ? null : (int) $row['min_abgabe_alter_wochen'],
             $row['min_abgabe_gewicht_g'] === null ? null : (int) $row['min_abgabe_gewicht_g'],
+            $row['common_slug'] === null ? null : (string) $row['common_slug'],
         );
     }
 }
