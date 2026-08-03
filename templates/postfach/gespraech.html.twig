@@ -1,0 +1,112 @@
+{% extends 'layout/basis.html.twig' %}
+{% block titel %}{{ anzeige ? anzeige.title : 'Gespräch' }} — {{ t('postfach.titel') }}{% endblock %}
+{% block kopf %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block inhalt %}
+    <div class="mx-auto max-w-2xl space-y-4">
+        {% include 'partials/meldungen.html.twig' %}
+
+        <div class="karte flex items-center justify-between gap-4 p-4">
+            <div class="min-w-0">
+                <p class="truncate font-medium">
+                    {% if anzeige %}
+                        <a class="underline" href="/anzeige/{{ anzeige.id }}/">{{ anzeige.title }}</a>
+                    {% else %}
+                        Anzeige gelöscht
+                    {% endif %}
+                </p>
+                <p class="text-sm gedaempft">
+                    mit {{ gegenueber ? gegenueber.displayName : 'Gelöschtes Konto' }}
+                    {% if gegenueber %}
+                        <span class="ml-1 rounded-full px-2 py-0.5 text-xs" style="background: var(--rand)">
+                            {{ gegenueber.verificationLevel.badge }}
+                        </span>
+                    {% endif %}
+                </p>
+            </div>
+            <a class="text-sm underline" href="/postfach/">Zurück</a>
+        </div>
+
+        {% if maskierung_bis > 0 %}
+            <p class="text-xs gedaempft">{{ t('postfach.maskierung_hinweis', {'anzahl': maskierung_bis}) }}</p>
+        {% endif %}
+
+        {# ------------------------------------------------------------ Verlauf #}
+        <ol class="space-y-2">
+            {% for eintrag in nachrichten %}
+                <li class="karte p-3 {{ eintrag.isOwn ? 'ml-8' : 'mr-8' }}">
+                    <div class="flex items-baseline justify-between gap-2 text-xs gedaempft">
+                        <span>{{ eintrag.isOwn ? 'Du' : (gegenueber ? gegenueber.displayName : 'Gelöschtes Konto') }}</span>
+                        {% if eintrag.message.createdAt %}
+                            <time datetime="{{ eintrag.message.createdAt.format('c') }}">
+                                {{ eintrag.message.createdAt.format('d.m.Y H:i') }}
+                            </time>
+                        {% endif %}
+                    </div>
+
+                    <p class="mt-1 whitespace-pre-line">{{ eintrag.body }}</p>
+
+                    {% if eintrag.wasMasked %}
+                        <p class="mt-1 text-xs gedaempft">{{ t('postfach.kontakt_ausgeblendet') }}</p>
+                    {% endif %}
+
+                    <p class="mt-1 text-right text-xs">
+                        <a class="gedaempft underline" href="/melden/message/{{ eintrag.message.id }}">
+                            {{ t('meldung.titel') }}
+                        </a>
+                    </p>
+                </li>
+            {% endfor %}
+        </ol>
+
+        {# ---------------------------------------------------------- Antworten #}
+        {% if gespraech.status.acceptsMessages %}
+            <form method="post" action="/postfach/{{ gespraech.id }}/senden" class="karte space-y-2 p-4">
+                <input type="hidden" name="_csrf" value="{{ csrf }}">
+                <label class="text-sm" for="nachricht">{{ t('postfach.antworten') }}</label>
+                <textarea class="feld" id="nachricht" name="nachricht" rows="4" maxlength="4000" required></textarea>
+                <button type="submit" class="knopf knopf-primaer">{{ t('allgemein.senden') }}</button>
+            </form>
+        {% else %}
+            <p class="karte p-4 text-sm gedaempft">{{ t('postfach.geschlossen') }}</p>
+        {% endif %}
+
+        {# ------------------------------------------------- Handel und Bewertung #}
+        <div class="karte space-y-3 p-4">
+            <h2 class="font-semibold">{{ t('postfach.handel_bestaetigen') }}</h2>
+
+            {% if gespraech.dealConfirmed %}
+                <p class="text-sm">{{ t('postfach.handel_beidseitig') }}</p>
+            {% elseif selbst_bestaetigt %}
+                <p class="text-sm gedaempft">{{ t('postfach.handel_wartet') }}</p>
+            {% else %}
+                <p class="text-sm gedaempft">
+                    Bestätige den Handel, sobald das Tier übergeben ist. Bewerten könnt ihr euch,
+                    wenn beide Seiten bestätigt haben.
+                </p>
+                <form method="post" action="/postfach/{{ gespraech.id }}/handel">
+                    <input type="hidden" name="_csrf" value="{{ csrf }}">
+                    <button type="submit" class="knopf">{{ t('postfach.handel_bestaetigen') }}</button>
+                </form>
+            {% endif %}
+
+            {% if darf_bewerten %}
+                <form method="post" action="/postfach/{{ gespraech.id }}/bewerten" class="space-y-2 border-t pt-3"
+                      style="border-color: var(--rand)">
+                    <input type="hidden" name="_csrf" value="{{ csrf }}">
+                    <label class="text-sm" for="sterne">{{ t('bewertung.abgeben') }}</label>
+                    <select class="feld" id="sterne" name="sterne" required>
+                        {% for stern in [5, 4, 3, 2, 1] %}
+                            <option value="{{ stern }}">{{ stern }} von 5</option>
+                        {% endfor %}
+                    </select>
+                    <textarea class="feld" name="kommentar" rows="3" maxlength="1500"
+                              placeholder="Wie lief die Übergabe? (optional)"></textarea>
+                    <button type="submit" class="knopf">{{ t('allgemein.speichern') }}</button>
+                </form>
+            {% elseif not gespraech.dealConfirmed %}
+                <p class="text-xs gedaempft">{{ t('bewertung.nur_nach_handel') }}</p>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}

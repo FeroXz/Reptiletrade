@@ -14,7 +14,8 @@ use Reptilienmarkt\Domain\User\UserStatus;
 final readonly class PdoUserRepository implements UserRepository
 {
     private const string COLUMNS = 'id, email, display_name, role, status, email_verified_at, phone, phone_verified_at, '
-        . 'identity_verified_at, is_commercial, erlaubnis_11_number, imprint, postal_code, country';
+        . 'identity_verified_at, is_commercial, erlaubnis_11_number, imprint, postal_code, country, created_at, '
+        . 'totp_confirmed_at';
 
     public function __construct(private Database $database) {}
 
@@ -133,6 +134,26 @@ final readonly class PdoUserRepository implements UserRepository
         ];
     }
 
+    public function publishedListingCount(int $userId): int
+    {
+        $value = $this->database->scalar(
+            "SELECT COUNT(*) FROM listings WHERE user_id = :user AND status <> 'entwurf'",
+            ['user' => $userId],
+        );
+
+        return (int) (is_numeric($value) ? $value : 0);
+    }
+
+    public function findByDisplayName(string $displayName): ?User
+    {
+        $row = $this->database->selectOne(
+            'SELECT ' . self::COLUMNS . ' FROM users WHERE display_name = :name LIMIT 1',
+            ['name' => $displayName],
+        );
+
+        return $row === null ? null : $this->map($row);
+    }
+
     /**
      * @param array<string, mixed> $row
      */
@@ -155,6 +176,8 @@ final readonly class PdoUserRepository implements UserRepository
             $row['imprint'] === null ? null : (string) $row['imprint'],
             $row['postal_code'] === null ? null : (string) $row['postal_code'],
             \is_string($country) ? Country::tryFrom($country) : null,
+            $this->date($row['created_at']),
+            $row['totp_confirmed_at'] !== null,
         );
     }
 

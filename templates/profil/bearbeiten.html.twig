@@ -1,0 +1,74 @@
+{% extends 'layout/basis.html.twig' %}
+{% block titel %}{{ t('profil.bearbeiten') }} — Reptilienmarkt{% endblock %}
+{% block kopf %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block inhalt %}
+    <div class="mx-auto max-w-2xl space-y-4">
+        {% include 'partials/meldungen.html.twig' %}
+
+        <form method="post" action="/konto/profil" class="karte space-y-4 p-6">
+            <h1 class="text-lg font-semibold">{{ t('profil.bearbeiten') }}</h1>
+            <input type="hidden" name="_csrf" value="{{ csrf }}">
+
+            <div>
+                <label class="text-sm" for="adresse">Profiladresse</label>
+                <div class="flex items-center gap-1">
+                    <span class="text-sm gedaempft">/zuechter/</span>
+                    <input class="feld" id="adresse" type="text" name="adresse"
+                           value="{{ profil ? profil.slug : '' }}"
+                           placeholder="{{ nutzer.displayName|slug }}">
+                </div>
+                <p class="mt-1 text-xs gedaempft">
+                    Leer lassen übernimmt deinen Anzeigenamen. Ist die Adresse vergeben, hängen wir eine
+                    Zahl an.
+                </p>
+            </div>
+
+            <div>
+                <label class="text-sm" for="schlagzeile">Eine Zeile über dich</label>
+                <input class="feld" id="schlagzeile" type="text" name="schlagzeile" maxlength="120"
+                       value="{{ profil ? profil.headline|default('') : '' }}"
+                       placeholder="Bartagamen aus eigener Nachzucht, Raum München">
+            </div>
+
+            <div>
+                <label class="text-sm" for="beschreibung">Beschreibung</label>
+                <textarea class="feld" id="beschreibung" name="beschreibung" rows="8" maxlength="4000"
+                          placeholder="Was zeichnet deine Zucht aus? Woran arbeitest du?">{{ profil ? profil.description|default('') : '' }}</textarea>
+            </div>
+
+            <div>
+                <label class="text-sm" for="schwerpunkt">{{ t('profil.schwerpunkt') }}</label>
+                <select class="feld" id="schwerpunkt" name="schwerpunkt[]" multiple size="8">
+                    {% for art in arten %}
+                        <option value="{{ art.id }}"
+                                {{ profil and art.id in profil.focusSpeciesIds ? 'selected' : '' }}>
+                            {{ art.commonNameDe }} ({{ art.scientificName }})
+                        </option>
+                    {% endfor %}
+                </select>
+                <p class="mt-1 text-xs gedaempft">Höchstens acht Arten. Mehrfachauswahl mit Strg beziehungsweise Cmd.</p>
+            </div>
+
+            <div class="grid gap-3 sm:grid-cols-2">
+                <div>
+                    <label class="text-sm" for="zuchtbeginn">Zuchtbeginn (Jahr)</label>
+                    <input class="feld" id="zuchtbeginn" type="number" name="zuchtbeginn" min="1950" max="{{ 'now'|date('Y') }}"
+                           value="{{ profil ? profil.breedingSince|default('') : '' }}" placeholder="2018">
+                </div>
+                <div>
+                    <label class="text-sm" for="website">Website</label>
+                    <input class="feld" id="website" type="text" name="website"
+                           value="{{ profil ? profil.website|default('') : '' }}" placeholder="beispiel.de">
+                </div>
+            </div>
+
+            <label class="flex items-center gap-2 text-sm">
+                <input type="checkbox" name="oeffentlich" value="1" {{ not profil or profil.isPublic ? 'checked' : '' }}>
+                Profil öffentlich zeigen
+            </label>
+
+            <button type="submit" class="knopf knopf-primaer">{{ t('allgemein.speichern') }}</button>
+        </form>
+    </div>
+{% endblock %}

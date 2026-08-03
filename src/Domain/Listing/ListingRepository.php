@@ -40,4 +40,19 @@ interface ListingRepository
      * @return list<Listing>
      */
     public function forUser(int $userId, int $limit = 50): array;
+
+    /**
+     * Sichtbare Anzeigen eines Anbieters — fuer die oeffentliche Profilseite.
+     *
+     * @return list<Listing>
+     */
+    public function activeForUser(int $userId, int $limit = 12): array;
+
+    /**
+     * Anzeigen in einem bestimmten Zustand, aelteste zuerst — Grundlage der
+     * Pruefliste der Moderation.
+     *
+     * @return list<Listing>
+     */
+    public function inStatus(ListingStatus $status, int $limit = 25): array;
 }

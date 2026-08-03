@@ -66,6 +66,14 @@ final readonly class ListingIndexer
         $this->index->index($this->toDocument($row));
     }
 
+    /**
+     * Nimmt eine Anzeige aus dem Index — etwa wenn die Moderation sie sperrt.
+     */
+    public function removeListing(int $listingId): void
+    {
+        $this->index->remove($listingId);
+    }
+
     public function rebuildAll(): int
     {
         return $this->index->rebuild($this->documents());

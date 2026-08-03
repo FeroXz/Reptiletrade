@@ -38,4 +38,12 @@ interface UserRepository
      * @return array{aktive_anzeigen: int, verkaeufe_12_monate: int}
      */
     public function salesStatistics(int $userId): array;
+
+    /**
+     * Wie viele Anzeigen dieses Konto je veroeffentlicht hat — Eingangsgroesse
+     * der Auto-Moderation neuer Konten.
+     */
+    public function publishedListingCount(int $userId): int;
+
+    public function findByDisplayName(string $displayName): ?User;
 }

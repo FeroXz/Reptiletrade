@@ -1,0 +1,147 @@
+{% extends 'layout/basis.html.twig' %}
+{% block titel %}{{ t('konto.titel') }} — Reptilienmarkt{% endblock %}
+{% block kopf %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block inhalt %}
+    <div class="mx-auto max-w-3xl space-y-6">
+        {% include 'partials/meldungen.html.twig' %}
+
+        <h1 class="text-xl font-semibold">{{ t('konto.titel') }}</h1>
+
+        {# ------------------------------------------------------ Verifizierung #}
+        <section class="karte space-y-4 p-6">
+            <div class="flex items-baseline justify-between">
+                <h2 class="font-semibold">{{ t('konto.verifizierung') }}</h2>
+                <span class="text-sm gedaempft">{{ stufe.label }}</span>
+            </div>
+            <p class="text-sm gedaempft">{{ t('verifizierung.hinweis') }}</p>
+
+            <ol class="space-y-3">
+                {# Stufe 1: E-Mail #}
+                <li class="flex items-center justify-between gap-4 border-t pt-3" style="border-color: var(--rand)">
+                    <span>
+                        <strong>1. E-Mail</strong>
+                        <span class="gedaempft">{{ nutzer.email }}</span>
+                    </span>
+                    {% if nutzer.hasVerifiedEmail %}
+                        <span class="text-sm">bestätigt</span>
+                    {% else %}
+                        <form method="post" action="/konto/email-senden">
+                            <input type="hidden" name="_csrf" value="{{ csrf }}">
+                            <button type="submit" class="knopf">Bestätigungslink senden</button>
+                        </form>
+                    {% endif %}
+                </li>
+
+                {# Stufe 2: Telefon #}
+                <li class="border-t pt-3" style="border-color: var(--rand)">
+                    <div class="flex items-center justify-between gap-4">
+                        <span>
+                            <strong>2. Telefon</strong>
+                            <span class="gedaempft">{{ nutzer.phone|default(t('allgemein.keine_angabe')) }}</span>
+                        </span>
+                        {% if nutzer.phoneVerifiedAt %}<span class="text-sm">bestätigt</span>{% endif %}
+                    </div>
+
+                    {% if not nutzer.phoneVerifiedAt %}
+                        <div class="mt-2 grid gap-2 sm:grid-cols-2">
+                            <form method="post" action="/konto/telefon" class="flex gap-2">
+                                <input type="hidden" name="_csrf" value="{{ csrf }}">
+                                <input class="feld" type="tel" name="telefon" placeholder="+49 176 1234567"
+                                       value="{{ nutzer.phone|default('') }}" required
+                                       {{ nutzer.hasVerifiedEmail ? '' : 'disabled' }}>
+                                <button type="submit" class="knopf" {{ nutzer.hasVerifiedEmail ? '' : 'disabled' }}>
+                                    Code senden
+                                </button>
+                            </form>
+                            <form method="post" action="/konto/telefon-bestaetigen" class="flex gap-2">
+                                <input type="hidden" name="_csrf" value="{{ csrf }}">
+                                <input class="feld" type="text" name="code" inputmode="numeric" pattern="\d{6}"
+                                       placeholder="6-stelliger Code" required>
+                                <button type="submit" class="knopf">Bestätigen</button>
+                            </form>
+                        </div>
+                        {% if not nutzer.hasVerifiedEmail %}
+                            <p class="mt-1 text-xs gedaempft">Bestätige zuerst deine E-Mail-Adresse.</p>
+                        {% endif %}
+                    {% endif %}
+                </li>
+
+                {# Stufe 3: Ausweis oder Gewerbenachweis #}
+                <li class="border-t pt-3" style="border-color: var(--rand)">
+                    <div class="flex items-center justify-between gap-4">
+                        <strong>3. Identität</strong>
+                        {% if nutzer.identityVerifiedAt %}<span class="text-sm">geprüft</span>{% endif %}
+                    </div>
+
+                    <p class="mt-1 text-xs gedaempft">
+                        Freiwillig. Der Nachweis liegt außerhalb des Webservers und ist nur für die
+                        Moderation einsehbar. Nach der Prüfung wird er gelöscht.
+                    </p>
+
+                    <form method="post" action="/konto/nachweis" enctype="multipart/form-data" class="mt-2 flex flex-wrap gap-2">
+                        <input type="hidden" name="_csrf" value="{{ csrf }}">
+                        <select class="feld w-auto" name="art" aria-label="Art des Nachweises">
+                            {% for art in nachweis_arten %}
+                                <option value="{{ art.value }}">{{ art.label }}</option>
+                            {% endfor %}
+                        </select>
+                        <input class="feld w-auto" type="file" name="datei" accept="application/pdf,image/*" required>
+                        <button type="submit" class="knopf">Hochladen</button>
+                    </form>
+
+                    {% if nachweise is not empty %}
+                        <ul class="mt-3 space-y-1 text-sm">
+                            {% for nachweis in nachweise %}
+                                <li class="flex justify-between gap-4">
+                                    <span>{{ nachweis.docType.label }} — {{ nachweis.originalFilename }}</span>
+                                    <span class="gedaempft">{{ nachweis.status.label }}</span>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                </li>
+            </ol>
+        </section>
+
+        {# ---------------------------------------------------------- Sicherheit #}
+        <section class="karte space-y-4 p-6">
+            <h2 class="font-semibold">{{ t('konto.sicherheit') }}</h2>
+
+            <form method="post" action="/konto/passwort" class="grid gap-2 sm:grid-cols-3">
+                <input type="hidden" name="_csrf" value="{{ csrf }}">
+                <input class="feld" type="password" name="aktuelles_passwort" placeholder="Aktuelles Passwort"
+                       required autocomplete="current-password">
+                <input class="feld" type="password" name="neues_passwort" placeholder="Neues Passwort"
+                       required minlength="10" autocomplete="new-password">
+                <button type="submit" class="knopf">{{ t('konto.passwort_aendern') }}</button>
+            </form>
+
+            <div class="border-t pt-4" style="border-color: var(--rand)">
+                <div class="flex items-center justify-between gap-4">
+                    <span>
+                        <strong>Zwei-Faktor-Anmeldung</strong>
+                        <span class="gedaempft">{{ zwei_faktor ? 'aktiv' : 'nicht eingerichtet' }}</span>
+                    </span>
+
+                    {% if zwei_faktor %}
+                        <form method="post" action="/konto/zwei-faktor/aus" class="flex gap-2">
+                            <input type="hidden" name="_csrf" value="{{ csrf }}">
+                            <input class="feld w-auto" type="password" name="passwort" placeholder="Passwort" required>
+                            <button type="submit" class="knopf">Abschalten</button>
+                        </form>
+                    {% else %}
+                        <form method="post" action="/konto/zwei-faktor">
+                            <input type="hidden" name="_csrf" value="{{ csrf }}">
+                            <button type="submit" class="knopf">Einrichten</button>
+                        </form>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+
+        <p class="text-sm">
+            <a class="underline" href="/konto/profil">{{ t('profil.bearbeiten') }}</a>
+        </p>
+    </div>
+{% endblock %}

@@ -14,7 +14,7 @@ Architekturentscheidungen (Router, SQLite vs. PostgreSQL, Migrationsstrategie, K
 | 2 | Rechts-Engine (`LegalGuard`) | umgesetzt |
 | 3 | Suche und Browsing | umgesetzt |
 | 4 | Anzeige erstellen | umgesetzt |
-| 5 | Nutzer, Vertrauen, Kommunikation | offen |
+| 5 | Nutzer, Vertrauen, Kommunikation | umgesetzt |
 | 6 | Monetarisierung (vorbereiten) | offen |
 | 7 | Admin, DSGVO, Betrieb | offen |
 
@@ -153,7 +153,9 @@ anzufassen. Er meldet außerdem unmögliche Kombinationen (letale Paarungen, `he
 Merkmal, zwei Merkmale desselben Genorts).
 
 Vor dem Veröffentlichen läuft `LegalGuard`. Die Entscheidung landet in jedem Fall im Audit-Log —
-`listing.published` oder `listing.publish_blocked` mit den auslösenden Regeln.
+`listing.published` oder `listing.publish_blocked` mit den auslösenden Regeln. Zusätzlich greift die
+Auto-Moderation neuer Konten (siehe unten); beide Wege können unabhängig voneinander in die Prüfung
+führen.
 
 ### Bilder und Rechtsnachweise
 
@@ -167,6 +169,66 @@ eine dieser Dateien zeigt; die Auslieferung läuft ausschließlich über
 `LegalDocumentController::download()`, der erst die Anmeldung, dann die Zugehörigkeit prüft. Ein
 fremdes Dokument beantwortet er mit **404, nicht 403** — ein 403 würde bestätigen, dass es die Datei
 gibt.
+
+## Vertrauen und Missbrauchsabwehr
+
+Schwellwerte und Wortlisten stehen in [`config/trust.php`](config/trust.php), nicht im Code. Ein
+unbekannter Schlüssel oder ein falscher Typ führt beim Aufbau zu einem Fehler — eine stillschweigend
+übersprungene Schutzmaßnahme wäre schlimmer als ein Startfehler.
+
+**Kontaktmaskierung.** In den ersten drei Nachrichten eines Gesprächs werden E-Mail-Adressen und
+Telefonnummern ausgeblendet. Der Zweck ist nicht, den Austausch zu verhindern — das lässt sich
+ohnehin umgehen —, sondern das massenhafte Einsammeln von Adressen durch automatisiertes Anschreiben
+unattraktiv zu machen. Maskiert wird beim **Anzeigen**, nicht beim Speichern: In der Datenbank steht
+weiter das Original, weil die Moderation im Missbrauchsfall den echten Wortlaut braucht.
+
+**Keyword-Filter.** Ein Wortfilter ist ein Verdacht, kein Urteil. Deshalb hält nur die Gruppe der
+Zahlungswege ohne Rückholmöglichkeit (Western Union, Gutscheinkarten, „PayPal Freunde") eine
+Nachricht zurück; alles andere geht durch und landet in der Moderationsliste. Die Meldung an den
+Absender nennt die Treffer nicht — sonst ließe sich die Wortliste durch Ausprobieren rekonstruieren.
+
+**Rate-Limits** laufen über ein gleitendes Fenster. Die übliche Zählervariante mit festem Fenster
+lässt an der Fenstergrenze die doppelte Menge durch. Ein abgewiesener Versuch wird nicht mitgezählt,
+sonst verlängerte jeder entnervte Klick die Sperre.
+
+**Auto-Moderation.** Die ersten drei Anzeigen eines neuen Kontos gehen in die Prüfung. Die Regel
+greift nur bei jungen Konten: Wer seit Monaten dabei ist, ist kein Wegwerfkonto.
+
+**Bewertungen** entstehen ausschließlich aus einem **beidseitig** bestätigten Handel. Ohne diese
+Bedingung ließe sich ein Konto mit erfundenen Bewertungen aufwerten oder ein fremdes herabsetzen.
+
+## Konto und Verifizierung
+
+Drei aufeinander aufbauende Stufen: E-Mail → Telefon → Identität. Die ersten beiden erledigt der
+Nutzer selbst über einen Einmal-Token, die dritte prüft ein Mensch. Der Ausweis- oder
+Gewerbenachweis liegt wie die Rechtsnachweise außerhalb des Webroots.
+
+Token existieren im Klartext genau einmal: auf dem Weg zum Nutzer. In der Datenbank steht nur der
+SHA-256-Hash — bewusst kein Argon2id, denn der Token ist bereits 256 Bit Zufall, und ein langsames
+Verfahren kostete bei jedem Klick auf einen Bestätigungslink Rechenzeit, ohne etwas zu schützen.
+
+Zwei-Faktor läuft über eine eigene TOTP-Umsetzung nach RFC 6238 (geprüft gegen die Testvektoren aus
+Anhang B). Eigene Umsetzung statt Fremdpaket: dreißig Zeilen Kern, seit 2011 unveränderte
+Schnittstelle — und eine Abhängigkeit weniger genau im Anmeldeweg. Scharf wird die zweite Stufe erst,
+wenn ein Code aus der App stimmt; abschalten geht nur mit Passwort.
+
+## Identitätsquelle
+
+Die Plattform läuft vollständig eigenständig. `IDENTITY_PROVIDER=local` bedient die eigene
+`users`-Tabelle; `Reptilienmarkt\Domain\Identity\IdentityProvider` ist die Naht, an der eine spätere
+Kopplung an das DragonReptiles-CMS ansetzt, ohne dass Anmeldung, Assistent oder Postfach etwas davon
+merken. Ein nicht umgesetzter Wert führt beim Aufbau zu einem Fehler — das ist ehrlicher als eine
+stillschweigend lokale Anmeldung.
+
+## Sprache
+
+Alle Oberflächentexte laufen über `Reptilienmarkt\Support\Translator` und stehen in
+[`lang/de-DE.php`](lang/de-DE.php). Fehlt ein Schlüssel, zeigt die Seite den Schlüssel selbst — das
+fällt auf, statt eine leere Stelle zu hinterlassen. Ein Test vergleicht die in den Templates
+verwendeten Schlüssel gegen den Katalog.
+
+> Der Übersetzer ist in Phase 5 eingeführt. Die Templates aus den Phasen 1 bis 4 tragen ihre Texte
+> noch direkt im Markup; sie nachzuziehen ist offen und rein mechanisch.
 
 ## Datensätze
 
@@ -187,11 +249,13 @@ docs/         Architekturplan
 migrations/   Versionierte Migrationen, eine Datei je Migration
 public/       Front-Controller und Assets
 src/Domain/   Entitäten, Value Objects, Repository-Interfaces (framework- und PDO-frei)
+              Auth, Listing, Message, Moderation, Review, Trust, User, ...
 src/Infra/    PDO-Repositories, Importer
 src/Http/     Controller, Middleware
 src/Legal/    LegalGuard und Regelwerk
 src/Support/  Env, Container
-storage/      db/, private/ (Rechtsdokumente, außerhalb des Webroots)
+lang/         Sprachkataloge, de-DE als Basis
+storage/      db/, private/ (Rechts- und Identitätsnachweise, außerhalb des Webroots), mail/
 templates/    Twig
 tests/
 tools/        Werkzeuge für Datensätze, Messungen und Abnahme (laufen nicht im Betrieb)

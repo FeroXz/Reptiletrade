@@ -6,19 +6,44 @@ use Reptilienmarkt\Domain\Audit\AuditLog;
 use Reptilienmarkt\Domain\Auth\AuthenticationService;
 use Reptilienmarkt\Domain\Auth\PasswordHasher;
 use Reptilienmarkt\Domain\Auth\SessionRepository;
+use Reptilienmarkt\Domain\Auth\TokenRepository;
+use Reptilienmarkt\Domain\Auth\TokenService;
+use Reptilienmarkt\Domain\Auth\TotpAuthenticator;
 use Reptilienmarkt\Domain\Geo\PostalCodeRepository;
+use Reptilienmarkt\Domain\Identity\IdentityProvider;
+use Reptilienmarkt\Domain\Identity\LocalIdentityProvider;
 use Reptilienmarkt\Domain\Listing\GeneticsCalculator;
 use Reptilienmarkt\Domain\Listing\LegalDocumentRepository;
 use Reptilienmarkt\Domain\Listing\ListingMediaRepository;
 use Reptilienmarkt\Domain\Listing\ListingRepository;
 use Reptilienmarkt\Domain\Listing\ListingWizard;
 use Reptilienmarkt\Domain\Listing\MorphStringGenerator;
+use Reptilienmarkt\Domain\Mail\Mailer;
+use Reptilienmarkt\Domain\Message\ConversationRepository;
+use Reptilienmarkt\Domain\Message\MessageRepository;
+use Reptilienmarkt\Domain\Message\MessagingService;
+use Reptilienmarkt\Domain\Moderation\ReportRepository;
+use Reptilienmarkt\Domain\Moderation\ReportService;
+use Reptilienmarkt\Domain\Review\ReviewRepository;
+use Reptilienmarkt\Domain\Review\ReviewService;
 use Reptilienmarkt\Domain\Search\ListingSearchRepository;
 use Reptilienmarkt\Domain\Search\SearchIndex;
 use Reptilienmarkt\Domain\Setting\Settings;
 use Reptilienmarkt\Domain\Species\MorphRepository;
 use Reptilienmarkt\Domain\Species\SpeciesRepository;
+use Reptilienmarkt\Domain\Trust\AutoModerationPolicy;
+use Reptilienmarkt\Domain\Trust\ContactMasker;
+use Reptilienmarkt\Domain\Trust\FraudKeywordFilter;
+use Reptilienmarkt\Domain\Trust\RateLimiter;
+use Reptilienmarkt\Domain\Trust\RateLimitRepository;
+use Reptilienmarkt\Domain\Trust\TrustConfiguration;
+use Reptilienmarkt\Domain\User\AccountService;
+use Reptilienmarkt\Domain\User\BreederProfileRepository;
+use Reptilienmarkt\Domain\User\BreederProfileService;
+use Reptilienmarkt\Domain\User\UserDocumentRepository;
 use Reptilienmarkt\Domain\User\UserRepository;
+use Reptilienmarkt\Domain\User\VerificationRepository;
+use Reptilienmarkt\Http\Controller\AccountController;
 use Reptilienmarkt\Http\Controller\ApiController;
 use Reptilienmarkt\Http\Controller\AuthController;
 use Reptilienmarkt\Http\Controller\LegalDocumentController;
@@ -26,6 +51,11 @@ use Reptilienmarkt\Http\Controller\ListingController;
 use Reptilienmarkt\Http\Controller\ListingWizardController;
 use Reptilienmarkt\Http\Controller\MarketController;
 use Reptilienmarkt\Http\Controller\MediaController;
+use Reptilienmarkt\Http\Controller\MessageController;
+use Reptilienmarkt\Http\Controller\ModerationController;
+use Reptilienmarkt\Http\Controller\PasswordResetController;
+use Reptilienmarkt\Http\Controller\ProfileController;
+use Reptilienmarkt\Http\Controller\ReportController;
 use Reptilienmarkt\Http\Controller\SpeciesController;
 use Reptilienmarkt\Http\Kernel;
 use Reptilienmarkt\Http\Middleware\SessionMiddleware;
@@ -35,19 +65,31 @@ use Reptilienmarkt\Http\Session\CurrentUser;
 use Reptilienmarkt\Http\Session\SessionManager;
 use Reptilienmarkt\Http\Session\Viewer;
 use Reptilienmarkt\Http\View\TwigFactory;
+use Reptilienmarkt\Http\View\ViewContext;
+use Reptilienmarkt\Infra\Mail\FileMailer;
+use Reptilienmarkt\Infra\Mail\SendmailMailer;
 use Reptilienmarkt\Infra\Persistence\Database;
 use Reptilienmarkt\Infra\Persistence\Migrator;
 use Reptilienmarkt\Infra\Persistence\PdoAuditLog;
+use Reptilienmarkt\Infra\Persistence\PdoBreederProfileRepository;
+use Reptilienmarkt\Infra\Persistence\PdoConversationRepository;
 use Reptilienmarkt\Infra\Persistence\PdoLegalDocumentRepository;
 use Reptilienmarkt\Infra\Persistence\PdoLegalTextRepository;
 use Reptilienmarkt\Infra\Persistence\PdoListingMediaRepository;
 use Reptilienmarkt\Infra\Persistence\PdoListingRepository;
+use Reptilienmarkt\Infra\Persistence\PdoMessageRepository;
 use Reptilienmarkt\Infra\Persistence\PdoMorphRepository;
 use Reptilienmarkt\Infra\Persistence\PdoPostalCodeRepository;
+use Reptilienmarkt\Infra\Persistence\PdoRateLimitRepository;
+use Reptilienmarkt\Infra\Persistence\PdoReportRepository;
+use Reptilienmarkt\Infra\Persistence\PdoReviewRepository;
 use Reptilienmarkt\Infra\Persistence\PdoSessionRepository;
 use Reptilienmarkt\Infra\Persistence\PdoSettings;
 use Reptilienmarkt\Infra\Persistence\PdoSpeciesRepository;
+use Reptilienmarkt\Infra\Persistence\PdoTokenRepository;
+use Reptilienmarkt\Infra\Persistence\PdoUserDocumentRepository;
 use Reptilienmarkt\Infra\Persistence\PdoUserRepository;
+use Reptilienmarkt\Infra\Persistence\PdoVerificationRepository;
 use Reptilienmarkt\Infra\Search\Fts5SearchIndex;
 use Reptilienmarkt\Infra\Search\ListingIndexer;
 use Reptilienmarkt\Infra\Search\ListingQuery;
@@ -64,6 +106,7 @@ use Reptilienmarkt\Support\Clock;
 use Reptilienmarkt\Support\Container;
 use Reptilienmarkt\Support\Env;
 use Reptilienmarkt\Support\SystemClock;
+use Reptilienmarkt\Support\Translator;
 use Twig\Environment;
 
 $root = dirname(__DIR__);
@@ -103,6 +146,26 @@ $container->set(LegalTextRepository::class, static fn(Container $c): LegalTextRe
 $container->set(Settings::class, static fn(Container $c): Settings => new PdoSettings($c->get(Database::class)));
 
 $container->set(Clock::class, static fn(): Clock => new SystemClock(Env::string('APP_TIMEZONE', 'Europe/Berlin')));
+
+// Die Plattform laeuft ohne fremde Identitaetsquelle. Ein anderer Wert als
+// "local" braucht eine eigene Umsetzung des Interfaces — bis dahin ist ein
+// Startfehler ehrlicher als eine stillschweigend lokale Anmeldung.
+$container->set(IdentityProvider::class, static function (): IdentityProvider {
+    $provider = Env::string('IDENTITY_PROVIDER', 'local');
+
+    return match ($provider) {
+        'local' => new LocalIdentityProvider(),
+        default => throw new RuntimeException(sprintf(
+            'IDENTITY_PROVIDER "%s" ist nicht umgesetzt. Verfuegbar: local.',
+            $provider,
+        )),
+    };
+});
+
+$container->set(Translator::class, static fn(): Translator => new Translator(
+    $root . '/lang',
+    Env::string('APP_LOCALE', Translator::BASE_LOCALE),
+));
 
 // --------------------------------------------------------------- Rechts-Engine
 $container->set('legal.rules_config', static function () use ($root): array {
@@ -163,10 +226,17 @@ $container->set(Router::class, static function () use ($root): Router {
     return $router;
 });
 
-$container->set(Environment::class, static fn(): Environment => TwigFactory::create(
+$container->set(ViewContext::class, static fn(Container $c): ViewContext => new ViewContext(
+    $c->get(Viewer::class),
+    $c->get(ConversationRepository::class),
+));
+
+$container->set(Environment::class, static fn(Container $c): Environment => TwigFactory::create(
     $root . '/templates',
     Env::bool('APP_DEBUG'),
     $root . '/storage/cache/twig',
+    $c->get(Translator::class),
+    $c->get(ViewContext::class),
 ));
 
 $container->set(SearchRequestParser::class, static fn(Container $c): SearchRequestParser => new SearchRequestParser(
@@ -249,6 +319,7 @@ $container->set(ListingWizard::class, static fn(Container $c): ListingWizard => 
     $c->get(GeneticsCalculator::class),
     $c->get(AuditLog::class),
     $c->get(Clock::class),
+    $c->get(AutoModerationPolicy::class),
 ));
 
 $container->set(AuthController::class, static fn(Container $c): AuthController => new AuthController(
@@ -296,7 +367,172 @@ $container->set(ListingController::class, static fn(Container $c): ListingContro
     $c->get(ListingMediaRepository::class),
     $c->get(SpeciesRepository::class),
     $c->get(ListingWizard::class),
+    $c->get(UserRepository::class),
+    $c->get(BreederProfileRepository::class),
+    $c->get(SessionManager::class),
     $c->get(Viewer::class),
+    $c->get(Environment::class),
+));
+
+// --------------------------------------- Vertrauen und Missbrauchsabwehr
+$container->set(TrustConfiguration::class, static function () use ($root): TrustConfiguration {
+    /** @var array<string, mixed> $config */
+    $config = require $root . '/config/trust.php';
+
+    return new TrustConfiguration($config);
+});
+
+$container->set(RateLimitRepository::class, static fn(Container $c): RateLimitRepository => new PdoRateLimitRepository($c->get(Database::class)));
+
+$container->set(RateLimiter::class, static fn(Container $c): RateLimiter => new RateLimiter(
+    $c->get(RateLimitRepository::class),
+    $c->get(Clock::class),
+    $c->get(TrustConfiguration::class)->rateLimits(),
+));
+
+$container->set(FraudKeywordFilter::class, static fn(Container $c): FraudKeywordFilter => $c->get(TrustConfiguration::class)->keywordFilter());
+$container->set(ContactMasker::class, static fn(Container $c): ContactMasker => $c->get(TrustConfiguration::class)->contactMasker());
+$container->set(AutoModerationPolicy::class, static fn(Container $c): AutoModerationPolicy => $c->get(TrustConfiguration::class)->autoModeration());
+
+// -------------------------------------------------------------- Mailversand
+$container->set(Mailer::class, static function () use ($root): Mailer {
+    // Voreinstellung ist die Datei-Ablage: Ein falsch konfigurierter Server
+    // soll keine echten Mails an echte Adressen schicken.
+    return Env::string('MAIL_TRANSPORT', 'datei') === 'sendmail'
+        ? new SendmailMailer(
+            Env::string('MAIL_FROM', 'noreply@example.tld'),
+            Env::string('MAIL_FROM_NAME', 'Reptilienmarkt'),
+        )
+        : new FileMailer($root . '/' . ltrim(Env::string('MAIL_DIRECTORY', 'storage/mail'), '/'));
+});
+
+// -------------------------------------------- Konto, Verifizierung, Token
+$container->set(TokenRepository::class, static fn(Container $c): TokenRepository => new PdoTokenRepository($c->get(Database::class)));
+$container->set(VerificationRepository::class, static fn(Container $c): VerificationRepository => new PdoVerificationRepository($c->get(Database::class)));
+$container->set(UserDocumentRepository::class, static fn(Container $c): UserDocumentRepository => new PdoUserDocumentRepository($c->get(Database::class)));
+$container->set(BreederProfileRepository::class, static fn(Container $c): BreederProfileRepository => new PdoBreederProfileRepository($c->get(Database::class)));
+
+$container->set(TokenService::class, static fn(Container $c): TokenService => new TokenService(
+    $c->get(TokenRepository::class),
+    $c->get(Clock::class),
+));
+
+$container->set(TotpAuthenticator::class, static fn(Container $c): TotpAuthenticator => new TotpAuthenticator($c->get(Clock::class)));
+
+$container->set(AccountService::class, static fn(Container $c): AccountService => new AccountService(
+    $c->get(UserRepository::class),
+    $c->get(VerificationRepository::class),
+    $c->get(TokenService::class),
+    $c->get(PasswordHasher::class),
+    $c->get(TotpAuthenticator::class),
+    $c->get(Mailer::class),
+    $c->get(AuditLog::class),
+    $c->get(Clock::class),
+    $c->get(Translator::class),
+    Env::string('APP_URL', 'https://example.tld'),
+));
+
+$container->set(BreederProfileService::class, static fn(Container $c): BreederProfileService => new BreederProfileService(
+    $c->get(BreederProfileRepository::class),
+    $c->get(AuditLog::class),
+));
+
+// ----------------------------------------- Postfach, Bewertungen, Meldungen
+$container->set(ConversationRepository::class, static fn(Container $c): ConversationRepository => new PdoConversationRepository($c->get(Database::class)));
+$container->set(MessageRepository::class, static fn(Container $c): MessageRepository => new PdoMessageRepository($c->get(Database::class)));
+$container->set(ReviewRepository::class, static fn(Container $c): ReviewRepository => new PdoReviewRepository($c->get(Database::class)));
+$container->set(ReportRepository::class, static fn(Container $c): ReportRepository => new PdoReportRepository($c->get(Database::class)));
+
+$container->set(MessagingService::class, static fn(Container $c): MessagingService => new MessagingService(
+    $c->get(ConversationRepository::class),
+    $c->get(MessageRepository::class),
+    $c->get(ListingRepository::class),
+    $c->get(RateLimiter::class),
+    $c->get(FraudKeywordFilter::class),
+    $c->get(ContactMasker::class),
+    $c->get(AuditLog::class),
+    $c->get(Clock::class),
+));
+
+$container->set(ReviewService::class, static fn(Container $c): ReviewService => new ReviewService(
+    $c->get(ReviewRepository::class),
+    $c->get(AuditLog::class),
+    $c->get(Clock::class),
+));
+
+$container->set(ReportService::class, static fn(Container $c): ReportService => new ReportService(
+    $c->get(ReportRepository::class),
+    $c->get(RateLimiter::class),
+    $c->get(AuditLog::class),
+    $c->get(Clock::class),
+));
+
+$container->set(AccountController::class, static fn(Container $c): AccountController => new AccountController(
+    $c->get(AccountService::class),
+    $c->get(UserDocumentRepository::class),
+    $c->get(PrivateStorage::class),
+    $c->get(TotpAuthenticator::class),
+    $c->get(RateLimiter::class),
+    $c->get(Viewer::class),
+    $c->get(SessionManager::class),
+    $c->get(Translator::class),
+    $c->get(Environment::class),
+    Env::string('APP_NAME', 'Reptilienmarkt'),
+));
+
+$container->set(PasswordResetController::class, static fn(Container $c): PasswordResetController => new PasswordResetController(
+    $c->get(AccountService::class),
+    $c->get(RateLimiter::class),
+    $c->get(SessionManager::class),
+    $c->get(Environment::class),
+));
+
+$container->set(ProfileController::class, static fn(Container $c): ProfileController => new ProfileController(
+    $c->get(BreederProfileRepository::class),
+    $c->get(BreederProfileService::class),
+    $c->get(ReviewService::class),
+    $c->get(UserRepository::class),
+    $c->get(SpeciesRepository::class),
+    $c->get(ListingRepository::class),
+    $c->get(Viewer::class),
+    $c->get(SessionManager::class),
+    $c->get(Translator::class),
+    $c->get(Environment::class),
+));
+
+$container->set(MessageController::class, static fn(Container $c): MessageController => new MessageController(
+    $c->get(ConversationRepository::class),
+    $c->get(MessagingService::class),
+    $c->get(ReviewService::class),
+    $c->get(ListingRepository::class),
+    $c->get(SpeciesRepository::class),
+    $c->get(UserRepository::class),
+    $c->get(Viewer::class),
+    $c->get(SessionManager::class),
+    $c->get(Translator::class),
+    $c->get(Environment::class),
+));
+
+$container->set(ReportController::class, static fn(Container $c): ReportController => new ReportController(
+    $c->get(ReportService::class),
+    $c->get(Viewer::class),
+    $c->get(SessionManager::class),
+    $c->get(Translator::class),
+    $c->get(Environment::class),
+));
+
+$container->set(ModerationController::class, static fn(Container $c): ModerationController => new ModerationController(
+    $c->get(ReportService::class),
+    $c->get(ReportRepository::class),
+    $c->get(MessageRepository::class),
+    $c->get(ListingRepository::class),
+    $c->get(UserDocumentRepository::class),
+    $c->get(VerificationRepository::class),
+    $c->get(ListingIndexer::class),
+    $c->get(AuditLog::class),
+    $c->get(Viewer::class),
+    $c->get(SessionManager::class),
+    $c->get(Clock::class),
     $c->get(Environment::class),
 ));
 

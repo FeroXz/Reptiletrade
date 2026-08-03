@@ -9,6 +9,7 @@ use Reptilienmarkt\Domain\Audit\AuditLog;
 use Reptilienmarkt\Domain\Geo\Country;
 use Reptilienmarkt\Domain\Geo\PostalCodeRepository;
 use Reptilienmarkt\Domain\Species\SpeciesRepository;
+use Reptilienmarkt\Domain\Trust\AutoModerationPolicy;
 use Reptilienmarkt\Domain\User\User;
 use Reptilienmarkt\Domain\User\UserRepository;
 use Reptilienmarkt\Legal\LegalContext;
@@ -43,6 +44,7 @@ final readonly class ListingWizard
         private GeneticsCalculator $genetics,
         private AuditLog $audit,
         private Clock $clock,
+        private AutoModerationPolicy $autoModeration = new AutoModerationPolicy(),
     ) {}
 
     /**
@@ -191,7 +193,15 @@ final readonly class ListingWizard
             return new PublishResult(false, $listing->status, $decision, $errors);
         }
 
-        $status = $decision->requiresReview ? ListingStatus::Pruefung : ListingStatus::Aktiv;
+        // Neben der Rechtsentscheidung kann auch die Auto-Moderation neuer
+        // Konten in die Pruefung schicken (Phase 5).
+        $autoReview = $this->autoModeration->requiresReview(
+            $user,
+            $this->users->publishedListingCount($user->id ?? 0),
+            $this->clock->now(),
+        );
+
+        $status = $decision->requiresReview || $autoReview ? ListingStatus::Pruefung : ListingStatus::Aktiv;
 
         $this->listings->save(new Listing(
             $listing->id,
@@ -225,12 +235,12 @@ final readonly class ListingWizard
             'listing.published',
             'listing',
             $listing->id,
-            $decision->auditPayload() + ['status' => $status->value],
+            $decision->auditPayload() + ['status' => $status->value, 'auto_moderation' => $autoReview],
             $user->id,
             ipAddress: $ipAddress,
         ));
 
-        return new PublishResult(true, $status, $decision);
+        return new PublishResult(true, $status, $decision, autoModerated: $autoReview);
     }
 
     /**

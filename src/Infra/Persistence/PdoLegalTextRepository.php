@@ -7,6 +7,7 @@ namespace Reptilienmarkt\Infra\Persistence;
 use DateTimeImmutable;
 use Reptilienmarkt\Legal\LegalText;
 use Reptilienmarkt\Legal\LegalTextRepository;
+use Reptilienmarkt\Support\Timestamp;
 
 final readonly class PdoLegalTextRepository implements LegalTextRepository
 {
@@ -83,7 +84,7 @@ final readonly class PdoLegalTextRepository implements LegalTextRepository
             'body' => $text->body,
             'source' => $text->sourceReference,
             'jurisdiction' => $text->jurisdiction,
-            'reviewed' => $text->lastReviewedAt?->format('Y-m-d\TH:i:s\Z'),
+            'reviewed' => Timestamp::utcOrNull($text->lastReviewedAt),
             'now' => gmdate('Y-m-d\TH:i:s\Z'),
         ];
     }

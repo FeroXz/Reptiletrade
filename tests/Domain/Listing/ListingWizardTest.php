@@ -22,6 +22,7 @@ use Reptilienmarkt\Domain\Setting\ArraySettings;
 use Reptilienmarkt\Domain\Species\BnatschgStatus;
 use Reptilienmarkt\Domain\Species\EuAnnex;
 use Reptilienmarkt\Domain\Species\Species;
+use Reptilienmarkt\Domain\Trust\AutoModerationPolicy;
 use Reptilienmarkt\Domain\User\User;
 use Reptilienmarkt\Infra\Persistence\PdoAuditLog;
 use Reptilienmarkt\Infra\Persistence\PdoLegalDocumentRepository;
@@ -92,6 +93,10 @@ final class ListingWizardTest extends DatabaseTestCase
             new MorphStringGenerator(),
             $this->audit,
             $clock,
+            // Die Auto-Moderation neuer Konten (Phase 5) ist hier abgeschaltet:
+            // Diese Tests pruefen, was die Rechts-Engine mit dem Status macht,
+            // und das liesse sich sonst nicht von der Kontoprüfung trennen.
+            new AutoModerationPolicy(false),
         );
 
         $userId = $this->createUser('zuechter@example.tld');

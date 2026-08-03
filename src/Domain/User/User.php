@@ -24,6 +24,8 @@ final readonly class User
         public ?string $imprint = null,
         public ?string $postalCode = null,
         public ?Country $country = null,
+        public ?DateTimeImmutable $createdAt = null,
+        public bool $twoFactorEnabled = false,
     ) {}
 
     public function emailCanonical(): string
@@ -44,5 +46,41 @@ final readonly class User
     public function hasImprint(): bool
     {
         return $this->imprint !== null && trim($this->imprint) !== '';
+    }
+
+    /**
+     * Die hoechste erreichte Stufe. Eine Luecke in der Mitte — Ausweis geprueft,
+     * Telefon nicht — kann es durch die manuelle Pruefung geben; gewertet wird
+     * dann die hoechste zusammenhaengende Stufe, damit das Abzeichen nicht mehr
+     * verspricht, als bestaetigt wurde.
+     */
+    public function verificationLevel(): VerificationLevel
+    {
+        if ($this->emailVerifiedAt === null) {
+            return VerificationLevel::Keine;
+        }
+
+        if ($this->phoneVerifiedAt === null) {
+            return VerificationLevel::Email;
+        }
+
+        return $this->identityVerifiedAt === null ? VerificationLevel::Telefon : VerificationLevel::Identitaet;
+    }
+
+    public function isModerator(): bool
+    {
+        return $this->role->mayModerate();
+    }
+
+    /**
+     * Kontoalter in Tagen — Eingangsgroesse der Auto-Moderation neuer Konten.
+     */
+    public function ageInDays(DateTimeImmutable $now): int
+    {
+        if ($this->createdAt === null) {
+            return 0;
+        }
+
+        return (int) $this->createdAt->diff($now)->days;
     }
 }

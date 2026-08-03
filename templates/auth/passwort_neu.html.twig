@@ -1,0 +1,24 @@
+{% extends 'layout/basis.html.twig' %}
+{% block titel %}Neues Passwort — Reptilienmarkt{% endblock %}
+{% block kopf %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block inhalt %}
+    <div class="mx-auto max-w-sm space-y-4">
+        {% include 'partials/meldungen.html.twig' %}
+
+        <form method="post" action="/passwort/neu" class="karte space-y-3 p-6">
+            <h1 class="text-lg font-semibold">Neues Passwort vergeben</h1>
+            <input type="hidden" name="_csrf" value="{{ csrf }}">
+            <input type="hidden" name="token" value="{{ token }}">
+
+            <div>
+                <label class="text-sm" for="passwort">Neues Passwort</label>
+                <input class="feld" id="passwort" type="password" name="passwort" required minlength="10"
+                       autocomplete="new-password">
+                <p class="mt-1 text-xs gedaempft">Mindestens zehn Zeichen.</p>
+            </div>
+
+            <button type="submit" class="knopf knopf-primaer w-full justify-center">Passwort speichern</button>
+        </form>
+    </div>
+{% endblock %}

@@ -1,0 +1,67 @@
+{% extends 'layout/basis.html.twig' %}
+{% block titel %}{{ t('postfach.titel') }} — Reptilienmarkt{% endblock %}
+{% block kopf %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block inhalt %}
+    <div class="mx-auto max-w-3xl space-y-4">
+        {% include 'partials/meldungen.html.twig' %}
+
+        <div class="flex items-baseline justify-between">
+            <h1 class="text-xl font-semibold">{{ t('postfach.titel') }}</h1>
+            {% if ungelesen > 0 %}
+                <span class="text-sm gedaempft">{{ tw('postfach.ungelesen', ungelesen) }}</span>
+            {% endif %}
+        </div>
+
+        {% if gespraeche is empty %}
+            <p class="karte p-6 text-sm gedaempft">{{ t('postfach.leer') }}</p>
+        {% else %}
+            <ul class="space-y-2">
+                {% for gespraech in gespraeche %}
+                    <li>
+                        <a href="/postfach/{{ gespraech.id }}/"
+                           class="karte flex gap-3 p-3 {{ gespraech.hasUnread ? 'font-medium' : '' }}">
+                            {% if gespraech.listingImagePath %}
+                                <img src="/uploads/{{ gespraech.listingImagePath }}" alt=""
+                                     class="h-14 w-14 shrink-0 rounded object-cover" loading="lazy">
+                            {% else %}
+                                <span class="h-14 w-14 shrink-0 rounded" style="background: var(--rand)"></span>
+                            {% endif %}
+
+                            <span class="min-w-0 flex-1">
+                                <span class="flex items-baseline justify-between gap-2">
+                                    <span class="truncate">{{ gespraech.listingTitle }}</span>
+                                    {% if gespraech.lastMessageAt %}
+                                        <time class="shrink-0 text-xs gedaempft"
+                                              datetime="{{ gespraech.lastMessageAt.format('c') }}">
+                                            {{ gespraech.lastMessageAt.format('d.m.Y H:i') }}
+                                        </time>
+                                    {% endif %}
+                                </span>
+                                <span class="block truncate text-sm gedaempft">
+                                    {{ gespraech.counterpartName }}{% if gespraech.lastMessagePreview %} — {{ gespraech.lastMessagePreview }}{% endif %}
+                                </span>
+                                <span class="mt-1 flex gap-2 text-xs">
+                                    {% if gespraech.hasUnread %}
+                                        <span class="rounded-full px-2 py-0.5"
+                                              style="background: var(--warnung-flaeche, #fde68a); color: var(--warnung-text, #78350f)">
+                                            {{ gespraech.unreadCount }} neu
+                                        </span>
+                                    {% endif %}
+                                    {% if gespraech.dealConfirmed %}
+                                        <span class="gedaempft">Handel bestätigt</span>
+                                    {% elseif gespraech.ownConfirmation %}
+                                        <span class="gedaempft">{{ t('postfach.handel_wartet') }}</span>
+                                    {% endif %}
+                                    {% if gespraech.status.value != 'offen' %}
+                                        <span class="gedaempft">{{ gespraech.status.label }}</span>
+                                    {% endif %}
+                                </span>
+                            </span>
+                        </a>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    </div>
+{% endblock %}

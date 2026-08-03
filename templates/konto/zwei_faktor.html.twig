@@ -1,0 +1,41 @@
+{% extends 'layout/basis.html.twig' %}
+{% block titel %}Zwei-Faktor einrichten — Reptilienmarkt{% endblock %}
+{% block kopf %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block inhalt %}
+    <div class="mx-auto max-w-lg space-y-4">
+        {% include 'partials/meldungen.html.twig' %}
+
+        <div class="karte space-y-4 p-6">
+            <h1 class="text-lg font-semibold">Zwei-Faktor-Anmeldung einrichten</h1>
+
+            <ol class="space-y-3 text-sm">
+                <li>
+                    <strong>1.</strong> Trage dieses Geheimnis in deiner Authenticator-App ein:
+                    <code class="mt-1 block break-all rounded px-2 py-1 text-base"
+                          style="background: var(--flaeche-2, #f3f4f6)">{{ geheimnis }}</code>
+                </li>
+                <li>
+                    <strong>2.</strong> Alternativ die vollständige Adresse — manche Apps nehmen sie direkt an:
+                    <code class="mt-1 block break-all text-xs gedaempft">{{ uri }}</code>
+                </li>
+                <li>
+                    <strong>3.</strong> Gib den Code ein, den die App anzeigt. Erst dann ist die zweite
+                    Stufe aktiv — so kann sie niemand einrichten, der die App nicht wirklich hat.
+                </li>
+            </ol>
+
+            <form method="post" action="/konto/zwei-faktor/bestaetigen" class="flex gap-2">
+                <input type="hidden" name="_csrf" value="{{ csrf }}">
+                <input class="feld" type="text" name="code" inputmode="numeric" pattern="\d{6}" maxlength="6"
+                       placeholder="123456" autocomplete="one-time-code" required autofocus>
+                <button type="submit" class="knopf knopf-primaer">Bestätigen</button>
+            </form>
+
+            <p class="text-xs gedaempft">
+                Bewahre das Geheimnis an einem sicheren Ort auf. Ohne die App und ohne das Geheimnis
+                kommst du nicht mehr in dein Konto.
+            </p>
+        </div>
+    </div>
+{% endblock %}

@@ -14,6 +14,7 @@ final readonly class PublishResult
         public LegalDecision $decision,
         /** @var list<string> */
         public array $errors = [],
+        public bool $autoModerated = false,
     ) {}
 
     public function needsReview(): bool
@@ -27,8 +28,13 @@ final readonly class PublishResult
             return 'Die Anzeige kann noch nicht veröffentlicht werden.';
         }
 
-        return $this->needsReview()
-            ? 'Die Anzeige wurde eingereicht und wird geprüft. Wir melden uns, sobald sie freigeschaltet ist.'
-            : 'Die Anzeige ist online.';
+        if (!$this->needsReview()) {
+            return 'Die Anzeige ist online.';
+        }
+
+        return $this->autoModerated
+            ? 'Die Anzeige wurde eingereicht. Die ersten Anzeigen eines neuen Kontos schauen wir uns kurz an — '
+                . 'das dauert in der Regel nicht lange.'
+            : 'Die Anzeige wurde eingereicht und wird geprüft. Wir melden uns, sobald sie freigeschaltet ist.';
     }
 }

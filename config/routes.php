@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Reptilienmarkt\Http\Controller\AccountController;
 use Reptilienmarkt\Http\Controller\ApiController;
 use Reptilienmarkt\Http\Controller\AuthController;
 use Reptilienmarkt\Http\Controller\LegalDocumentController;
@@ -9,6 +10,11 @@ use Reptilienmarkt\Http\Controller\ListingController;
 use Reptilienmarkt\Http\Controller\ListingWizardController;
 use Reptilienmarkt\Http\Controller\MarketController;
 use Reptilienmarkt\Http\Controller\MediaController;
+use Reptilienmarkt\Http\Controller\MessageController;
+use Reptilienmarkt\Http\Controller\ModerationController;
+use Reptilienmarkt\Http\Controller\PasswordResetController;
+use Reptilienmarkt\Http\Controller\ProfileController;
+use Reptilienmarkt\Http\Controller\ReportController;
 use Reptilienmarkt\Http\Controller\SpeciesController;
 use Reptilienmarkt\Http\Routing\Router;
 
@@ -32,6 +38,47 @@ $router->post('/registrieren', AuthController::class, 'register', 'registrieren.
 $router->get('/anmelden', AuthController::class, 'showLogin', 'anmelden');
 $router->post('/anmelden', AuthController::class, 'login', 'anmelden.absenden');
 $router->post('/abmelden', AuthController::class, 'logout', 'abmelden');
+
+// Passwort vergessen
+$router->get('/passwort/vergessen', PasswordResetController::class, 'showRequest', 'passwort.vergessen');
+$router->post('/passwort/vergessen', PasswordResetController::class, 'sendLink', 'passwort.vergessen.absenden');
+$router->get('/passwort/neu', PasswordResetController::class, 'showReset', 'passwort.neu');
+$router->post('/passwort/neu', PasswordResetController::class, 'reset', 'passwort.neu.absenden');
+
+// Kontoverwaltung, Verifizierung, Zwei-Faktor
+$router->get('/konto/', AccountController::class, 'show', 'konto');
+$router->post('/konto/email-senden', AccountController::class, 'sendEmailVerification', 'konto.email.senden');
+$router->get('/konto/email-bestaetigen', AccountController::class, 'confirmEmail', 'konto.email.bestaetigen');
+$router->post('/konto/telefon', AccountController::class, 'startPhoneVerification', 'konto.telefon');
+$router->post('/konto/telefon-bestaetigen', AccountController::class, 'confirmPhone', 'konto.telefon.bestaetigen');
+$router->post('/konto/nachweis', AccountController::class, 'uploadDocument', 'konto.nachweis');
+$router->post('/konto/passwort', AccountController::class, 'changePassword', 'konto.passwort');
+$router->post('/konto/zwei-faktor', AccountController::class, 'setupTwoFactor', 'konto.zweifaktor');
+$router->post('/konto/zwei-faktor/bestaetigen', AccountController::class, 'confirmTwoFactor', 'konto.zweifaktor.bestaetigen');
+$router->post('/konto/zwei-faktor/aus', AccountController::class, 'disableTwoFactor', 'konto.zweifaktor.aus');
+
+// Zuechterprofil
+$router->get('/konto/profil', ProfileController::class, 'edit', 'profil.bearbeiten');
+$router->post('/konto/profil', ProfileController::class, 'save', 'profil.speichern');
+$router->get('/zuechter/{slug}/', ProfileController::class, 'show', 'profil');
+
+// Postfach
+$router->get('/postfach/', MessageController::class, 'inbox', 'postfach');
+$router->post('/anzeige/{id}/nachricht', MessageController::class, 'start', 'postfach.starten');
+$router->get('/postfach/{id}/', MessageController::class, 'show', 'postfach.gespraech');
+$router->post('/postfach/{id}/senden', MessageController::class, 'send', 'postfach.senden');
+$router->post('/postfach/{id}/handel', MessageController::class, 'confirmDeal', 'postfach.handel');
+$router->post('/postfach/{id}/bewerten', MessageController::class, 'review', 'postfach.bewerten');
+
+// Meldebutton
+$router->get('/melden/{art}/{id}', ReportController::class, 'form', 'melden');
+$router->post('/melden/{art}/{id}', ReportController::class, 'submit', 'melden.absenden');
+
+// Moderation
+$router->get('/moderation/', ModerationController::class, 'queue', 'moderation');
+$router->post('/moderation/meldung/{id}', ModerationController::class, 'resolveReport', 'moderation.meldung');
+$router->post('/moderation/anzeige/{id}', ModerationController::class, 'decideListing', 'moderation.anzeige');
+$router->post('/moderation/nachweis/{id}', ModerationController::class, 'decideDocument', 'moderation.nachweis');
 
 // Anzeigenassistent
 $router->get('/meine-anzeigen/', ListingWizardController::class, 'mine', 'meine-anzeigen');

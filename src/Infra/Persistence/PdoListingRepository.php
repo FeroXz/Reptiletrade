@@ -17,6 +17,7 @@ use Reptilienmarkt\Domain\Listing\Sex;
 use Reptilienmarkt\Domain\Listing\Zygosity;
 use Reptilienmarkt\Domain\Species\Inheritance;
 use Reptilienmarkt\Domain\Species\Morph;
+use Reptilienmarkt\Support\Timestamp;
 
 final readonly class PdoListingRepository implements ListingRepository
 {
@@ -176,6 +177,32 @@ final readonly class PdoListingRepository implements ListingRepository
         return array_map(fn(array $row): Listing => $this->map($row), $rows);
     }
 
+    public function activeForUser(int $userId, int $limit = 12): array
+    {
+        // Dieselbe Sortierung wie in der Trefferliste, damit das Profil nicht
+        // eine andere Reihenfolge zeigt als die Suche.
+        $rows = $this->database->select(
+            'SELECT ' . self::COLUMNS . " FROM listings
+              WHERE user_id = :user_id AND status IN ('aktiv','reserviert')
+              ORDER BY is_featured DESC, bumped_at DESC, id DESC
+              LIMIT :limit",
+            ['user_id' => $userId, 'limit' => $limit],
+        );
+
+        return array_map(fn(array $row): Listing => $this->map($row), $rows);
+    }
+
+    public function inStatus(ListingStatus $status, int $limit = 25): array
+    {
+        $rows = $this->database->select(
+            'SELECT ' . self::COLUMNS . ' FROM listings WHERE status = :status
+              ORDER BY updated_at ASC LIMIT :limit',
+            ['status' => $status->value, 'limit' => $limit],
+        );
+
+        return array_map(fn(array $row): Listing => $this->map($row), $rows);
+    }
+
     /**
      * @return array<string, scalar|null>
      */
@@ -203,7 +230,7 @@ final readonly class PdoListingRepository implements ListingRepository
             'lng' => $listing->longitude,
             'handover' => $listing->handover->value,
             'legal' => json_encode($listing->legalConfirmations, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_UNICODE),
-            'expires' => $listing->expiresAt?->format('Y-m-d\TH:i:s\Z'),
+            'expires' => Timestamp::utcOrNull($listing->expiresAt),
         ];
     }
 

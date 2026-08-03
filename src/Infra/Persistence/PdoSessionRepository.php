@@ -7,6 +7,7 @@ namespace Reptilienmarkt\Infra\Persistence;
 use DateTimeImmutable;
 use Reptilienmarkt\Domain\Auth\Session;
 use Reptilienmarkt\Domain\Auth\SessionRepository;
+use Reptilienmarkt\Support\Timestamp;
 
 final readonly class PdoSessionRepository implements SessionRepository
 {
@@ -60,9 +61,9 @@ final readonly class PdoSessionRepository implements SessionRepository
                 'agent' => $session->userAgent === null ? null : mb_substr($session->userAgent, 0, 255),
                 'payload' => json_encode($session->payload, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_UNICODE),
                 'two_factor' => $session->twoFactorPending ? 1 : 0,
-                'created_at' => $session->createdAt->format('Y-m-d\TH:i:s\Z'),
-                'last_seen' => $session->lastSeenAt->format('Y-m-d\TH:i:s\Z'),
-                'expires' => $session->expiresAt->format('Y-m-d\TH:i:s\Z'),
+                'created_at' => Timestamp::utc($session->createdAt),
+                'last_seen' => Timestamp::utc($session->lastSeenAt),
+                'expires' => Timestamp::utc($session->expiresAt),
             ],
         );
     }

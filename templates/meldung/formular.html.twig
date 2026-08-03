@@ -1,0 +1,39 @@
+{% extends 'layout/basis.html.twig' %}
+{% block titel %}{{ t('meldung.titel') }} — Reptilienmarkt{% endblock %}
+{% block kopf %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block inhalt %}
+    <div class="mx-auto max-w-lg space-y-4">
+        {% include 'partials/meldungen.html.twig' %}
+
+        <form method="post" action="/melden/{{ ziel_art.value }}/{{ ziel_id }}" class="karte space-y-4 p-6">
+            <h1 class="text-lg font-semibold">{{ ziel_art.label }} melden</h1>
+            <input type="hidden" name="_csrf" value="{{ csrf }}">
+
+            <fieldset class="space-y-2">
+                <legend class="text-sm">{{ t('meldung.grund') }}</legend>
+                {% for grund in gruende %}
+                    <label class="flex gap-2">
+                        <input type="radio" name="grund" value="{{ grund.value }}" required class="mt-1">
+                        <span>
+                            <span class="font-medium">{{ grund.label }}</span>
+                            <span class="block text-xs gedaempft">{{ grund.hint }}</span>
+                        </span>
+                    </label>
+                {% endfor %}
+            </fieldset>
+
+            <div>
+                <label class="text-sm" for="beschreibung">{{ t('meldung.beschreibung') }}</label>
+                <textarea class="feld" id="beschreibung" name="beschreibung" rows="4" maxlength="2000"></textarea>
+            </div>
+
+            <p class="text-xs gedaempft">
+                Die Moderation sieht deine Meldung samt Konto. Falschmeldungen in Serie führen zu
+                Einschränkungen.
+            </p>
+
+            <button type="submit" class="knopf knopf-primaer">Melden</button>
+        </form>
+    </div>
+{% endblock %}

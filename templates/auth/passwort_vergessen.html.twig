@@ -1,0 +1,26 @@
+{% extends 'layout/basis.html.twig' %}
+{% block titel %}Passwort vergessen — Reptilienmarkt{% endblock %}
+
+{% block inhalt %}
+    <div class="mx-auto max-w-sm space-y-4">
+        {% include 'partials/meldungen.html.twig' %}
+
+        <form method="post" action="/passwort/vergessen" class="karte space-y-3 p-6">
+            <h1 class="text-lg font-semibold">Passwort vergessen</h1>
+            <input type="hidden" name="_csrf" value="{{ csrf }}">
+
+            <p class="text-sm gedaempft">
+                Gib die Adresse deines Kontos an. Wir schicken dir einen Link, mit dem du ein neues
+                Passwort vergibst. Der Link gilt eine Stunde und lässt sich nur einmal verwenden.
+            </p>
+
+            <div>
+                <label class="text-sm" for="email">E-Mail</label>
+                <input class="feld" id="email" type="email" name="email" required autocomplete="email">
+            </div>
+
+            <button type="submit" class="knopf knopf-primaer w-full justify-center">Link anfordern</button>
+            <p class="text-sm gedaempft"><a class="underline" href="/anmelden">Zurück zur Anmeldung</a></p>
+        </form>
+    </div>
+{% endblock %}

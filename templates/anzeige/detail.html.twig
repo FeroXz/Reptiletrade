@@ -5,6 +5,8 @@
 
 {% block inhalt %}
     <article class="mx-auto max-w-4xl space-y-5">
+        {% include 'partials/meldungen.html.twig' %}
+
         {% if not listing.status.isPubliclyVisible %}
             <p class="karte border-amber-300 p-3 text-sm">
                 Diese Anzeige ist noch nicht öffentlich sichtbar (Status: {{ listing.status.label }}).
@@ -72,6 +74,65 @@
             <section class="karte p-6">
                 <h2 class="text-base font-semibold">Tauschwunsch</h2>
                 <p class="mt-2 text-sm">{{ listing.tradeWanted }}</p>
+            </section>
+        {% endif %}
+
+        {# ------------------------------------------------------------- Anbieter #}
+        {% if anbieter %}
+            <section class="karte space-y-3 p-6">
+                <h2 class="text-base font-semibold">Anbieter</h2>
+
+                <div class="flex flex-wrap items-baseline justify-between gap-3">
+                    <p>
+                        {% if anbieter_profil and anbieter_profil.isPublic %}
+                            <a class="font-medium underline" href="/zuechter/{{ anbieter_profil.slug }}/">
+                                {{ anbieter.displayName }}
+                            </a>
+                        {% else %}
+                            <span class="font-medium">{{ anbieter.displayName }}</span>
+                        {% endif %}
+
+                        <span class="ml-1 rounded-full px-2 py-0.5 text-xs" style="background: var(--rand)">
+                            {{ anbieter.verificationLevel.badge }}
+                        </span>
+
+                        {% if anbieter.isCommercial %}
+                            <span class="ml-1 rounded-full px-2 py-0.5 text-xs" style="background: var(--rand)">
+                                Gewerblicher Anbieter
+                            </span>
+                        {% endif %}
+                    </p>
+
+                    {% if not ist_eigene %}
+                        <span class="flex items-center gap-3">
+                            {% if betrachter.isAuthenticated %}
+                                <form method="post" action="/anzeige/{{ listing.id }}/nachricht">
+                                    <input type="hidden" name="_csrf" value="{{ csrf }}">
+                                    <button type="submit" class="knopf knopf-primaer">Anbieter schreiben</button>
+                                </form>
+                                <a class="text-xs gedaempft underline" href="/melden/listing/{{ listing.id }}">
+                                    {{ t('meldung.titel') }}
+                                </a>
+                            {% else %}
+                                <a class="knopf knopf-primaer"
+                                   href="/anmelden?weiter={{ ('/anzeige/' ~ listing.id ~ '/')|url_encode }}">
+                                    Zum Schreiben anmelden
+                                </a>
+                            {% endif %}
+                        </span>
+                    {% endif %}
+                </div>
+
+                {% if anbieter.isCommercial and anbieter.hasImprint %}
+                    <p class="whitespace-pre-line border-t pt-3 text-xs gedaempft" style="border-color: var(--rand)">
+                        {{ anbieter.imprint }}
+                    </p>
+                {% endif %}
+
+                <p class="text-xs gedaempft">
+                    Bezahlt wird bei der Übergabe. Wer Vorkasse verlangt oder das Tier verschicken will,
+                    gehört gemeldet — Versand über Paketdienste ist nicht zulässig.
+                </p>
             </section>
         {% endif %}
 

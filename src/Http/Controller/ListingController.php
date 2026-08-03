@@ -8,9 +8,12 @@ use Reptilienmarkt\Domain\Listing\ListingMediaRepository;
 use Reptilienmarkt\Domain\Listing\ListingRepository;
 use Reptilienmarkt\Domain\Listing\ListingWizard;
 use Reptilienmarkt\Domain\Species\SpeciesRepository;
+use Reptilienmarkt\Domain\User\BreederProfileRepository;
+use Reptilienmarkt\Domain\User\UserRepository;
 use Reptilienmarkt\Http\HttpException;
 use Reptilienmarkt\Http\Message\Request;
 use Reptilienmarkt\Http\Message\Response;
+use Reptilienmarkt\Http\Session\SessionManager;
 use Reptilienmarkt\Http\Session\Viewer;
 use Twig\Environment;
 
@@ -24,6 +27,9 @@ final readonly class ListingController
         private ListingMediaRepository $media,
         private SpeciesRepository $species,
         private ListingWizard $wizard,
+        private UserRepository $users,
+        private BreederProfileRepository $profiles,
+        private SessionManager $session,
         private Viewer $currentUser,
         private Environment $twig,
     ) {}
@@ -60,6 +66,10 @@ final readonly class ListingController
             'morph_string' => $this->wizard->morphString($listing->id ?? 0),
             'genotyp' => $this->wizard->genotype($listing->id ?? 0),
             'ist_eigene' => $istEigene,
+            'anbieter' => $this->users->findById($listing->userId),
+            'anbieter_profil' => $this->profiles->findByUser($listing->userId),
+            'csrf' => $this->session->csrfToken(),
+            'meldungen' => $this->session->takeFlashes(),
         ]));
     }
 }

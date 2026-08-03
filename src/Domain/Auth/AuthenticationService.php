@@ -10,6 +10,7 @@ use Reptilienmarkt\Domain\User\User;
 use Reptilienmarkt\Domain\User\UserRepository;
 use Reptilienmarkt\Domain\User\UserStatus;
 use Reptilienmarkt\Support\Clock;
+use Reptilienmarkt\Support\Timestamp;
 
 /**
  * Registrierung und Anmeldung.
@@ -95,7 +96,7 @@ final readonly class AuthenticationService
             if ($attempts >= self::MAX_FAILED_ATTEMPTS) {
                 $this->users->lockUntil(
                     $user->id,
-                    $this->clock->now()->modify(\sprintf('+%d minutes', self::LOCK_MINUTES))->format('Y-m-d\TH:i:s\Z'),
+                    Timestamp::utc($this->clock->now()->modify(\sprintf('+%d minutes', self::LOCK_MINUTES))),
                 );
             }
 
