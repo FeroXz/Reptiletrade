@@ -22,6 +22,7 @@ use Reptilienmarkt\Http\Controller\PrivacyController;
 use Reptilienmarkt\Http\Controller\ProfileController;
 use Reptilienmarkt\Http\Controller\ReportController;
 use Reptilienmarkt\Http\Controller\SpeciesController;
+use Reptilienmarkt\Http\Controller\StatsController;
 use Reptilienmarkt\Http\Routing\Router;
 
 $router = new Router();
@@ -62,6 +63,9 @@ $router->post('/konto/passwort', AccountController::class, 'changePassword', 'ko
 $router->post('/konto/zwei-faktor', AccountController::class, 'setupTwoFactor', 'konto.zweifaktor');
 $router->post('/konto/zwei-faktor/bestaetigen', AccountController::class, 'confirmTwoFactor', 'konto.zweifaktor.bestaetigen');
 $router->post('/konto/zwei-faktor/aus', AccountController::class, 'disableTwoFactor', 'konto.zweifaktor.aus');
+
+// Statistik der eigenen Anzeigen
+$router->get('/konto/statistik', StatsController::class, 'show', 'statistik');
 
 // Zuechterprofil
 $router->get('/konto/profil', ProfileController::class, 'edit', 'profil.bearbeiten');

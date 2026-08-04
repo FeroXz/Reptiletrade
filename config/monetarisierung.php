@@ -59,7 +59,13 @@ return [
                 'laufzeit_tage' => 60,
                 'bilder_je_anzeige' => 12,
             ],
-            'features' => [],
+            // Fuer die Startphase sind die drei Zuechter-Merkmale auch im
+            // Grundtarif freigeschaltet: Eine Plattform ohne Angebot verkauft
+            // niemandem ein Abo, und ein Profil ohne Besucher ist wertlos.
+            // Wer sie spaeter wieder dem bezahlten Tarif vorbehalten will,
+            // leert diese Liste — der Code fragt bereits ueber
+            // EntitlementService::has() danach.
+            'features' => ['profilseite', 'statistiken', 'nachzucht_ankuendigung'],
         ],
         'zuechter' => [
             'name' => 'Züchter',

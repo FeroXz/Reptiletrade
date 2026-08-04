@@ -429,6 +429,26 @@ final readonly class PdoListingRepository implements ListingRepository
         return $counts;
     }
 
+    public function recordView(int $listingId): void
+    {
+        $tag = gmdate('Y-m-d');
+
+        // Beide Zaehler in einem Schritt: view_count traegt die Gesamtzahl an
+        // der Anzeige, listing_views den Verlauf. Der Upsert kommt ohne
+        // vorheriges SELECT aus — zwei gleichzeitige Aufrufe zaehlen sonst
+        // denselben Stand hoch und einer geht verloren.
+        $this->database->execute(
+            'INSERT INTO listing_views (listing_id, day, views) VALUES (:id, :tag, 1)
+             ON CONFLICT(listing_id, day) DO UPDATE SET views = views + 1',
+            ['id' => $listingId, 'tag' => $tag],
+        );
+
+        $this->database->execute(
+            'UPDATE listings SET view_count = view_count + 1 WHERE id = :id',
+            ['id' => $listingId],
+        );
+    }
+
     /**
      * @param array<string, mixed> $row
      */

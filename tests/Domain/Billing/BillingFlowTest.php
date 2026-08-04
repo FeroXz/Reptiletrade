@@ -240,8 +240,11 @@ final class BillingFlowTest extends DatabaseTestCase
         $this->clock->travelTo(new DateTimeImmutable('2026-10-03T12:00:00+00:00'));
 
         self::assertNull($this->entitlements->activeSubscription($this->user()));
-        self::assertFalse($this->entitlements->forUser($this->user())->has(Feature::Statistiken));
+        // Die Anzeigengrenze faellt auf den Grundtarif zurueck. Die drei
+        // Zuechtermerkmale bleiben, weil sie in der Startphase auch im
+        // Grundtarif stehen — geprueft wird das in BillingSwitchTest.
         self::assertSame(3, $this->entitlements->forUser($this->user())->maxActiveListings);
+        self::assertFalse($this->entitlements->forUser($this->user())->unlimitedListings());
     }
 
     public function testAufraeumenSetztAbgelaufeneAbos(): void

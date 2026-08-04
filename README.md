@@ -293,6 +293,30 @@ Anhang B). Eigene Umsetzung statt Fremdpaket: dreißig Zeilen Kern, seit 2011 un
 Schnittstelle — und eine Abhängigkeit weniger genau im Anmeldeweg. Scharf wird die zweite Stufe erst,
 wenn ein Code aus der App stimmt; abschalten geht nur mit Passwort.
 
+## Züchter-Merkmale — in der Startphase für alle
+
+Drei Merkmale waren dem Züchter-Tarif zugedacht und stehen zurzeit jedem offen. Sie sind im
+Grundtarif in [`config/monetarisierung.php`](config/monetarisierung.php) eingetragen, **nicht** im
+Code hartverdrahtet: Wer sie später dem bezahlten Tarif vorbehalten will, leert dort die Liste — die
+Abfragen über `EntitlementService::has()` stehen bereits an jeder Stelle. Eine Plattform ohne
+Angebot verkauft niemandem ein Abo, und ein Profil ohne Besucher ist wertlos.
+
+| Merkmal | Wo |
+|---|---|
+| Öffentliche Züchterseite | `/zuechter/{slug}/`, bearbeiten unter `/konto/profil` |
+| Aufrufe und Anfragen | `/konto/statistik` |
+| Nachzucht-Ankündigungen | `/konto/nachzuchten` |
+
+**Gezählt wird sparsam.** Ein Aufruf zählt einmal je Besucher und Anzeige, nicht bei jedem
+Neuladen — entprellt über die Sitzung, gedeckelt auf die zuletzt gesehenen 50 Anzeigen, damit die
+Sitzungsnutzlast nicht wächst. Eigene Aufrufe zählen gar nicht: Wer die eigene Anzeige zehnmal am
+Tag kontrolliert, soll sich die Zahl nicht selbst schönrechnen. Als Anfrage zählt ein begonnenes
+Gespräch — die stehen bereits in `conversations`, eine zweite Zählung wäre eine zweite Wahrheit.
+
+Die Aufrufe liegen in `listing_views` als eine Zeile je Anzeige und Tag statt je Aufruf: Die
+Statistik fragt immer nach Summen über Zeiträume, und Millionen Einzelzeilen liest niemand. Die
+Zahlen sieht ausschließlich der Anbieter selbst.
+
 ## Monetarisierung — vorbereitet, nicht aktiviert
 
 `config/monetarisierung.php` steht auf `enabled => false`, der Zahlungsanbieter ist `keiner`. In

@@ -119,4 +119,9 @@ interface ListingRepository
      * @return array<string, int> Status => Anzahl
      */
     public function countsByStatus(): array;
+
+    /**
+     * Zaehlt einen Aufruf — je Anzeige und Tag.
+     */
+    public function recordView(int $listingId): void;
 }

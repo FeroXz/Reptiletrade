@@ -192,6 +192,21 @@ return [
         . 'Bewertung(en). Die gehören auch der jeweils anderen Seite, deshalb wird die Anzeige abgeschaltet '
         . 'statt gelöscht: Bilder und Nachweise verschwinden, die Anzeige selbst bleibt als Bezugspunkt stehen.',
 
+    // ------------------------------------------------------------ Statistik
+    'statistik.titel' => 'Aufrufe und Anfragen',
+    'statistik.tage' => '{tage} Tage',
+    'statistik.aufrufe' => 'Aufrufe',
+    'statistik.anfragen' => 'Anfragen',
+    'statistik.quote' => 'Anfragen je 100 Aufrufe',
+    'statistik.verlauf' => 'Aufrufe im Verlauf',
+    'statistik.verlauf_hinweis' => 'Ein Balken je Tag, höchster Wert im Zeitraum: {hoechstwert} Aufrufe.',
+    'statistik.je_anzeige' => 'Nach Anzeige',
+    'statistik.spalte_anzeige' => 'Anzeige',
+    'statistik.leer' => 'Für diesen Zeitraum gibt es noch keine Zahlen. Sobald deine Anzeigen '
+        . 'aufgerufen werden, steht hier etwas.',
+    'statistik.zaehlweise' => 'Gezählt wird ein Aufruf je Besucher und Anzeige, nicht jedes Neuladen. '
+        . 'Eigene Aufrufe zählen nicht mit. Als Anfrage zählt ein begonnenes Gespräch.',
+
     // ------------------------------------------------------------ Verwaltung
     'admin.titel' => 'Verwaltung',
     'admin.artenstamm' => 'Artenstamm',

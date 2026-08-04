@@ -22,6 +22,10 @@ use Twig\Environment;
  */
 final readonly class ListingController
 {
+    private const string SEEN_KEY = '_gesehen';
+
+    private const int SEEN_LIMIT = 50;
+
     public function __construct(
         private ListingRepository $listings,
         private ListingMediaRepository $media,
@@ -59,6 +63,8 @@ final readonly class ListingController
             throw HttpException::notFound('Anzeige nicht gefunden.');
         }
 
+        $this->countView($listing->id ?? 0, $istEigene);
+
         return Response::html($this->twig->render('anzeige/detail.html.twig', [
             'listing' => $listing,
             'art' => $species,
@@ -71,5 +77,42 @@ final readonly class ListingController
             'csrf' => $this->session->csrfToken(),
             'meldungen' => $this->session->takeFlashes(),
         ]));
+    }
+    /**
+     * Zaehlt den Aufruf — einmal je Sitzung und Anzeige.
+     *
+     * Ohne Entprellung zaehlt jedes Neuladen mit, und die Zahl sagt dem
+     * Anbieter nichts mehr. Eigene Aufrufe zaehlen gar nicht: Wer die eigene
+     * Anzeige zehnmal am Tag kontrolliert, soll sich die Zahl nicht selbst
+     * schoenrechnen.
+     *
+     * Gemerkt wird in der Sitzung, gedeckelt auf die zuletzt gesehenen
+     * Anzeigen — sonst waechst die Nutzlast der Sitzung unbegrenzt.
+     */
+    private function countView(int $listingId, bool $istEigene): void
+    {
+        if ($listingId === 0 || $istEigene) {
+            return;
+        }
+
+        /** @var mixed $gesehen */
+        $gesehen = $this->session->get(self::SEEN_KEY, []);
+        $ids = [];
+
+        if (\is_array($gesehen)) {
+            foreach ($gesehen as $eintrag) {
+                if (\is_int($eintrag)) {
+                    $ids[] = $eintrag;
+                }
+            }
+        }
+
+        if (\in_array($listingId, $ids, true)) {
+            return;
+        }
+
+        $ids[] = $listingId;
+        $this->session->put(self::SEEN_KEY, \array_slice($ids, -self::SEEN_LIMIT));
+        $this->listings->recordView($listingId);
     }
 }

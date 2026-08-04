@@ -35,6 +35,7 @@ use Reptilienmarkt\Domain\Listing\ListingMediaRepository;
 use Reptilienmarkt\Domain\Listing\ListingRepository;
 use Reptilienmarkt\Domain\Listing\ListingWizard;
 use Reptilienmarkt\Domain\Listing\MorphStringGenerator;
+use Reptilienmarkt\Domain\Listing\SellerStatsService;
 use Reptilienmarkt\Domain\Mail\Mailer;
 use Reptilienmarkt\Domain\Message\ConversationRepository;
 use Reptilienmarkt\Domain\Message\MessageRepository;
@@ -83,6 +84,7 @@ use Reptilienmarkt\Http\Controller\PrivacyController;
 use Reptilienmarkt\Http\Controller\ProfileController;
 use Reptilienmarkt\Http\Controller\ReportController;
 use Reptilienmarkt\Http\Controller\SpeciesController;
+use Reptilienmarkt\Http\Controller\StatsController;
 use Reptilienmarkt\Http\Kernel;
 use Reptilienmarkt\Http\Middleware\SessionMiddleware;
 use Reptilienmarkt\Http\Routing\Router;
@@ -411,6 +413,19 @@ $container->set(ListingManagementController::class, static fn(Container $c): Lis
 $container->set(AdminListingController::class, static fn(Container $c): AdminListingController => new AdminListingController(
     $c->get(ListingRepository::class),
     $c->get(ListingManager::class),
+    $c->get(Viewer::class),
+    $c->get(SessionManager::class),
+    $c->get(Environment::class),
+));
+
+$container->set(SellerStatsService::class, static fn(Container $c): SellerStatsService => new SellerStatsService(
+    $c->get(Database::class),
+    $c->get(Clock::class),
+));
+
+$container->set(StatsController::class, static fn(Container $c): StatsController => new StatsController(
+    $c->get(SellerStatsService::class),
+    $c->get(EntitlementService::class),
     $c->get(Viewer::class),
     $c->get(SessionManager::class),
     $c->get(Environment::class),

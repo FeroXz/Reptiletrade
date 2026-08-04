@@ -1,0 +1,99 @@
+{% extends 'layout/basis.html.twig' %}
+{% block titel %}{{ t('statistik.titel') }} — Reptilienmarkt{% endblock %}
+{% block kopf %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block inhalt %}
+    <div class="mx-auto max-w-5xl space-y-6">
+        {% include 'partials/meldungen.html.twig' %}
+
+        <div class="flex flex-wrap items-baseline justify-between gap-3">
+            <h1 class="text-xl font-semibold">{{ t('statistik.titel') }}</h1>
+            <a class="text-sm underline" href="/meine-anzeigen/">{{ t('anzeige.zurueck_zur_liste') }}</a>
+        </div>
+
+        <div class="flex flex-wrap gap-2 text-sm">
+            {% for zeitraum in zeitraeume %}
+                <a class="knopf {{ statistik.days == zeitraum ? 'facette-aktiv' : '' }}"
+                   href="/konto/statistik?tage={{ zeitraum }}">{{ t('statistik.tage', {'tage': zeitraum}) }}</a>
+            {% endfor %}
+        </div>
+
+        {% if not statistik.hasData %}
+            <p class="karte p-8 text-center text-sm gedaempft">{{ t('statistik.leer') }}</p>
+        {% endif %}
+
+        <section class="grid gap-3 sm:grid-cols-3">
+            <div class="karte p-4">
+                <p class="text-2xl font-semibold">{{ statistik.views }}</p>
+                <p class="text-sm gedaempft">{{ t('statistik.aufrufe') }}</p>
+            </div>
+            <div class="karte p-4">
+                <p class="text-2xl font-semibold">{{ statistik.enquiries }}</p>
+                <p class="text-sm gedaempft">{{ t('statistik.anfragen') }}</p>
+            </div>
+            <div class="karte p-4">
+                <p class="text-2xl font-semibold">
+                    {{ statistik.enquiryRate is null ? '—' : statistik.enquiryRate|number_format(1, ',', '.') ~ ' %' }}
+                </p>
+                <p class="text-sm gedaempft">{{ t('statistik.quote') }}</p>
+            </div>
+        </section>
+
+        {# Verlauf. Dieselbe Balkendarstellung wie im Dashboard — ohne
+           Diagrammbibliothek, damit die Seite ohne fremdes Skript auskommt. #}
+        <section class="karte space-y-3 p-6">
+            <h2 class="font-semibold">{{ t('statistik.verlauf') }}</h2>
+
+            <div class="flex items-end gap-px" style="height: 8rem">
+                {% for tag, anzahl in statistik.viewsPerDay %}
+                    <div class="flex-1" style="height: 100%" title="{{ tag }}: {{ anzahl }}">
+                        <div style="height: 100%; display: flex; align-items: flex-end">
+                            <div style="width: 100%; background: var(--color-primary-600);
+                                        height: {{ (anzahl / statistik.peakPerDay * 100)|round }}%"></div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <p class="text-xs gedaempft">{{ t('statistik.verlauf_hinweis', {'hoechstwert': statistik.peakPerDay}) }}</p>
+        </section>
+
+        <section class="space-y-2">
+            <h2 class="font-semibold">{{ t('statistik.je_anzeige') }}</h2>
+
+            {% if statistik.listings is empty %}
+                <p class="karte p-4 text-sm gedaempft">{{ t('anzeige.keine') }}</p>
+            {% else %}
+                <div class="karte overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b text-left" style="border-color: var(--rand)">
+                                <th class="p-3">{{ t('statistik.spalte_anzeige') }}</th>
+                                <th class="p-3">{{ t('statistik.aufrufe') }}</th>
+                                <th class="p-3">{{ t('statistik.anfragen') }}</th>
+                                <th class="p-3">{{ t('statistik.quote') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for zeile in statistik.listings %}
+                                <tr class="border-b" style="border-color: var(--rand)">
+                                    <td class="p-3">
+                                        <a class="underline" href="/anzeige/{{ zeile.id }}/">{{ zeile.title }}</a>
+                                        <div class="text-xs gedaempft">{{ zeile.status.label }}</div>
+                                    </td>
+                                    <td class="p-3">{{ zeile.views }}</td>
+                                    <td class="p-3">{{ zeile.enquiries }}</td>
+                                    <td class="p-3">
+                                        {{ zeile.enquiryRate is null ? '—' : zeile.enquiryRate|number_format(1, ',', '.') ~ ' %' }}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+        </section>
+
+        <p class="text-sm gedaempft">{{ t('statistik.zaehlweise') }}</p>
+    </div>
+{% endblock %}

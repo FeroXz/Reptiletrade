@@ -42,11 +42,15 @@ final class BreedingAnnouncementServiceTest extends DatabaseTestCase
         $this->repository = new PdoBreedingAnnouncementRepository($this->database);
     }
 
-    private function service(bool $billingEnabled = false): BreedingAnnouncementService
+    private function service(bool $billingEnabled = false, bool $planWithFeature = true): BreedingAnnouncementService
     {
         /** @var array<string, mixed> $config */
         $config = require \dirname(__DIR__, 3) . '/config/monetarisierung.php';
         $config['enabled'] = $billingEnabled;
+
+        if (!$planWithFeature) {
+            $config['plans']['frei']['features'] = [];
+        }
 
         return new BreedingAnnouncementService(
             $this->repository,
@@ -71,9 +75,15 @@ final class BreedingAnnouncementServiceTest extends DatabaseTestCase
         self::assertTrue($this->service(false)->mayAnnounce($this->user()));
     }
 
-    public function testMitAbrechnungBrauchtEsDenZuechtertarif(): void
+    public function testInDerStartphaseDarfAuchMitAbrechnungJederAnkuendigen(): void
     {
-        self::assertFalse($this->service(true)->mayAnnounce($this->user()));
+        // Der Grundtarif fuehrt das Merkmal (config/monetarisierung.php).
+        self::assertTrue($this->service(true)->mayAnnounce($this->user()));
+    }
+
+    public function testOhneMerkmalImTarifBleibtEsVerschlossen(): void
+    {
+        self::assertFalse($this->service(true, false)->mayAnnounce($this->user()));
     }
 
     public function testAnkuendigungEntstehtAlsEntwurf(): void
@@ -97,7 +107,7 @@ final class BreedingAnnouncementServiceTest extends DatabaseTestCase
         $this->expectException(AnnouncementException::class);
         $this->expectExceptionMessageMatches('/Züchter-Tarif/');
 
-        $this->service(true)->create($this->user(), $this->speciesId, 'Hypo x het Zero');
+        $this->service(true, false)->create($this->user(), $this->speciesId, 'Hypo x het Zero');
     }
 
     public function testUnbekannteArtWirdAbgelehnt(): void

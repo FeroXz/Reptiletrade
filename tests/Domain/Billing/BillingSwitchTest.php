@@ -180,12 +180,34 @@ final class BillingSwitchTest extends DatabaseTestCase
         self::assertSame(1, $rechte->remainingListings(2));
     }
 
-    public function testMitAbrechnungFehlenDemGrundtarifDieZuechtermerkmale(): void
+    public function testEinTarifOhneMerkmaleGibtKeinenZugriff(): void
     {
+        // Der Grundtarif fuehrt in der Startphase alle Zuechtermerkmale (siehe
+        // config/monetarisierung.php). Geprueft wird hier der Mechanismus, nicht
+        // diese Entscheidung.
+        $config = $this->config(true);
+        $config['plans']['frei']['features'] = [];
+
+        $rechte = new EntitlementService(
+            new BillingConfiguration($config),
+            new PdoSubscriptionRepository($this->database),
+            new PdoUserRepository($this->database),
+            $this->clock,
+        );
+
+        self::assertFalse($rechte->forUser($this->user())->has(Feature::NachzuchtAnkuendigung));
+        self::assertFalse($rechte->forUser($this->user())->has(Feature::Statistiken));
+    }
+
+    public function testInDerStartphaseStehenAlleMerkmaleOffen(): void
+    {
+        // Auch mit eingeschalteter Abrechnung — das ist die Entscheidung in
+        // config/monetarisierung.php, und sie soll auffallen, wenn sie kippt.
         $rechte = $this->entitlements(true)->forUser($this->user());
 
-        self::assertFalse($rechte->has(Feature::NachzuchtAnkuendigung));
-        self::assertFalse($rechte->has(Feature::Statistiken));
+        self::assertTrue($rechte->has(Feature::Profilseite));
+        self::assertTrue($rechte->has(Feature::Statistiken));
+        self::assertTrue($rechte->has(Feature::NachzuchtAnkuendigung));
     }
 
     public function testDieGrenzeGreiftErstAbDerViertenAnzeige(): void

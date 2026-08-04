@@ -392,6 +392,62 @@ pruefe($offen === '', 'Eine Statusaenderung raeumt die Pausenangaben ab', 'pause
 $fremde = $ohneRechte->get('/anzeige/' . $anzeigeId . '/bearbeiten');
 pruefe($fremde->status === 404, 'Eine fremde Anzeige laesst sich nicht bearbeiten', 'Status ' . $fremde->status);
 
+// ------------------------------- 3b) Zuechter-Merkmale fuer alle offen
+echo "\nZüchter-Merkmale\n";
+
+$vorher = (int) (string) $database->scalar(
+    'SELECT COALESCE(SUM(views), 0) FROM listing_views WHERE listing_id = :id',
+    ['id' => $anzeigeId],
+);
+
+// Ein fremder Besucher ruft die Anzeige zweimal auf.
+$besucher = new BetriebsBrowser($containerFabrik, '198.51.100.44');
+$besucher->get('/anzeige/' . $anzeigeId . '/');
+$besucher->get('/anzeige/' . $anzeigeId . '/');
+
+$nachher = (int) (string) $database->scalar(
+    'SELECT COALESCE(SUM(views), 0) FROM listing_views WHERE listing_id = :id',
+    ['id' => $anzeigeId],
+);
+
+pruefe(
+    $nachher === $vorher + 1,
+    'Ein Aufruf zaehlt einmal je Sitzung, nicht bei jedem Neuladen',
+    sprintf('%d statt %d Aufrufe', $nachher, $vorher + 1),
+);
+
+// Der Anbieter selbst zaehlt nicht mit.
+$anbieter->get('/anzeige/' . $anzeigeId . '/');
+$eigen = (int) (string) $database->scalar(
+    'SELECT COALESCE(SUM(views), 0) FROM listing_views WHERE listing_id = :id',
+    ['id' => $anzeigeId],
+);
+pruefe($eigen === $nachher, 'Eigene Aufrufe zaehlen nicht mit', sprintf('%d statt %d', $eigen, $nachher));
+
+$statistik = $anbieter->get('/konto/statistik');
+pruefe($statistik->status === 200, 'Die Statistik ist ohne Abo erreichbar', 'Status ' . $statistik->status);
+pruefe(
+    str_contains($statistik->body, 'Anfragen je 100 Aufrufe') && !str_contains($statistik->body, 'statistik.'),
+    'Sie zeigt Aufrufe, Anfragen und Quote aus dem Sprachkatalog',
+    'Inhalt fehlt oder rohe Schluessel',
+);
+
+// Nachzuchten und Profil haengen an denselben Merkmalen.
+$nachzuchten = $anbieter->get('/konto/nachzuchten');
+pruefe(
+    $nachzuchten->status === 200 && !str_contains($nachzuchten->body, 'gehören zum Züchter-Tarif'),
+    'Nachzucht-Ankuendigungen stehen ohne Abo offen',
+    'Status ' . $nachzuchten->status,
+);
+
+$merkmale = $containerFabrik()->get(\Reptilienmarkt\Domain\Billing\EntitlementService::class);
+$grundtarif = $merkmale->plans()['frei'] ?? null;
+pruefe(
+    $grundtarif !== null && count($grundtarif->features) === 3,
+    'Der Grundtarif fuehrt alle drei Merkmale — auch wenn die Abrechnung eingeschaltet wird',
+    'Merkmale im Grundtarif: ' . ($grundtarif === null ? 'kein Tarif' : count($grundtarif->features)),
+);
+
 // ------------------------------------------------------- 4) Artenstamm
 echo "\nArtenstamm\n";
 
