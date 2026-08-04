@@ -1,33 +1,62 @@
 {% extends 'layout/basis.html.twig' %}
 {% block titel %}Meine Anzeigen — Reptilienmarkt{% endblock %}
+{% block kopf %}<meta name="robots" content="noindex">{% endblock %}
 
 {% block inhalt %}
     <div class="mx-auto max-w-3xl space-y-4">
         {% include 'partials/meldungen.html.twig' %}
 
         <div class="flex items-center justify-between">
-            <h1 class="text-xl font-semibold">Meine Anzeigen</h1>
-            <a class="knopf knopf-primaer" href="/anzeige/neu">Neue Anzeige</a>
+            <h1 class="text-xl font-semibold">{{ t('anzeige.meine') }}</h1>
+            <a class="knopf knopf-primaer" href="/anzeige/neu">{{ t('anzeige.neu') }}</a>
         </div>
 
         {% if anzeigen is empty %}
-            <p class="karte p-8 text-center text-sm gedaempft">Noch keine Anzeigen angelegt.</p>
+            <p class="karte p-8 text-center text-sm gedaempft">{{ t('anzeige.keine') }}</p>
         {% else %}
             <ul class="space-y-2">
                 {% for anzeige in anzeigen %}
-                    <li class="karte flex items-center justify-between gap-3 p-4">
-                        <div class="min-w-0">
-                            <p class="truncate text-sm font-medium">{{ anzeige.title|default('(Entwurf ohne Titel)') }}</p>
-                            <p class="text-xs gedaempft">
-                                {{ arten[anzeige.speciesId]|default('Unbekannte Art') }} · {{ anzeige.type.label }} · {{ anzeige.status.label }}
-                            </p>
+                    <li class="karte space-y-2 p-4">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0">
+                                <p class="truncate text-sm font-medium">{{ anzeige.title|default(t('anzeige.ohne_titel')) }}</p>
+                                <p class="text-xs gedaempft">
+                                    {{ arten[anzeige.speciesId]|default(t('anzeige.unbekannte_art')) }}
+                                    · {{ anzeige.type.label }}
+                                    · <span class="{{ anzeige.status.value == 'pausiert' ? 'font-medium' : '' }}">{{ anzeige.status.label }}</span>
+                                </p>
+                            </div>
+
+                            <div class="flex shrink-0 flex-wrap justify-end gap-2">
+                                {% if anzeige.status.value in ['entwurf', 'pruefung'] %}
+                                    <a class="knopf" href="/anzeige/{{ anzeige.id }}/schritt/1">{{ t('anzeige.weiter_im_assistenten') }}</a>
+                                {% elseif anzeige.status.isEditable %}
+                                    <a class="knopf" href="/anzeige/{{ anzeige.id }}/bearbeiten">{{ t('allgemein.bearbeiten') }}</a>
+                                {% endif %}
+
+                                {% if anzeige.status.isPausable %}
+                                    <form method="post" action="/anzeige/{{ anzeige.id }}/pausieren">
+                                        <input type="hidden" name="_csrf" value="{{ csrf }}">
+                                        <button type="submit" class="knopf">{{ t('anzeige.pausieren') }}</button>
+                                    </form>
+                                {% endif %}
+
+                                {% if anzeige.status.value == 'pausiert' and pausen[anzeige.id] is defined and not pausen[anzeige.id].byAdmin %}
+                                    <form method="post" action="/anzeige/{{ anzeige.id }}/fortsetzen">
+                                        <input type="hidden" name="_csrf" value="{{ csrf }}">
+                                        <button type="submit" class="knopf knopf-primaer">{{ t('anzeige.fortsetzen') }}</button>
+                                    </form>
+                                {% endif %}
+
+                                <a class="knopf" href="/anzeige/{{ anzeige.id }}/">{{ t('anzeige.ansehen') }}</a>
+                            </div>
                         </div>
-                        <div class="flex shrink-0 gap-2">
-                            {% if anzeige.status.value in ['entwurf', 'pruefung'] %}
-                                <a class="knopf" href="/anzeige/{{ anzeige.id }}/schritt/1">Bearbeiten</a>
-                            {% endif %}
-                            <a class="knopf" href="/anzeige/{{ anzeige.id }}/">Ansehen</a>
-                        </div>
+
+                        {# Warum steht die Anzeige still? Ohne diesen Satz sucht der
+                           Anbieter den Fehler bei sich. #}
+                        {% if anzeige.status.value == 'pausiert' and pausen[anzeige.id] is defined %}
+                            <p class="karte border-amber-300 p-3 text-xs">{{ pausen[anzeige.id].explanation }}</p>
+                        {% endif %}
                     </li>
                 {% endfor %}
             </ul>
@@ -35,7 +64,7 @@
 
         <form method="post" action="/abmelden">
             <input type="hidden" name="_csrf" value="{{ csrf }}">
-            <button class="knopf" type="submit">Abmelden</button>
+            <button class="knopf" type="submit">{{ t('allgemein.abmelden') }}</button>
         </form>
     </div>
 {% endblock %}

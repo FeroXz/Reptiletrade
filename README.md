@@ -20,6 +20,7 @@ Architekturentscheidungen (Router, SQLite vs. PostgreSQL, Migrationsstrategie, K
 | 5 | Nutzer, Vertrauen, Kommunikation | umgesetzt |
 | 6 | Monetarisierung (vorbereitet, **nicht aktiviert**) | umgesetzt |
 | 7 | Admin, DSGVO, Betrieb | umgesetzt |
+| 8 | Anzeigen verwalten (bearbeiten, pausieren, löschen) | umgesetzt |
 
 ## Voraussetzungen
 
@@ -197,6 +198,38 @@ eine dieser Dateien zeigt; die Auslieferung läuft ausschließlich über
 `LegalDocumentController::download()`, der erst die Anmeldung, dann die Zugehörigkeit prüft. Ein
 fremdes Dokument beantwortet er mit **404, nicht 403** — ein 403 würde bestätigen, dass es die Datei
 gibt.
+
+## Anzeige verwalten
+
+Nach der Veröffentlichung führt der Weg nicht mehr durch den Assistenten, sondern über ein Formular
+unter `/anzeige/{id}/bearbeiten`. **Art und Angebotstyp bleiben fest**: Sie zu ändern hieße,
+Rechtsprüfung, Merkmalsauswahl und hochgeladene Nachweise auf eine andere Grundlage zu stellen —
+dafür gibt es eine neue Anzeige. Jede Bearbeitung wird in `listing_edits` protokolliert und die
+Anzeige danach neu bewertet: Blockiert die Rechts-Engine sie jetzt, geht sie zurück in die Prüfung,
+statt mit der Änderung weiterzulaufen.
+
+**Pausieren** ist ein eigener Zustand (`pausiert`), kein zweites Kennzeichen neben dem Status. Ein
+`is_paused`-Feld wäre eine zweite Wahrheit über dieselbe Frage, und jede Suchabfrage müsste beides
+prüfen — die Teilindizes aus Phase 3 sind alle über `status IN ('aktiv','reserviert')` eingeschränkt
+und wären damit unbrauchbar geworden (gemessen: 4,5 ms gegen 115 ms). Der Preis ist ein
+Tabellenumbau in der Migration, weil SQLite einen `CHECK` nicht nachträglich ändert.
+
+Wer pausiert hat, steht in `paused_by` — und daran hängt die Regel: **Eine Pause der Verwaltung hebt
+der Anbieter nicht selbst auf.** Sonst wäre die Maßnahme einen Klick wert. Der Grund ist Pflicht und
+wird dem Anbieter gezeigt; wer nicht erfährt, warum seine Anzeige stillsteht, kann es nicht
+abstellen. Beim Fortsetzen geht es in den Zustand von vorher zurück — eine reservierte Anzeige ist
+nach der Pause nicht plötzlich wieder frei.
+
+**Löschen** entfernt die Anzeige nur, wenn nichts Fremdes daran hängt. Gibt es Gespräche oder
+Bewertungen, gehören die auch der Gegenseite: Dann werden Bilder und Nachweise gelöscht und die
+Anzeige abgeschaltet, aber als Bezugspunkt behalten — dieselbe Abwägung wie bei der Kontolöschung.
+Bestätigt wird mit dem getippten Wort `LÖSCHEN`.
+
+Die Verwaltung sieht unter `/admin/anzeigen` alle Anzeigen samt Zustand, offenen Meldungen und
+Pausenangaben, filterbar nach Zustand, nach „nur pausierte“ und über eine Textsuche in Titel,
+Anbietername und E-Mail. Abgegrenzt von der Moderation: Die entscheidet über die Prüfliste und sperrt
+dauerhaft (`gesperrt`), die Pause hier ist vorläufig und wird zurückgenommen, sobald die Sache
+geklärt ist.
 
 ## Vertrauen und Missbrauchsabwehr
 

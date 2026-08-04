@@ -1,0 +1,121 @@
+{% extends 'layout/basis.html.twig' %}
+{% block titel %}{{ t('admin.anzeigen') }} — Reptilienmarkt{% endblock %}
+{% block kopf %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block inhalt %}
+    <div class="mx-auto max-w-7xl space-y-6">
+        {% include 'partials/meldungen.html.twig' %}
+
+        <div class="flex flex-wrap items-baseline justify-between gap-3">
+            <h1 class="text-xl font-semibold">{{ t('admin.anzeigen') }}</h1>
+            <a class="text-sm underline" href="/admin/">{{ t('admin.zurueck') }}</a>
+        </div>
+
+        {# Bestand je Zustand — die Zahlen sind zugleich die Filter. #}
+        <div class="flex flex-wrap gap-2 text-sm">
+            {% for zustand in zustaende %}
+                <a class="knopf {{ filter.status == zustand.value ? 'facette-aktiv' : '' }}"
+                   href="/admin/anzeigen?status={{ zustand.value }}">
+                    {{ zustand.label }}
+                    <span class="gedaempft">{{ bestand[zustand.value]|default(0) }}</span>
+                </a>
+            {% endfor %}
+            <a class="knopf {{ filter.status is null and not filter.nur_pausiert ? 'facette-aktiv' : '' }}"
+               href="/admin/anzeigen">{{ t('admin.alle') }}</a>
+        </div>
+
+        <form method="get" action="/admin/anzeigen" class="karte flex flex-wrap items-end gap-3 p-4">
+            <div class="flex-1">
+                <label class="text-sm" for="suche">{{ t('admin.suche') }}</label>
+                <input class="feld" id="suche" type="search" name="suche" value="{{ filter.suche }}"
+                       placeholder="{{ t('admin.suche_platzhalter') }}">
+            </div>
+            <label class="flex items-center gap-2 pb-2 text-sm">
+                <input type="checkbox" name="nur_pausiert" value="1" {{ filter.nur_pausiert ? 'checked' : '' }}>
+                {{ t('admin.nur_pausierte') }}
+            </label>
+            <button type="submit" class="knopf knopf-primaer">{{ t('admin.filtern') }}</button>
+        </form>
+
+        {% if zeilen is empty %}
+            <p class="karte p-8 text-center text-sm gedaempft">{{ t('admin.keine_anzeigen') }}</p>
+        {% else %}
+            <div class="karte overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b text-left" style="border-color: var(--rand)">
+                            <th class="p-3">{{ t('admin.spalte_anzeige') }}</th>
+                            <th class="p-3">{{ t('admin.spalte_anbieter') }}</th>
+                            <th class="p-3">{{ t('admin.spalte_zustand') }}</th>
+                            <th class="p-3">{{ t('admin.spalte_erstellt') }}</th>
+                            <th class="p-3">{{ t('admin.spalte_aktion') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for zeile in zeilen %}
+                            <tr class="border-b align-top" style="border-color: var(--rand)">
+                                <td class="p-3">
+                                    <a class="font-medium underline" href="/anzeige/{{ zeile.id }}/">{{ zeile.title }}</a>
+                                    <div class="text-xs gedaempft">
+                                        #{{ zeile.id }} · {{ zeile.speciesName }}
+                                        {% if zeile.editCount > 0 %} · {{ tw('anzeige.bearbeitungen', zeile.editCount) }}{% endif %}
+                                    </div>
+                                    {% if zeile.reportCount > 0 %}
+                                        <div class="text-xs" style="color: oklch(0.55 0.19 25)">
+                                            {{ tw('admin.offene_meldungen_zahl', zeile.reportCount) }}
+                                        </div>
+                                    {% endif %}
+                                </td>
+                                <td class="p-3">
+                                    {# Auf den Namen filtern statt aufs Profil springen: Wer eine
+                                       Anzeige prueft, will meist die anderen desselben Kontos sehen. #}
+                                    <a class="underline" href="/admin/anzeigen?suche={{ zeile.sellerName|url_encode }}">
+                                        {{ zeile.sellerName }}
+                                    </a>
+                                </td>
+                                <td class="p-3">
+                                    <span class="{{ zeile.isPaused ? 'font-medium' : '' }}">{{ zeile.status.label }}</span>
+                                    {% if zeile.isPaused and zeile.pausedBy %}
+                                        <div class="text-xs gedaempft">
+                                            {{ zeile.pausedBy.label }}
+                                            {% if zeile.pausedAt %} · {{ zeile.pausedAt.format('d.m.Y') }}{% endif %}
+                                        </div>
+                                        {% if zeile.pausedReason %}
+                                            <div class="text-xs">{{ zeile.pausedReason }}</div>
+                                        {% endif %}
+                                    {% endif %}
+                                </td>
+                                <td class="p-3 text-xs gedaempft">{{ zeile.createdAt.format('d.m.Y') }}</td>
+                                <td class="p-3">
+                                    {% if zeile.isPaused %}
+                                        <form method="post" action="/admin/anzeige/{{ zeile.id }}/fortsetzen">
+                                            <input type="hidden" name="_csrf" value="{{ csrf }}">
+                                            <input type="hidden" name="zurueck" value="{{ zurueck }}">
+                                            <button type="submit" class="knopf">{{ t('admin.freigeben') }}</button>
+                                        </form>
+                                    {% elseif zeile.status.isPausable %}
+                                        {# Der Grund ist Pflicht: Der Anbieter bekommt ihn zu sehen. #}
+                                        <form method="post" action="/admin/anzeige/{{ zeile.id }}/pausieren"
+                                              class="flex flex-wrap items-center gap-2">
+                                            <input type="hidden" name="_csrf" value="{{ csrf }}">
+                                            <input type="hidden" name="zurueck" value="{{ zurueck }}">
+                                            <input class="feld w-auto" type="text" name="grund" required maxlength="200"
+                                                   placeholder="{{ t('admin.pause_grund') }}">
+                                            <button type="submit" class="knopf">{{ t('anzeige.pausieren') }}</button>
+                                        </form>
+                                    {% else %}
+                                        <span class="text-xs gedaempft">—</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% if zeilen|length >= grenze %}
+                <p class="text-sm gedaempft">{{ t('admin.liste_gekuerzt', {'grenze': grenze}) }}</p>
+            {% endif %}
+        {% endif %}
+    </div>
+{% endblock %}

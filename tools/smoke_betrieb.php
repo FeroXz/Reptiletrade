@@ -92,6 +92,10 @@ $containerFabrik = static function () use ($root): Container {
 $container = $containerFabrik();
 $database = $container->get(Database::class);
 
+// Die Kopie kann aelter sein als der Code. Offene Migrationen anwenden, sonst
+// prueft der Rauchtest ein Schema, das es so nicht mehr gibt.
+$container->get(\Reptilienmarkt\Infra\Persistence\Migrator::class)->up();
+
 echo "Rauchtest Phase 7 — Verwaltung, Datenauskunft, Betrieb\n\n";
 
 // --------------------------------------------------- 1) Zugang zur Verwaltung
@@ -192,7 +196,114 @@ pruefe(
     'kein noindex im Kopf',
 );
 
-// ------------------------------------------------------- 3) Artenstamm
+// ------------------------------------------------ 3) Anzeigen verwalten
+echo "\nAnzeigenverwaltung\n";
+
+$verwaltung = $containerFabrik();
+$anzeigeId = (int) (string) $database->scalar("SELECT id FROM listings WHERE status = 'aktiv' ORDER BY id LIMIT 1");
+$besitzerId = (int) (string) $database->scalar('SELECT user_id FROM listings WHERE id = :id', ['id' => $anzeigeId]);
+
+$liste = $admin->get('/admin/anzeigen');
+pruefe($liste->status === 200, 'Die Anzeigenliste antwortet mit 200', 'Status ' . $liste->status);
+pruefe(
+    !str_contains($liste->body, 'admin.spalte'),
+    'Die Liste kommt aus dem Sprachkatalog',
+    'im Text stehen noch rohe Schluessel',
+);
+
+// Ein gewoehnliches Konto darf sie nicht sehen. Ein frisches, denn das erste
+// wurde oben zum Administrator gemacht.
+$ohneRechte = new BetriebsBrowser($containerFabrik);
+$ohneRechteEmail = 'rauchtest-ohne-' . bin2hex(random_bytes(4)) . '@example.tld';
+$ohneRechte->get('/registrieren');
+$ohneRechte->post('/registrieren', [
+    'email' => $ohneRechteEmail,
+    'anzeigename' => 'Rauchtest ohne Rechte',
+    'passwort' => 'einsicheres123',
+]);
+
+pruefe($ohneRechte->get('/admin/anzeigen')->status === 404, 'Fuer Nichtadmins ist sie nicht vorhanden', 'sie ist sichtbar');
+
+$admin->post('/admin/anzeige/' . $anzeigeId . '/pausieren', ['grund' => 'Rauchtest: bitte Nachweis nachreichen']);
+$stand = (string) $database->scalar('SELECT status FROM listings WHERE id = :id', ['id' => $anzeigeId]);
+pruefe($stand === 'pausiert', 'Die Verwaltung kann pausieren', 'Status ist "' . $stand . '"');
+
+$imIndex = (int) (string) $database->scalar('SELECT COUNT(*) FROM listing_search WHERE rowid = :id', ['id' => $anzeigeId]);
+pruefe($imIndex === 0, 'Eine pausierte Anzeige verschwindet aus dem Suchindex', 'sie steht noch im Index');
+
+$grund = (string) $database->scalar('SELECT paused_reason FROM listings WHERE id = :id', ['id' => $anzeigeId]);
+pruefe(
+    str_contains($grund, 'Nachweis nachreichen'),
+    'Der Grund ist gespeichert und fuer den Anbieter sichtbar',
+    'Grund: ' . $grund,
+);
+
+// Der Anbieter darf eine Verwaltungspause nicht selbst aufheben.
+$anbieter = new BetriebsBrowser($containerFabrik);
+$anbieterEmail = (string) $database->scalar('SELECT email FROM users WHERE id = :id', ['id' => $besitzerId]);
+$befoerdern->get(UserRepository::class)->findByEmail($anbieterEmail);
+$database->execute('UPDATE users SET password_hash = :hash WHERE id = :id', [
+    'hash' => $containerFabrik()->get(\Reptilienmarkt\Domain\Auth\PasswordHasher::class)->hash('rauchtestPasswort1'),
+    'id' => $besitzerId,
+]);
+$anbieter->get('/anmelden');
+$anbieter->post('/anmelden', ['email' => $anbieterEmail, 'passwort' => 'rauchtestPasswort1']);
+$anbieter->post('/anzeige/' . $anzeigeId . '/fortsetzen', []);
+
+$stand = (string) $database->scalar('SELECT status FROM listings WHERE id = :id', ['id' => $anzeigeId]);
+pruefe($stand === 'pausiert', 'Der Anbieter hebt eine Verwaltungspause nicht auf', 'Status ist "' . $stand . '"');
+
+$admin->post('/admin/anzeige/' . $anzeigeId . '/fortsetzen', []);
+$stand = (string) $database->scalar('SELECT status FROM listings WHERE id = :id', ['id' => $anzeigeId]);
+pruefe($stand === 'aktiv', 'Die Verwaltung gibt wieder frei', 'Status ist "' . $stand . '"');
+
+$imIndex = (int) (string) $database->scalar('SELECT COUNT(*) FROM listing_search WHERE rowid = :id', ['id' => $anzeigeId]);
+pruefe($imIndex === 1, 'Nach der Freigabe steht sie wieder im Index', 'sie fehlt im Index');
+
+// Eigene Pause: Der Anbieter darf, und er darf sie auch wieder aufheben.
+$anbieter->post('/anzeige/' . $anzeigeId . '/pausieren', []);
+pruefe(
+    (string) $database->scalar('SELECT paused_by FROM listings WHERE id = :id', ['id' => $anzeigeId]) === 'anbieter',
+    'Der Anbieter kann selbst pausieren',
+    'paused_by stimmt nicht',
+);
+
+$anbieter->post('/anzeige/' . $anzeigeId . '/fortsetzen', []);
+pruefe(
+    (string) $database->scalar('SELECT status FROM listings WHERE id = :id', ['id' => $anzeigeId]) === 'aktiv',
+    'Seine eigene Pause hebt er wieder auf',
+    'die Anzeige steht noch',
+);
+
+// Bearbeiten
+$formular = $anbieter->get('/anzeige/' . $anzeigeId . '/bearbeiten');
+pruefe($formular->status === 200, 'Das Bearbeitungsformular antwortet mit 200', 'Status ' . $formular->status);
+
+$anbieter->post('/anzeige/' . $anzeigeId . '/bearbeiten', [
+    'titel' => 'Rauchtest: geänderter Titel',
+    'beschreibung' => 'Diese Beschreibung stammt aus dem Rauchtest und ist lang genug.',
+    'preis' => '199,00',
+    'anzahl' => '1',
+    'land' => 'DE',
+    'plz' => '80331',
+]);
+
+pruefe(
+    (string) $database->scalar('SELECT title FROM listings WHERE id = :id', ['id' => $anzeigeId]) === 'Rauchtest: geänderter Titel',
+    'Die Bearbeitung wird gespeichert',
+    'der Titel steht unveraendert',
+);
+pruefe(
+    (int) (string) $database->scalar('SELECT edit_count FROM listings WHERE id = :id', ['id' => $anzeigeId]) === 1,
+    'Sie wird gezaehlt und protokolliert',
+    'edit_count stimmt nicht',
+);
+
+// Eine fremde Anzeige bleibt unsichtbar — 404, nicht 403.
+$fremde = $ohneRechte->get('/anzeige/' . $anzeigeId . '/bearbeiten');
+pruefe($fremde->status === 404, 'Eine fremde Anzeige laesst sich nicht bearbeiten', 'Status ' . $fremde->status);
+
+// ------------------------------------------------------- 4) Artenstamm
 echo "\nArtenstamm\n";
 
 $katalog = $admin->get('/admin/artenstamm');

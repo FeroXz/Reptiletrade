@@ -22,6 +22,7 @@ final readonly class DashboardStats
         public int $pendingDocuments,
         public int $flaggedMessages,
         public int $activeListings,
+        public int $pausedListings,
         public int $activeUsers,
         public int $newUsersThisWeek,
         public array $staleLegalTexts,

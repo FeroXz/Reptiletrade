@@ -6,6 +6,7 @@ namespace Reptilienmarkt\Infra\Persistence;
 
 use DateTimeImmutable;
 use Reptilienmarkt\Domain\Geo\Country;
+use Reptilienmarkt\Domain\Listing\AdminListingRow;
 use Reptilienmarkt\Domain\Listing\CbStatus;
 use Reptilienmarkt\Domain\Listing\Handover;
 use Reptilienmarkt\Domain\Listing\Listing;
@@ -13,6 +14,8 @@ use Reptilienmarkt\Domain\Listing\ListingRepository;
 use Reptilienmarkt\Domain\Listing\ListingStatus;
 use Reptilienmarkt\Domain\Listing\ListingType;
 use Reptilienmarkt\Domain\Listing\MorphSelection;
+use Reptilienmarkt\Domain\Listing\PauseActor;
+use Reptilienmarkt\Domain\Listing\PauseState;
 use Reptilienmarkt\Domain\Listing\Sex;
 use Reptilienmarkt\Domain\Listing\Zygosity;
 use Reptilienmarkt\Domain\Species\Inheritance;
@@ -248,6 +251,204 @@ final readonly class PdoListingRepository implements ListingRepository
             'legal' => json_encode($listing->legalConfirmations, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_UNICODE),
             'expires' => Timestamp::utcOrNull($listing->expiresAt),
         ];
+    }
+
+    // ------------------------------------------------------------- Pause
+
+    public function pause(int $listingId, PauseActor $actor, ?string $reason, ListingStatus $previousStatus): void
+    {
+        $this->database->execute(
+            <<<'SQL'
+                UPDATE listings
+                   SET status = 'pausiert',
+                       paused_by = :actor,
+                       paused_at = :now,
+                       paused_reason = :reason,
+                       status_before_pause = :previous,
+                       updated_at = :now
+                 WHERE id = :id
+                SQL,
+            [
+                'actor' => $actor->value,
+                'now' => Timestamp::now(),
+                'reason' => $reason,
+                'previous' => $previousStatus->value,
+                'id' => $listingId,
+            ],
+        );
+    }
+
+    public function resume(int $listingId, ListingStatus $status): void
+    {
+        // bumped_at bleibt stehen: Eine Pause soll die Anzeige nicht nach oben
+        // spuelen. Wer oben stehen will, bucht eine Top-Platzierung.
+        $this->database->execute(
+            <<<'SQL'
+                UPDATE listings
+                   SET status = :status,
+                       paused_by = NULL,
+                       paused_at = NULL,
+                       paused_reason = NULL,
+                       status_before_pause = NULL,
+                       updated_at = :now
+                 WHERE id = :id
+                SQL,
+            ['status' => $status->value, 'now' => Timestamp::now(), 'id' => $listingId],
+        );
+    }
+
+    public function pauseState(int $listingId): ?PauseState
+    {
+        $row = $this->database->selectOne(
+            'SELECT paused_by, paused_at, paused_reason, status_before_pause FROM listings WHERE id = :id',
+            ['id' => $listingId],
+        );
+
+        if ($row === null || !\is_string($row['paused_by']) || !\is_string($row['paused_at'])) {
+            return null;
+        }
+
+        $actor = PauseActor::tryFrom($row['paused_by']);
+
+        if ($actor === null) {
+            return null;
+        }
+
+        $vorher = \is_string($row['status_before_pause'])
+            ? ListingStatus::tryFrom($row['status_before_pause'])
+            : null;
+
+        return new PauseState(
+            $actor,
+            Timestamp::parse($row['paused_at']) ?? new DateTimeImmutable($row['paused_at']),
+            \is_string($row['paused_reason']) && $row['paused_reason'] !== '' ? $row['paused_reason'] : null,
+            $vorher ?? ListingStatus::Aktiv,
+        );
+    }
+
+    // -------------------------------------------------------- Bearbeitungen
+
+    public function recordEdit(int $listingId, int $editorId, array $changed): void
+    {
+        $now = Timestamp::now();
+
+        $this->database->execute(
+            'INSERT INTO listing_edits (listing_id, edited_by, changed_json, edited_at)
+             VALUES (:listing, :editor, :changed, :now)',
+            [
+                'listing' => $listingId,
+                'editor' => $editorId > 0 ? $editorId : null,
+                'changed' => json_encode($changed, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_UNICODE),
+                'now' => $now,
+            ],
+        );
+
+        // Der Zaehler wird in SQL erhoeht, nicht aus einem gelesenen Wert
+        // gesetzt: Zwei gleichzeitige Bearbeitungen wuerden sich sonst
+        // gegenseitig ueberschreiben.
+        $this->database->execute(
+            'UPDATE listings SET edit_count = edit_count + 1, edited_at = :now WHERE id = :id',
+            ['now' => $now, 'id' => $listingId],
+        );
+    }
+
+    public function editCount(int $listingId): int
+    {
+        return $this->count('SELECT edit_count FROM listings WHERE id = :id', $listingId);
+    }
+
+    public function conversationCount(int $listingId): int
+    {
+        return $this->count('SELECT COUNT(*) FROM conversations WHERE listing_id = :id', $listingId);
+    }
+
+    public function reviewCount(int $listingId): int
+    {
+        return $this->count('SELECT COUNT(*) FROM reviews WHERE listing_id = :id', $listingId);
+    }
+
+    // ------------------------------------------------------------ Verwaltung
+
+    public function forAdmin(array $filters = [], int $limit = 100): array
+    {
+        $bedingungen = [];
+        $parameter = ['limit' => $limit];
+
+        if (isset($filters['status']) && ListingStatus::tryFrom($filters['status']) !== null) {
+            $bedingungen[] = 'l.status = :status';
+            $parameter['status'] = $filters['status'];
+        }
+
+        if (($filters['nur_pausiert'] ?? false) === true) {
+            $bedingungen[] = 'l.paused_at IS NOT NULL';
+        }
+
+        if (isset($filters['suche']) && trim($filters['suche']) !== '') {
+            // Bewusst LIKE und nicht der Volltextindex: Die Verwaltung sucht
+            // auch in Anzeigen, die gar nicht im Index stehen — pausierte,
+            // gesperrte, Entwuerfe.
+            $bedingungen[] = '(l.title LIKE :suche OR u.display_name LIKE :suche OR u.email LIKE :suche)';
+            $parameter['suche'] = '%' . trim($filters['suche']) . '%';
+        }
+
+        $where = $bedingungen === [] ? '' : ' WHERE ' . implode(' AND ', $bedingungen);
+
+        $rows = $this->database->select(
+            'SELECT l.id, l.title, l.status, l.user_id, l.created_at, l.paused_by, l.paused_at, l.paused_reason,
+                    l.edit_count, u.display_name, s.common_name_de,
+                    (SELECT COUNT(*) FROM reports r
+                      WHERE r.target_type = \'listing\' AND r.target_id = l.id AND r.status = \'offen\') AS meldungen
+               FROM listings l
+               JOIN users u ON u.id = l.user_id
+               JOIN species s ON s.id = l.species_id'
+            . $where
+            . ' ORDER BY l.created_at DESC LIMIT :limit',
+            $parameter,
+        );
+
+        return array_map($this->mapAdminRow(...), $rows);
+    }
+
+    public function countsByStatus(): array
+    {
+        $counts = [];
+
+        foreach ($this->database->select('SELECT status, COUNT(*) AS anzahl FROM listings GROUP BY status') as $row) {
+            $counts[(string) $row['status']] = (int) $row['anzahl'];
+        }
+
+        return $counts;
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     */
+    private function mapAdminRow(array $row): AdminListingRow
+    {
+        $pausedBy = \is_string($row['paused_by']) ? PauseActor::tryFrom($row['paused_by']) : null;
+        $pausedAt = \is_string($row['paused_at']) ? Timestamp::parse($row['paused_at']) : null;
+
+        return new AdminListingRow(
+            (int) $row['id'],
+            (string) $row['title'],
+            ListingStatus::from((string) $row['status']),
+            (int) $row['user_id'],
+            (string) $row['display_name'],
+            (string) $row['common_name_de'],
+            new DateTimeImmutable((string) $row['created_at']),
+            $pausedBy,
+            $pausedAt,
+            \is_string($row['paused_reason']) && $row['paused_reason'] !== '' ? $row['paused_reason'] : null,
+            (int) $row['edit_count'],
+            (int) $row['meldungen'],
+        );
+    }
+
+    private function count(string $sql, int $listingId): int
+    {
+        $value = $this->database->scalar($sql, ['id' => $listingId]);
+
+        return (int) (is_numeric($value) ? $value : 0);
     }
 
     /**

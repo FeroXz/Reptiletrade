@@ -30,6 +30,7 @@ use Reptilienmarkt\Domain\Job\JobRunner;
 use Reptilienmarkt\Domain\Job\JobScheduler;
 use Reptilienmarkt\Domain\Listing\GeneticsCalculator;
 use Reptilienmarkt\Domain\Listing\LegalDocumentRepository;
+use Reptilienmarkt\Domain\Listing\ListingManager;
 use Reptilienmarkt\Domain\Listing\ListingMediaRepository;
 use Reptilienmarkt\Domain\Listing\ListingRepository;
 use Reptilienmarkt\Domain\Listing\ListingWizard;
@@ -64,12 +65,14 @@ use Reptilienmarkt\Domain\User\UserRepository;
 use Reptilienmarkt\Domain\User\VerificationRepository;
 use Reptilienmarkt\Http\Controller\AccountController;
 use Reptilienmarkt\Http\Controller\AdminController;
+use Reptilienmarkt\Http\Controller\AdminListingController;
 use Reptilienmarkt\Http\Controller\AnnouncementController;
 use Reptilienmarkt\Http\Controller\ApiController;
 use Reptilienmarkt\Http\Controller\AuthController;
 use Reptilienmarkt\Http\Controller\BillingController;
 use Reptilienmarkt\Http\Controller\LegalDocumentController;
 use Reptilienmarkt\Http\Controller\ListingController;
+use Reptilienmarkt\Http\Controller\ListingManagementController;
 use Reptilienmarkt\Http\Controller\ListingWizardController;
 use Reptilienmarkt\Http\Controller\MarketController;
 use Reptilienmarkt\Http\Controller\MediaController;
@@ -381,6 +384,36 @@ $container->set(ListingWizard::class, static fn(Container $c): ListingWizard => 
     $c->get(Clock::class),
     $c->get(AutoModerationPolicy::class),
     $c->get(EntitlementService::class),
+));
+
+// Bearbeiten, Pausieren, Loeschen nach der Veroeffentlichung.
+$container->set(ListingManager::class, static fn(Container $c): ListingManager => new ListingManager(
+    $c->get(ListingRepository::class),
+    $c->get(ListingMediaRepository::class),
+    $c->get(LegalDocumentRepository::class),
+    $c->get(ListingWizard::class),
+    $c->get(ListingIndexer::class),
+    $c->get(PublicImageStorage::class),
+    $c->get(PrivateStorage::class),
+    $c->get(AuditLog::class),
+));
+
+$container->set(ListingManagementController::class, static fn(Container $c): ListingManagementController => new ListingManagementController(
+    $c->get(ListingRepository::class),
+    $c->get(ListingManager::class),
+    $c->get(SpeciesRepository::class),
+    $c->get(PostalCodeRepository::class),
+    $c->get(Viewer::class),
+    $c->get(SessionManager::class),
+    $c->get(Environment::class),
+));
+
+$container->set(AdminListingController::class, static fn(Container $c): AdminListingController => new AdminListingController(
+    $c->get(ListingRepository::class),
+    $c->get(ListingManager::class),
+    $c->get(Viewer::class),
+    $c->get(SessionManager::class),
+    $c->get(Environment::class),
 ));
 
 $container->set(AuthController::class, static fn(Container $c): AuthController => new AuthController(

@@ -1,0 +1,186 @@
+{% extends 'layout/basis.html.twig' %}
+{% block titel %}{{ t('anzeige.bearbeiten') }} — {{ listing.title }}{% endblock %}
+{% block kopf %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block inhalt %}
+    <div class="mx-auto max-w-2xl space-y-6">
+        {% include 'partials/meldungen.html.twig' %}
+
+        <div class="flex flex-wrap items-baseline justify-between gap-3">
+            <h1 class="text-xl font-semibold">{{ t('anzeige.bearbeiten') }}</h1>
+            <a class="text-sm underline" href="/meine-anzeigen/">{{ t('anzeige.zurueck_zur_liste') }}</a>
+        </div>
+
+        <p class="text-sm gedaempft">
+            {{ t('anzeige.bearbeiten_fest', {
+                'art': art ? art.commonNameDe : t('anzeige.unbekannte_art'),
+                'typ': listing.type.label
+            }) }}
+        </p>
+
+        {% if pause %}
+            <p class="karte border-amber-300 p-4 text-sm">{{ pause.explanation }}</p>
+        {% endif %}
+
+        <form method="post" action="/anzeige/{{ listing.id }}/bearbeiten" class="karte space-y-4 p-6">
+            <input type="hidden" name="_csrf" value="{{ csrf }}">
+
+            <div>
+                <label class="text-sm" for="titel">{{ t('anzeige.titel') }}</label>
+                <input class="feld" id="titel" type="text" name="titel" required maxlength="120"
+                       value="{{ listing.title }}">
+                {% if feldfehler.titel is defined %}
+                    <p class="mt-1 text-xs" style="color: oklch(0.55 0.19 25)">{{ feldfehler.titel }}</p>
+                {% endif %}
+            </div>
+
+            <div>
+                <label class="text-sm" for="beschreibung">{{ t('anzeige.beschreibung') }}</label>
+                <textarea class="feld" id="beschreibung" name="beschreibung" rows="8" required
+                          maxlength="5000">{{ listing.description }}</textarea>
+                {% if feldfehler.beschreibung is defined %}
+                    <p class="mt-1 text-xs" style="color: oklch(0.55 0.19 25)">{{ feldfehler.beschreibung }}</p>
+                {% endif %}
+            </div>
+
+            <div class="grid gap-3 sm:grid-cols-2">
+                <div>
+                    <label class="text-sm" for="preis">{{ t('anzeige.preis') }}</label>
+                    <input class="feld" id="preis" type="text" inputmode="decimal" name="preis"
+                           value="{{ listing.priceCents is not null ? (listing.priceCents / 100)|number_format(2, ',', '') : '' }}">
+                    {% if feldfehler.preis is defined %}
+                        <p class="mt-1 text-xs" style="color: oklch(0.55 0.19 25)">{{ feldfehler.preis }}</p>
+                    {% endif %}
+                </div>
+
+                <div class="flex items-end">
+                    <label class="flex items-center gap-2 text-sm">
+                        <input type="checkbox" name="verhandelbar" value="1" {{ listing.negotiable ? 'checked' : '' }}>
+                        {{ t('anzeige.verhandelbar') }}
+                    </label>
+                </div>
+            </div>
+
+            <div>
+                <label class="text-sm" for="tauschwunsch">{{ t('anzeige.tauschwunsch') }}</label>
+                <input class="feld" id="tauschwunsch" type="text" name="tauschwunsch" maxlength="200"
+                       value="{{ listing.tradeWanted }}">
+            </div>
+
+            <div class="grid gap-3 sm:grid-cols-3">
+                <div>
+                    <label class="text-sm" for="geschlecht">{{ t('anzeige.geschlecht') }}</label>
+                    <select class="feld" id="geschlecht" name="geschlecht">
+                        {% for wert in geschlechter %}
+                            <option value="{{ wert.value }}" {{ wert == listing.sex ? 'selected' : '' }}>{{ wert.label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label class="text-sm" for="gewicht">{{ t('anzeige.gewicht') }}</label>
+                    <input class="feld" id="gewicht" type="number" min="1" name="gewicht" value="{{ listing.weightG }}">
+                </div>
+
+                <div>
+                    <label class="text-sm" for="anzahl">{{ t('anzeige.anzahl') }}</label>
+                    <input class="feld" id="anzahl" type="number" min="1" name="anzahl" value="{{ listing.countAvailable }}">
+                </div>
+            </div>
+
+            <div class="grid gap-3 sm:grid-cols-2">
+                <div>
+                    <label class="text-sm" for="herkunft">{{ t('anzeige.herkunft') }}</label>
+                    <select class="feld" id="herkunft" name="herkunft">
+                        {% for wert in herkuenfte %}
+                            <option value="{{ wert.value }}" {{ wert == listing.cbStatus ? 'selected' : '' }}>{{ wert.label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label class="text-sm" for="uebergabe">{{ t('anzeige.uebergabe') }}</label>
+                    <select class="feld" id="uebergabe" name="uebergabe">
+                        {% for wert in uebergaben %}
+                            <option value="{{ wert.value }}" {{ wert == listing.handover ? 'selected' : '' }}>{{ wert.label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid gap-3 sm:grid-cols-2">
+                <div>
+                    <label class="text-sm" for="land">{{ t('anzeige.land') }}</label>
+                    <select class="feld" id="land" name="land">
+                        {% for wert in laender %}
+                            <option value="{{ wert.value }}" {{ wert == listing.country ? 'selected' : '' }}>{{ wert.label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label class="text-sm" for="plz">{{ t('anzeige.plz') }}</label>
+                    <input class="feld" id="plz" type="text" name="plz" maxlength="10" value="{{ listing.postalCode }}">
+                </div>
+            </div>
+
+            <div class="flex flex-wrap gap-2">
+                <button type="submit" class="knopf knopf-primaer">{{ t('allgemein.speichern') }}</button>
+                <a class="knopf" href="/anzeige/{{ listing.id }}/">{{ t('allgemein.abbrechen') }}</a>
+            </div>
+
+            {% if bearbeitungen > 0 %}
+                <p class="text-xs gedaempft">{{ tw('anzeige.bearbeitungen', bearbeitungen) }}</p>
+            {% endif %}
+        </form>
+
+        {# ------------------------------------------------------- Pausieren #}
+        {% if listing.status.isPausable or listing.status.value == 'pausiert' %}
+            <section class="karte space-y-3 p-6">
+                <h2 class="font-semibold">{{ t('anzeige.pause') }}</h2>
+
+                {% if listing.status.isPausable %}
+                    <p class="text-sm">{{ t('anzeige.pause_erklaerung') }}</p>
+                    <form method="post" action="/anzeige/{{ listing.id }}/pausieren">
+                        <input type="hidden" name="_csrf" value="{{ csrf }}">
+                        <button type="submit" class="knopf">{{ t('anzeige.pausieren') }}</button>
+                    </form>
+                {% elseif pause and not pause.byAdmin %}
+                    <form method="post" action="/anzeige/{{ listing.id }}/fortsetzen">
+                        <input type="hidden" name="_csrf" value="{{ csrf }}">
+                        <button type="submit" class="knopf knopf-primaer">{{ t('anzeige.fortsetzen') }}</button>
+                    </form>
+                {% endif %}
+            </section>
+        {% endif %}
+
+        {# --------------------------------------------------------- Löschen #}
+        <section class="karte space-y-3 p-6">
+            <h2 class="font-semibold">{{ t('anzeige.loeschen') }}</h2>
+
+            {% if gespraeche > 0 or bewertungen > 0 %}
+                <p class="karte border-amber-300 p-4 text-sm">
+                    {{ t('anzeige.loeschen_archiviert', {'gespraeche': gespraeche, 'bewertungen': bewertungen}) }}
+                </p>
+            {% else %}
+                <p class="text-sm">{{ t('anzeige.loeschen_endgueltig_hinweis') }}</p>
+            {% endif %}
+
+            <details>
+                <summary class="cursor-pointer text-sm underline">{{ t('anzeige.loeschen_oeffnen') }}</summary>
+
+                <form method="post" action="/anzeige/{{ listing.id }}/loeschen" class="mt-4 space-y-3">
+                    <input type="hidden" name="_csrf" value="{{ csrf }}">
+
+                    <div>
+                        <label class="text-sm" for="bestaetigung">{{ t('daten.bestaetigung') }}</label>
+                        <input class="feld" id="bestaetigung" type="text" name="bestaetigung" required
+                               autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="LÖSCHEN">
+                    </div>
+
+                    <button type="submit" class="knopf knopf-warnung">{{ t('anzeige.loeschen_bestaetigen') }}</button>
+                </form>
+            </details>
+        </section>
+    </div>
+{% endblock %}

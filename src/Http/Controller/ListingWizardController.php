@@ -177,9 +177,20 @@ final readonly class ListingWizardController
     public function mine(Request $request): Response
     {
         $user = $this->currentUser->require();
+        $anzeigen = $this->listings->forUser($user->id ?? 0);
+
+        // Die Pausenangaben nur fuer die tatsaechlich pausierten Anzeigen
+        // nachschlagen — sonst waere es eine Abfrage je Zeile.
+        $pausen = [];
+        foreach ($anzeigen as $anzeige) {
+            if ($anzeige->status === ListingStatus::Pausiert && $anzeige->id !== null) {
+                $pausen[$anzeige->id] = $this->listings->pauseState($anzeige->id);
+            }
+        }
 
         return Response::html($this->twig->render('anzeige/meine.html.twig', [
-            'anzeigen' => $this->listings->forUser($user->id ?? 0),
+            'anzeigen' => $anzeigen,
+            'pausen' => $pausen,
             'arten' => $this->speciesNames(),
             'csrf' => $this->session->csrfToken(),
             'meldungen' => $this->session->takeFlashes(),

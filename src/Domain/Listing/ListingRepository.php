@@ -69,4 +69,54 @@ interface ListingRepository
      * sie bearbeitet, hat damit nichts zu tun.
      */
     public function isFeatured(int $listingId): bool;
+
+    /**
+     * Haelt die Anzeige an und merkt sich, wohin es beim Fortsetzen zurueckgeht.
+     */
+    public function pause(int $listingId, PauseActor $actor, ?string $reason, ListingStatus $previousStatus): void;
+
+    /**
+     * Setzt fort und raeumt die Pausenangaben ab.
+     */
+    public function resume(int $listingId, ListingStatus $status): void;
+
+    /**
+     * Wer, wann, warum — null, wenn die Anzeige nicht pausiert ist.
+     */
+    public function pauseState(int $listingId): ?PauseState;
+
+    /**
+     * Vermerkt eine Bearbeitung nach der Veroeffentlichung.
+     *
+     * @param array<string, scalar|null> $changed geaenderte Felder mit dem alten Wert
+     */
+    public function recordEdit(int $listingId, int $editorId, array $changed): void;
+
+    /**
+     * Anzahl bisheriger Bearbeitungen.
+     */
+    public function editCount(int $listingId): int;
+
+    /**
+     * Haengt Fremdes an der Anzeige? Danach entscheidet sich, ob eine Loeschung
+     * wirklich loescht oder nur archiviert.
+     */
+    public function conversationCount(int $listingId): int;
+
+    public function reviewCount(int $listingId): int;
+
+    /**
+     * Liste fuer die Verwaltung — mit Anbietername und Pausenangaben, damit die
+     * Uebersicht nicht je Zeile nachfragen muss.
+     *
+     * @param array{status?: string, nur_pausiert?: bool, suche?: string} $filters
+     *
+     * @return list<AdminListingRow>
+     */
+    public function forAdmin(array $filters = [], int $limit = 100): array;
+
+    /**
+     * @return array<string, int> Status => Anzahl
+     */
+    public function countsByStatus(): array;
 }

@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 use Reptilienmarkt\Http\Controller\AccountController;
 use Reptilienmarkt\Http\Controller\AdminController;
+use Reptilienmarkt\Http\Controller\AdminListingController;
 use Reptilienmarkt\Http\Controller\AnnouncementController;
 use Reptilienmarkt\Http\Controller\ApiController;
 use Reptilienmarkt\Http\Controller\AuthController;
 use Reptilienmarkt\Http\Controller\BillingController;
 use Reptilienmarkt\Http\Controller\LegalDocumentController;
 use Reptilienmarkt\Http\Controller\ListingController;
+use Reptilienmarkt\Http\Controller\ListingManagementController;
 use Reptilienmarkt\Http\Controller\ListingWizardController;
 use Reptilienmarkt\Http\Controller\MarketController;
 use Reptilienmarkt\Http\Controller\MediaController;
@@ -101,6 +103,9 @@ $router->post('/konto/loeschen', PrivacyController::class, 'delete', 'konto.loes
 
 // Administration (Rolle admin — Moderation reicht hier nicht)
 $router->get('/admin/', AdminController::class, 'dashboard', 'admin');
+$router->get('/admin/anzeigen', AdminListingController::class, 'index', 'admin.anzeigen');
+$router->post('/admin/anzeige/{id}/pausieren', AdminListingController::class, 'pause', 'admin.anzeige.pausieren');
+$router->post('/admin/anzeige/{id}/fortsetzen', AdminListingController::class, 'resume', 'admin.anzeige.fortsetzen');
 $router->get('/admin/artenstamm', AdminController::class, 'catalog', 'admin.artenstamm');
 $router->get('/admin/artenstamm/{art}/export', AdminController::class, 'exportCatalog', 'admin.artenstamm.export');
 $router->post('/admin/artenstamm/{art}/import', AdminController::class, 'importCatalog', 'admin.artenstamm.import');
@@ -119,6 +124,13 @@ $router->get('/anzeige/{id}/schritt/{schritt}', ListingWizardController::class, 
 $router->post('/anzeige/{id}/schritt/{schritt}', ListingWizardController::class, 'save', 'anzeige.schritt.speichern');
 $router->post('/anzeige/{id}/autosave/{schritt}', ListingWizardController::class, 'autosave', 'anzeige.autosave');
 $router->post('/anzeige/{id}/veroeffentlichen', ListingWizardController::class, 'publish', 'anzeige.veroeffentlichen');
+
+// Anzeige verwalten (nach der Veroeffentlichung)
+$router->get('/anzeige/{id}/bearbeiten', ListingManagementController::class, 'edit', 'anzeige.bearbeiten');
+$router->post('/anzeige/{id}/bearbeiten', ListingManagementController::class, 'update', 'anzeige.bearbeiten.speichern');
+$router->post('/anzeige/{id}/pausieren', ListingManagementController::class, 'pause', 'anzeige.pausieren');
+$router->post('/anzeige/{id}/fortsetzen', ListingManagementController::class, 'resume', 'anzeige.fortsetzen');
+$router->post('/anzeige/{id}/loeschen', ListingManagementController::class, 'delete', 'anzeige.loeschen');
 
 // Medien und Nachweise
 $router->post('/anzeige/{id}/bilder', MediaController::class, 'uploadImage', 'anzeige.bild.hochladen');

@@ -9,6 +9,7 @@
         <div class="flex flex-wrap items-baseline justify-between gap-3">
             <h1 class="text-xl font-semibold">{{ t('admin.titel') }}</h1>
             <nav class="flex gap-3 text-sm">
+                <a class="underline" href="/admin/anzeigen">{{ t('admin.anzeigen') }}</a>
                 <a class="underline" href="/admin/artenstamm">{{ t('admin.artenstamm') }}</a>
                 <a class="underline" href="/moderation/">{{ t('admin.moderation') }}</a>
             </nav>
@@ -30,15 +31,20 @@
         </section>
 
         {# ------------------------------------------------------------ Bestand #}
-        <section class="grid gap-3 sm:grid-cols-3">
+        <section class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {% for kachel in [
-                { t: t('admin.aktive_anzeigen'), w: kennzahlen.activeListings },
-                { t: t('admin.aktive_konten'), w: kennzahlen.activeUsers },
-                { t: t('admin.neue_konten'), w: kennzahlen.newUsersThisWeek }
+                { t: t('admin.aktive_anzeigen'), w: kennzahlen.activeListings, l: '/admin/anzeigen?status=aktiv' },
+                { t: t('admin.pausierte_anzeigen'), w: kennzahlen.pausedListings, l: '/admin/anzeigen?nur_pausiert=1' },
+                { t: t('admin.aktive_konten'), w: kennzahlen.activeUsers, l: null },
+                { t: t('admin.neue_konten'), w: kennzahlen.newUsersThisWeek, l: null }
             ] %}
                 <div class="karte p-4">
                     <p class="text-2xl font-semibold">{{ kachel.w }}</p>
-                    <p class="text-sm gedaempft">{{ kachel.t }}</p>
+                    {% if kachel.l %}
+                        <a class="text-sm underline gedaempft" href="{{ kachel.l }}">{{ kachel.t }}</a>
+                    {% else %}
+                        <p class="text-sm gedaempft">{{ kachel.t }}</p>
+                    {% endif %}
                 </div>
             {% endfor %}
         </section>

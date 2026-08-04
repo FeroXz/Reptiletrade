@@ -36,6 +36,7 @@ final readonly class DashboardService
             $this->count("SELECT COUNT(*) FROM user_documents WHERE status = 'offen'"),
             $this->count('SELECT COUNT(*) FROM messages WHERE flagged_reason IS NOT NULL'),
             $this->count("SELECT COUNT(*) FROM listings WHERE status IN ('aktiv','reserviert')"),
+            $this->count("SELECT COUNT(*) FROM listings WHERE status = 'pausiert'"),
             $this->count("SELECT COUNT(*) FROM users WHERE status = 'aktiv'"),
             $this->countSince('users', 'created_at', 7),
             $this->legalReview->stale(),
