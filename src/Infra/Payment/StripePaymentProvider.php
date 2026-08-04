@@ -188,6 +188,15 @@ final readonly class StripePaymentProvider implements PaymentProvider
             return false;
         }
 
+        // Ohne hinterlegtes Geheimnis wird nichts geprueft, sondern abgewiesen.
+        // hash_hmac mit leerem Schluessel rechnet klaglos weiter — und dann
+        // koennte jeder die Signatur selbst ausrechnen und sich eine bezahlte
+        // Rechnung schicken. Ein fehlender Schluessel ist keine Konfiguration,
+        // sondern ein geschlossener Endpunkt.
+        if ($this->webhookSecret === '') {
+            return false;
+        }
+
         $expected = hash_hmac('sha256', $timestamp . '.' . $payload, $this->webhookSecret);
 
         foreach ($signatures as $signature) {

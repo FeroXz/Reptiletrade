@@ -9,6 +9,7 @@ use Reptilienmarkt\Domain\Audit\AuditLog;
 use Reptilienmarkt\Domain\Auth\AuthenticationException;
 use Reptilienmarkt\Domain\Auth\AuthenticationService;
 use Reptilienmarkt\Domain\Auth\RegistrationException;
+use Reptilienmarkt\Domain\Trust\RateLimiter;
 use Reptilienmarkt\Http\Message\Request;
 use Reptilienmarkt\Http\Message\Response;
 use Reptilienmarkt\Http\Session\SessionManager;
@@ -19,6 +20,7 @@ final readonly class AuthController
 {
     public function __construct(
         private AuthenticationService $auth,
+        private RateLimiter $rateLimiter,
         private SessionManager $session,
         private Viewer $currentUser,
         private AuditLog $audit,
@@ -83,6 +85,18 @@ final readonly class AuthController
 
         $email = $this->input($request, 'email');
         $weiter = $this->input($request, 'weiter');
+
+        // Die Kontosperre nach fuenf Fehlversuchen schuetzt ein Konto. Sie
+        // schuetzt nicht davor, dass jemand dieselbe Handvoll Passwoerter
+        // gegen tausend Konten laufen laesst — dafuer ist diese Grenze da.
+        if ($request->clientIp !== null && !$this->rateLimiter->attempt('anmeldung.ip', $request->clientIp)->allowed) {
+            return Response::html($this->twig->render('auth/anmelden.html.twig', [
+                'csrf' => $this->session->csrfToken(),
+                'meldungen' => ['fehler' => 'Zu viele Anmeldeversuche. Bitte warte einen Moment.'],
+                'weiter' => $weiter === '' ? null : $weiter,
+                'eingaben' => ['email' => $email],
+            ]), 429);
+        }
 
         try {
             $user = $this->auth->authenticate($email, $this->input($request, 'passwort'));

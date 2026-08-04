@@ -196,6 +196,28 @@ pruefe(
     'kein noindex im Kopf',
 );
 
+// Anmeldung: Die konfigurierte IP-Grenze muss auch greifen. Sie stand in
+// config/trust.php, war aber an keinen Controller angeschlossen.
+// Eigene Adresse: Die Grenze soll den Rest des Rauchtests nicht mitsperren.
+$brecher = new BetriebsBrowser($containerFabrik, '198.51.100.9');
+$abgewiesen = false;
+
+for ($versuch = 0; $versuch < 40; ++$versuch) {
+    $brecher->get('/anmelden');
+    $antwort = $brecher->sendRawWithCsrf('POST', '/anmelden', [
+        'email' => 'gibt-es-nicht@example.tld',
+        'passwort' => 'falsch' . $versuch,
+    ]);
+
+    if ($antwort->status === 429) {
+        $abgewiesen = true;
+
+        break;
+    }
+}
+
+pruefe($abgewiesen, 'Massenhafte Anmeldeversuche werden von der IP-Grenze gestoppt', '40 Versuche gingen durch');
+
 // ------------------------------------------------ 3) Anzeigen verwalten
 echo "\nAnzeigenverwaltung\n";
 
@@ -528,13 +550,13 @@ final class BetriebsBrowser
     /**
      * @param callable(): Container $container Liefert pro Anfrage einen frischen Objektgraphen
      */
-    public function __construct(private $container) {}
+    public function __construct(private $container, private readonly string $ip = '203.0.113.7') {}
 
     public function get(string $path): Response
     {
         [$pfad, $query] = $this->split($path);
 
-        $response = $this->send(new Request('GET', $pfad, $query, [], $this->headers(), [], $this->cookies(), '203.0.113.7'));
+        $response = $this->send(new Request('GET', $pfad, $query, [], $this->headers(), [], $this->cookies(), $this->ip));
 
         $token = $this->extractCsrf($response->body);
         if ($token !== null) {
@@ -559,7 +581,7 @@ final class BetriebsBrowser
             $this->headers(),
             [],
             $this->cookies(),
-            '203.0.113.7',
+            $this->ip,
         ));
 
         return $this->redirectTarget($response, $path);
@@ -602,7 +624,27 @@ final class BetriebsBrowser
             $this->headers(),
             [],
             $this->cookies(),
-            '203.0.113.7',
+            $this->ip,
+        ));
+    }
+
+    /**
+     * Wie post(), aber ohne Weiterleitungspruefung — fuer Faelle, in denen
+     * gerade die Abweisung das erwartete Ergebnis ist.
+     *
+     * @param array<string, mixed> $body
+     */
+    public function sendRawWithCsrf(string $method, string $path, array $body): Response
+    {
+        return $this->send(new Request(
+            $method,
+            $path,
+            [],
+            $body + ['_csrf' => $this->csrf],
+            $this->headers(),
+            [],
+            $this->cookies(),
+            $this->ip,
         ));
     }
 

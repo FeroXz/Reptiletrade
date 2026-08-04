@@ -418,6 +418,7 @@ $container->set(AdminListingController::class, static fn(Container $c): AdminLis
 
 $container->set(AuthController::class, static fn(Container $c): AuthController => new AuthController(
     $c->get(AuthenticationService::class),
+    $c->get(RateLimiter::class),
     $c->get(SessionManager::class),
     $c->get(CurrentUser::class),
     $c->get(AuditLog::class),
