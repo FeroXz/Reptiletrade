@@ -117,4 +117,28 @@
     window.addEventListener('popstate', function () {
         laden(new URL(window.location.href), false);
     });
+
+    // Facetten auf dem Telefon auf- und zuklappen. Auf breiten Bildschirmen
+    // stehen sie ohnehin offen (lg:block), der Schalter ist dort ausgeblendet.
+    // Frueher haben das Alpine-Ausdruecke im Markup erledigt — die werden zur
+    // Laufzeit aus Zeichenketten gebaut und brauchen 'unsafe-eval' in der
+    // Content-Security-Policy.
+    document.addEventListener('click', function (ereignis) {
+        var schalter = ereignis.target.closest('[data-facetten-schalter]');
+
+        if (schalter === null) {
+            return;
+        }
+
+        var bereich = schalter.closest('[data-facetten]');
+        var inhalt = bereich === null ? null : bereich.querySelector('[data-facetten-inhalt]');
+
+        if (inhalt === null) {
+            return;
+        }
+
+        var offen = inhalt.classList.toggle('hidden') === false;
+        schalter.setAttribute('aria-expanded', offen ? 'true' : 'false');
+        schalter.textContent = offen ? 'Schließen' : 'Anzeigen';
+    });
 })();

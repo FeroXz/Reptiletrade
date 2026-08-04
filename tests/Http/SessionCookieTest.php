@@ -145,6 +145,22 @@ final class SessionCookieTest extends DatabaseTestCase
         self::assertSame('private, no-store', $antwort->headers['cache-control'] ?? null);
     }
 
+    public function testJedeAntwortTraegtDieContentSecurityPolicy(): void
+    {
+        $kernel = $this->kernel(static fn(): Response => Response::html('<p>Seite</p>'));
+
+        $csp = (string) ($kernel->handle($this->request(secure: false, path: '/test'))->headers['content-security-policy'] ?? '');
+
+        // Ohne 'unsafe-eval' und ohne 'unsafe-inline' im script-src: Sonst
+        // schuetzt die Regel gegen genau das nicht mehr, wogegen sie da ist.
+        self::assertStringContainsString("default-src 'self'", $csp);
+        self::assertStringContainsString("script-src 'self'", $csp);
+        self::assertStringNotContainsString('unsafe-eval', $csp);
+        self::assertStringNotContainsString("script-src 'self' 'unsafe-inline'", $csp);
+        self::assertStringContainsString("frame-ancestors 'none'", $csp);
+        self::assertStringContainsString("object-src 'none'", $csp);
+    }
+
     public function testDerTokenUeberlebtDieAnmeldung(): void
     {
         $userId = $this->createUser('kunde@example.tld');

@@ -31,6 +31,9 @@ return [
         'anzeige.konto' => ['limit' => 20, 'fenster' => 86400],
         'meldung.konto' => ['limit' => 10, 'fenster' => 3600],
         'meldung.ip' => ['limit' => 20, 'fenster' => 3600],
+        // Kontoanlage: Ein Mensch legt eins an, vielleicht zwei. Fuenf in der
+        // Stunde lassen einer Familie hinter demselben Anschluss Luft und
+        // machen das massenhafte Anlegen trotzdem unbrauchbar langsam.
         'registrierung.ip' => ['limit' => 5, 'fenster' => 3600],
         'anmeldung.ip' => ['limit' => 30, 'fenster' => 900],
         'passwort_reset.ip' => ['limit' => 5, 'fenster' => 3600],

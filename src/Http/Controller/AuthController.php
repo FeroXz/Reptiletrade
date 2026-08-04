@@ -48,14 +48,25 @@ final readonly class AuthController
         $name = $this->input($request, 'anzeigename');
         $password = $this->input($request, 'passwort');
 
+        // Ohne diese Grenze legt ein Skript in einer Minute tausend Konten an —
+        // und jedes davon darf Nachrichten schreiben und Anzeigen stellen. Die
+        // E-Mail-Bestaetigung haelt das nicht auf: Das Konto existiert vorher.
+        if ($request->clientIp !== null && !$this->rateLimiter->attempt('registrierung.ip', $request->clientIp)->allowed) {
+            return $this->registrationForm(
+                'Von diesem Anschluss wurden gerade mehrere Konten angelegt. Bitte versuche es später noch einmal.',
+                ['email' => $email, 'anzeigename' => $name],
+                429,
+            );
+        }
+
         try {
             $user = $this->auth->register($email, $name, $password);
         } catch (RegistrationException $exception) {
-            return Response::html($this->twig->render('auth/registrieren.html.twig', [
-                'csrf' => $this->session->csrfToken(),
-                'meldungen' => ['fehler' => $exception->getMessage()],
-                'eingaben' => ['email' => $email, 'anzeigename' => $name],
-            ]), 422);
+            return $this->registrationForm(
+                $exception->getMessage(),
+                ['email' => $email, 'anzeigename' => $name],
+                422,
+            );
         }
 
         $this->session->login($user->id ?? 0);
@@ -143,6 +154,18 @@ final readonly class AuthController
         $this->session->flash('erfolg', 'Du bist abgemeldet.');
 
         return Response::redirect('/markt/');
+    }
+
+    /**
+     * @param array<string, string> $eingaben
+     */
+    private function registrationForm(string $fehler, array $eingaben, int $status): Response
+    {
+        return Response::html($this->twig->render('auth/registrieren.html.twig', [
+            'csrf' => $this->session->csrfToken(),
+            'meldungen' => ['fehler' => $fehler],
+            'eingaben' => $eingaben,
+        ]), $status);
     }
 
     private function guardCsrf(Request $request): void

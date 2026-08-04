@@ -145,11 +145,39 @@ final readonly class Kernel
         );
     }
 
+    /**
+     * Die Content-Security-Policy.
+     *
+     * Sie ist die zweite Linie: Twig escaped durchgehend, aber wenn dort je
+     * eine Luecke entsteht, entscheidet dieser Kopf darueber, ob eingeschleuster
+     * Code auch laeuft. Deshalb ohne 'unsafe-eval' und ohne 'unsafe-inline' bei
+     * script-src — dafuer wurden die Alpine-Ausdruecke aus dem Markup entfernt;
+     * sie werden zur Laufzeit aus Zeichenketten gebaut und haetten genau das
+     * verlangt, was die Regel verhindern soll.
+     *
+     * 'unsafe-inline' bleibt bei style-src: Die Templates tragen ihre Farben in
+     * style-Attributen. Das ist deutlich harmloser — ueber CSS laesst sich kein
+     * Code ausfuehren — und liesse sich spaeter durch Klassen ersetzen.
+     */
+    private const string CONTENT_SECURITY_POLICY = "default-src 'self'; "
+        . "script-src 'self'; "
+        . "style-src 'self' 'unsafe-inline'; "
+        . "img-src 'self' data:; "
+        . "font-src 'self'; "
+        . "connect-src 'self'; "
+        . "form-action 'self'; "
+        . "frame-ancestors 'none'; "
+        . "base-uri 'none'; "
+        . "object-src 'none'";
+
     private function withSecurityHeaders(Response $response): Response
     {
         $response = $response
             ->withHeader('x-content-type-options', 'nosniff')
             ->withHeader('referrer-policy', 'strict-origin-when-cross-origin')
+            ->withHeader('content-security-policy', self::CONTENT_SECURITY_POLICY)
+            // frame-ancestors deckt dasselbe ab, aber aeltere Browser kennen es
+            // nicht. Der Kopf kostet nichts.
             ->withHeader('x-frame-options', 'DENY');
 
         // HTML-Seiten sind hier nie allgemeingueltig: Die Kopfzeile zeigt den

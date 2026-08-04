@@ -433,6 +433,7 @@ $container->set(ListingWizardController::class, static fn(Container $c): Listing
     $c->get(MorphRepository::class),
     $c->get(PostalCodeRepository::class),
     $c->get(ListingWizard::class),
+    $c->get(RateLimiter::class),
     $c->get(ListingIndexer::class),
     $c->get(Viewer::class),
     $c->get(SessionManager::class),

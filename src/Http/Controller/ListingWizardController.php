@@ -24,6 +24,7 @@ use Reptilienmarkt\Domain\Listing\WizardStep;
 use Reptilienmarkt\Domain\Listing\Zygosity;
 use Reptilienmarkt\Domain\Species\MorphRepository;
 use Reptilienmarkt\Domain\Species\SpeciesRepository;
+use Reptilienmarkt\Domain\Trust\RateLimiter;
 use Reptilienmarkt\Domain\User\User;
 use Reptilienmarkt\Http\HttpException;
 use Reptilienmarkt\Http\Message\Request;
@@ -50,6 +51,7 @@ final readonly class ListingWizardController
         private MorphRepository $morphs,
         private PostalCodeRepository $postalCodes,
         private ListingWizard $wizard,
+        private RateLimiter $rateLimiter,
         private ListingIndexer $indexer,
         private Viewer $currentUser,
         private SessionManager $session,
@@ -91,6 +93,14 @@ final readonly class ListingWizardController
             $this->session->flash('fehler', 'Bitte wähle Anzeigenart und Tierart aus.');
 
             return Response::redirect('/anzeige/neu');
+        }
+
+        // Gezaehlt wird das Anlegen, nicht das Veroeffentlichen: Ein Skript
+        // muesste sonst nur Entwuerfe erzeugen, um die Tabelle zu fluten.
+        if (!$this->rateLimiter->attempt('anzeige.konto', (string) ($user->id ?? 0))->allowed) {
+            $this->session->flash('fehler', 'Du hast heute schon viele Anzeigen begonnen. Bitte mach morgen weiter.');
+
+            return Response::redirect('/meine-anzeigen/');
         }
 
         $id = $this->listings->create(new Listing(null, $user->id ?? 0, $type, $speciesId));

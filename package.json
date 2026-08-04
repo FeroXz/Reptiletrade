@@ -1,14 +1,13 @@
 {
     "name": "reptilienmarkt-assets",
     "private": true,
-    "description": "Frontend-Build. Wird nur zur Entwicklungszeit gebraucht — das Ergebnis liegt gebaut unter public/assets/ im Repository, damit auf dem Server kein Node noetig ist.",
+    "description": "Frontend-Build. Wird nur zur Entwicklungszeit gebraucht — das Ergebnis liegt gebaut unter public/assets/ im Repository, damit auf dem Server kein Node noetig ist. Kein Alpine: Die Ausdruecke im Markup haetten 'unsafe-eval' in der CSP verlangt.",
     "scripts": {
-        "build": "tailwindcss -i assets/app.css -o public/assets/app.css --minify && node -e \"require('fs').copyFileSync('node_modules/alpinejs/dist/cdn.min.js','public/assets/alpine.js')\"",
+        "build": "tailwindcss -i assets/app.css -o public/assets/app.css --minify",
         "watch": "tailwindcss -i assets/app.css -o public/assets/app.css --watch"
     },
     "devDependencies": {
         "@tailwindcss/cli": "^4.0.0",
-        "alpinejs": "^3.14.0",
         "tailwindcss": "^4.0.0"
     }
 }

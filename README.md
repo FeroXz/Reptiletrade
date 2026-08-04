@@ -231,6 +231,26 @@ Anbietername und E-Mail. Abgegrenzt von der Moderation: Die entscheidet über di
 dauerhaft (`gesperrt`), die Pause hier ist vorläufig und wird zurückgenommen, sobald die Sache
 geklärt ist.
 
+## Verteidigungslinien
+
+Jede Antwort trägt eine Content-Security-Policy: `default-src 'self'`, `script-src 'self'` — **ohne**
+`unsafe-eval` und ohne `unsafe-inline`. Twig escapet durchgehend; die CSP ist die zweite Linie, die
+darüber entscheidet, ob eingeschleuster Code auch ausgeführt wird. Damit sie das kann, wurde Alpine
+entfernt: Seine Ausdrücke stehen im Markup und werden zur Laufzeit aus Zeichenketten gebaut, was
+genau das `unsafe-eval` verlangt hätte, das die Regel verhindern soll. Die einzige echte Nutzung —
+der Facetten-Umschalter auf schmalen Bildschirmen — sind jetzt zwölf Zeilen in `markt.js`.
+`'unsafe-inline'` bleibt bei `style-src`, weil die Templates Farben in `style`-Attributen tragen;
+über CSS lässt sich kein Code ausführen.
+
+Die Rate-Limits aus `config/trust.php` sind vollständig angeschlossen — drei von ihnen waren lange
+konfiguriert, aber an keinen Controller gehängt:
+
+| Grenze | Wirkung |
+|---|---|
+| `registrierung.ip` (5 / Stunde) | Massenanlage von Konten. Die E-Mail-Bestätigung hilft dagegen nicht: Das Konto existiert vorher. |
+| `anmeldung.ip` (30 / 15 Min.) | Passwort-Spraying über viele Konten. Die Kontosperre schützt nur ein einzelnes Konto. |
+| `anzeige.konto` (20 / Tag) | Fluten mit Anzeigen. Gezählt wird das Anlegen, nicht das Veröffentlichen — sonst genügten Entwürfe. |
+
 ## Vertrauen und Missbrauchsabwehr
 
 Schwellwerte und Wortlisten stehen in [`config/trust.php`](config/trust.php), nicht im Code. Ein

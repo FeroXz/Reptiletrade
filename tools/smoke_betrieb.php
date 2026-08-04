@@ -218,6 +218,47 @@ for ($versuch = 0; $versuch < 40; ++$versuch) {
 
 pruefe($abgewiesen, 'Massenhafte Anmeldeversuche werden von der IP-Grenze gestoppt', '40 Versuche gingen durch');
 
+// Kontoanlage: Ein Skript soll nicht in einer Minute tausend Konten anlegen.
+$massenanleger = new BetriebsBrowser($containerFabrik, '198.51.100.23');
+$angelegt = 0;
+$gestoppt = false;
+
+for ($versuch = 0; $versuch < 12; ++$versuch) {
+    $massenanleger->get('/registrieren');
+    $antwort = $massenanleger->sendRawWithCsrf('POST', '/registrieren', [
+        'email' => sprintf('massen-%d-%s@example.tld', $versuch, bin2hex(random_bytes(3))),
+        'anzeigename' => 'Massenanlage ' . $versuch,
+        'passwort' => 'einsicheres123',
+    ]);
+
+    if ($antwort->status === 429) {
+        $gestoppt = true;
+
+        break;
+    }
+
+    ++$angelegt;
+}
+
+pruefe(
+    $gestoppt && $angelegt <= 5,
+    sprintf('Die Kontoanlage ist bei %d Konten gestoppt', $angelegt),
+    $gestoppt ? $angelegt . ' Konten kamen durch' : '12 Konten kamen durch',
+);
+
+// Der CSP-Kopf ist die zweite Linie hinter dem Escaping.
+$csp = (string) ($nutzer->get('/markt/')->headers['content-security-policy'] ?? '');
+pruefe(
+    str_contains($csp, "script-src 'self'") && !str_contains($csp, 'unsafe-eval'),
+    'Die Content-Security-Policy verbietet fremde und zur Laufzeit gebaute Skripte',
+    'CSP: ' . ($csp === '' ? 'fehlt' : $csp),
+);
+pruefe(
+    str_contains($csp, "frame-ancestors 'none'") && str_contains($csp, "base-uri 'none'"),
+    'Sie verbietet Einbettung und untergeschobene Basisadressen',
+    'CSP: ' . $csp,
+);
+
 // ------------------------------------------------ 3) Anzeigen verwalten
 echo "\nAnzeigenverwaltung\n";
 

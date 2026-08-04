@@ -50,7 +50,7 @@
 
             {# Zugeklappt, damit das Formular nicht zufaellig unter der Hand
                ausgefuellt wird — aufklappen ist die erste bewusste Handlung. #}
-            <details x-data="{ offen: false }" @toggle="offen = $event.target.open">
+            <details>
                 <summary class="cursor-pointer text-sm underline">{{ t('daten.loeschen_oeffnen') }}</summary>
 
                 <form method="post" action="/konto/loeschen" class="mt-4 space-y-3">
