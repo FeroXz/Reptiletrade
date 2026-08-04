@@ -213,6 +213,48 @@ final class ListingManagerTest extends DatabaseTestCase
         self::assertSame(1, $this->listings->forAdmin()[0]->reportCount);
     }
 
+    public function testEineStatusaenderungRaeumtDiePausenangabenAb(): void
+    {
+        $id = $this->createListing($this->sellerId, $this->speciesId, 'aktiv');
+        $this->listings->pause($id, PauseActor::Verwaltung, 'Vorlaeufig angehalten', ListingStatus::Aktiv);
+
+        // Die Moderation gibt frei. Bliebe "pausiert von der Verwaltung"
+        // stehen, zeigte die Verwaltungsliste eine laufende Anzeige als
+        // angehalten — und der Anbieter saehe eine Pause, die es nicht gibt.
+        $this->listings->updateStatus($id, ListingStatus::Aktiv);
+
+        self::assertNull($this->listings->pauseState($id));
+        self::assertCount(0, $this->listings->forAdmin(['nur_pausiert' => true]));
+    }
+
+    public function testEineAbgelaufenePauseTauchtNichtMehrAlsPauseAuf(): void
+    {
+        $id = $this->createListing($this->sellerId, $this->speciesId, 'aktiv');
+        $this->listings->pause($id, PauseActor::Anbieter, null, ListingStatus::Aktiv);
+
+        $this->listings->updateStatus($id, ListingStatus::Abgelaufen);
+
+        self::assertNull($this->listings->pauseState($id));
+        self::assertSame(ListingStatus::Abgelaufen, $this->listings->findById($id)?->status);
+    }
+
+    public function testDerGrundWirdServerseitigGekuerzt(): void
+    {
+        $id = $this->createListing($this->sellerId, $this->speciesId, 'aktiv');
+        $listing = $this->listings->findById($id);
+        self::assertNotNull($listing);
+
+        $admin = new User($this->createUser('admin@example.tld'), 'admin@example.tld', 'Admin', Role::Admin);
+
+        // Das maxlength im Formular ist eine Bequemlichkeit, keine Schranke.
+        $this->manager()->pauseByAdmin($listing, $admin, str_repeat('A', 5000));
+
+        $zustand = $this->listings->pauseState($id);
+        self::assertNotNull($zustand);
+        self::assertNotNull($zustand->reason);
+        self::assertSame(200, mb_strlen($zustand->reason));
+    }
+
     public function testEinFremdesKontoDarfNichtPausieren(): void
     {
         $id = $this->createListing($this->sellerId, $this->speciesId, 'aktiv');

@@ -34,6 +34,8 @@ use Reptilienmarkt\Infra\Storage\PublicImageStorage;
  */
 final readonly class ListingManager
 {
+    private const int MAX_REASON_LENGTH = 200;
+
     public function __construct(
         private ListingRepository $listings,
         private ListingMediaRepository $media,
@@ -80,16 +82,21 @@ final readonly class ListingManager
 
         $status = $updated->status;
 
-        // Nur veroeffentlichte Anzeigen werden neu bewertet. Ein Entwurf wird
-        // ohnehin erst beim Veroeffentlichen geprueft.
-        if ($status === ListingStatus::Aktiv || $status === ListingStatus::Reserviert) {
+        // Alles, was schon einmal veroeffentlicht war, wird neu bewertet — auch
+        // eine pausierte Anzeige. Sonst gaebe es einen Weg an der Pruefung
+        // vorbei: pausieren, den Inhalt in etwas Unzulaessiges aendern,
+        // fortsetzen. Ein Entwurf bleibt aussen vor, der wird ohnehin erst beim
+        // Veroeffentlichen geprueft.
+        if (\in_array($status, [ListingStatus::Aktiv, ListingStatus::Reserviert, ListingStatus::Pausiert], true)) {
             $decision = $this->wizard->evaluate($updated, $editor);
 
             if ($decision->blocked || $decision->requiresReview) {
                 $this->listings->updateStatus($id, ListingStatus::Pruefung);
                 $this->indexer->removeListing($id);
                 $status = ListingStatus::Pruefung;
-            } else {
+            } elseif ($status->isPubliclyVisible()) {
+                // Nur was oeffentlich steht, gehoert in den Index — eine
+                // pausierte Anzeige bleibt trotz sauberer Pruefung draussen.
                 $this->indexer->indexListing($id);
             }
         }
@@ -125,7 +132,12 @@ final readonly class ListingManager
     public function pauseByAdmin(Listing $listing, User $admin, string $reason): void
     {
         $this->requireAdmin($admin);
-        $this->applyPause($listing, PauseActor::Verwaltung, trim($reason) === '' ? null : trim($reason), $admin);
+
+        // Laenge serverseitig begrenzen: Das maxlength im Formular ist eine
+        // Bequemlichkeit, keine Schranke.
+        $gekuerzt = mb_substr(trim($reason), 0, self::MAX_REASON_LENGTH);
+
+        $this->applyPause($listing, PauseActor::Verwaltung, $gekuerzt === '' ? null : $gekuerzt, $admin);
     }
 
     /**

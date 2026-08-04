@@ -36,8 +36,13 @@ final readonly class ListingArchiveHandler implements JobHandler
         $now = Timestamp::utc($this->clock->now());
 
         $faellig = $this->database->select(
+            // Pausierte gehoeren dazu: Die Laufzeit laeuft waehrend der Pause
+            // weiter — so steht es auch im Formular. Waeren sie ausgenommen,
+            // liesse sich eine Anzeige durch Pausieren unbegrenzt am Leben
+            // halten.
             "SELECT id FROM listings
-              WHERE status IN ('aktiv','reserviert') AND expires_at IS NOT NULL AND expires_at <= :now
+              WHERE status IN ('aktiv','reserviert','pausiert')
+                AND expires_at IS NOT NULL AND expires_at <= :now
               LIMIT 500",
             ['now' => $now],
         );

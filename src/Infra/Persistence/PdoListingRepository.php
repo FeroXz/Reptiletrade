@@ -93,11 +93,20 @@ final readonly class PdoListingRepository implements ListingRepository
 
         // bumped_at nur beim Wechsel auf "aktiv" setzen: Sonst wandert eine
         // Anzeige durch jede Statusaenderung nach oben.
+        // Die Pausenangaben haengen am Zustand und werden mit ihm abgeraeumt.
+        // Sonst bleibt nach einer Freigabe durch die Moderation, nach dem
+        // Ablauf oder nach dem Archivieren ein "pausiert von der Verwaltung"
+        // an einer laufenden Anzeige kleben — und die Verwaltungsliste zeigt
+        // sie weiter als angehalten.
         $this->database->execute(
             'UPDATE listings
                 SET status = :status,
                     updated_at = :now,
-                    bumped_at = CASE WHEN :status = \'aktiv\' AND status <> \'aktiv\' THEN :now ELSE bumped_at END
+                    bumped_at = CASE WHEN :status = \'aktiv\' AND status <> \'aktiv\' THEN :now ELSE bumped_at END,
+                    paused_by = CASE WHEN :status = \'pausiert\' THEN paused_by ELSE NULL END,
+                    paused_at = CASE WHEN :status = \'pausiert\' THEN paused_at ELSE NULL END,
+                    paused_reason = CASE WHEN :status = \'pausiert\' THEN paused_reason ELSE NULL END,
+                    status_before_pause = CASE WHEN :status = \'pausiert\' THEN status_before_pause ELSE NULL END
               WHERE id = :id',
             ['status' => $status->value, 'now' => $now, 'id' => $listingId],
         );

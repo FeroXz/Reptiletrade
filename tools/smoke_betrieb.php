@@ -299,6 +299,32 @@ pruefe(
     'edit_count stimmt nicht',
 );
 
+// Eine pausierte Anzeige darf sich nicht an der Rechtspruefung vorbeiaendern
+// lassen: pausieren, aendern, fortsetzen — und dazwischen kein Blick darauf.
+$anbieter->post('/anzeige/' . $anzeigeId . '/pausieren', []);
+$anbieter->post('/anzeige/' . $anzeigeId . '/bearbeiten', [
+    'titel' => 'Rauchtest: waehrend der Pause geändert',
+    'beschreibung' => 'Auch eine pausierte Anzeige wird nach der Änderung neu bewertet.',
+    'preis' => '210,00',
+    'anzahl' => '1',
+    'land' => 'DE',
+    'plz' => '80331',
+]);
+
+$imIndex = (int) (string) $database->scalar('SELECT COUNT(*) FROM listing_search WHERE rowid = :id', ['id' => $anzeigeId]);
+pruefe($imIndex === 0, 'Eine Aenderung waehrend der Pause bringt sie nicht in den Index zurueck', 'sie steht im Index');
+
+$anbieter->post('/anzeige/' . $anzeigeId . '/fortsetzen', []);
+
+// Freigabe durch die Moderation raeumt die Pausenangaben ab.
+$admin->post('/admin/anzeige/' . $anzeigeId . '/pausieren', ['grund' => 'Rauchtest']);
+$verwaltungsContainer = $containerFabrik();
+$verwaltungsContainer->get(\Reptilienmarkt\Domain\Listing\ListingRepository::class)
+    ->updateStatus($anzeigeId, \Reptilienmarkt\Domain\Listing\ListingStatus::Aktiv);
+
+$offen = (string) ($database->scalar('SELECT paused_by FROM listings WHERE id = :id', ['id' => $anzeigeId]) ?? '');
+pruefe($offen === '', 'Eine Statusaenderung raeumt die Pausenangaben ab', 'paused_by steht noch auf "' . $offen . '"');
+
 // Eine fremde Anzeige bleibt unsichtbar — 404, nicht 403.
 $fremde = $ohneRechte->get('/anzeige/' . $anzeigeId . '/bearbeiten');
 pruefe($fremde->status === 404, 'Eine fremde Anzeige laesst sich nicht bearbeiten', 'Status ' . $fremde->status);
