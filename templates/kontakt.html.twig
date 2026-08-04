@@ -1,0 +1,86 @@
+{% extends 'layout/basis.html.twig' %}
+{% block titel %}Kontakt — Reptilienmarkt{% endblock %}
+
+{% block inhalt %}
+    <div class="mx-auto max-w-2xl space-y-6">
+        {% include 'partials/meldungen.html.twig' %}
+
+        <h1 class="text-xl font-semibold">Kontakt zur Administration</h1>
+
+        <p class="text-sm gedaempft">
+            Fragen zum Konto, zu einer Maßnahme, zum Datenschutz oder ein Hinweis auf Missbrauch.
+            Für Fragen zu einem konkreten Tier schreibst du besser den Anbieter direkt an — über die Anzeige.
+        </p>
+
+        <form method="post" action="/kontakt" class="karte space-y-4 p-6">
+            <input type="hidden" name="_csrf" value="{{ csrf }}">
+
+            {# Kein Mensch sieht dieses Feld, kein Mensch fuellt es aus. #}
+            <div style="position:absolute; left:-9999px" aria-hidden="true">
+                <label for="website">Website</label>
+                <input id="website" type="text" name="website" tabindex="-1" autocomplete="off">
+            </div>
+
+            {% if nutzer %}
+                <p class="text-sm gedaempft">
+                    Du schreibst als <strong>{{ nutzer.displayName }}</strong> ({{ nutzer.email }}).
+                    Wir antworten an diese Adresse.
+                </p>
+            {% else %}
+                <div class="grid gap-3 sm:grid-cols-2">
+                    <div>
+                        <label class="text-sm" for="name">Name</label>
+                        <input class="feld" id="name" type="text" name="name" required maxlength="80"
+                               value="{{ eingaben.name|default('') }}">
+                    </div>
+                    <div>
+                        <label class="text-sm" for="email">E-Mail für die Antwort</label>
+                        <input class="feld" id="email" type="email" name="email" required maxlength="190"
+                               value="{{ eingaben.email|default('') }}">
+                    </div>
+                </div>
+            {% endif %}
+
+            <div>
+                <label class="text-sm" for="thema">Thema</label>
+                <select class="feld" id="thema" name="thema">
+                    {% for thema in themen %}
+                        <option value="{{ thema.value }}" {{ eingaben.thema|default('') == thema.value ? 'selected' : '' }}>
+                            {{ thema.label }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label class="text-sm" for="betreff">Betreff</label>
+                <input class="feld" id="betreff" type="text" name="betreff" required maxlength="150"
+                       value="{{ eingaben.betreff|default('') }}">
+            </div>
+
+            <div>
+                <label class="text-sm" for="nachricht">Dein Anliegen</label>
+                <textarea class="feld" id="nachricht" name="nachricht" rows="8" required minlength="20"
+                          maxlength="{{ max_nachricht }}">{{ eingaben.nachricht|default('') }}</textarea>
+            </div>
+
+            <p class="text-xs gedaempft">
+                Wir speichern deine Nachricht samt Absenderadresse, um sie zu beantworten und den Vorgang
+                nachvollziehen zu können. Näheres in der <a class="underline" href="/datenschutz">Datenschutzerklärung</a>.
+            </p>
+
+            <button type="submit" class="knopf knopf-primaer">{{ t('allgemein.senden') }}</button>
+        </form>
+
+        <section class="karte space-y-2 p-6">
+            <h2 class="font-semibold">Auf anderem Weg</h2>
+            <p class="text-sm">
+                E-Mail: <a class="underline" href="mailto:{{ kontakt.email }}">{{ kontakt.email }}</a>
+                {% if kontakt.telefon %}<br>Telefon: {{ kontakt.telefon }}{% endif %}
+            </p>
+            <address class="not-italic text-sm gedaempft">
+                {% for zeile in anschrift %}<div>{{ zeile }}</div>{% endfor %}
+            </address>
+        </section>
+    </div>
+{% endblock %}

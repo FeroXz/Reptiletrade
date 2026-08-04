@@ -21,6 +21,7 @@ declare(strict_types=1);
 
 use Reptilienmarkt\Domain\Auth\Session;
 use Reptilienmarkt\Domain\Auth\SessionRepository;
+use Reptilienmarkt\Domain\Site\SiteIdentity;
 use Reptilienmarkt\Infra\Persistence\Database;
 use Reptilienmarkt\Support\Container;
 use Reptilienmarkt\Support\Env;
@@ -294,6 +295,57 @@ echo "\n  Zum Cookie: Das Secure-Flag setzt die Anwendung genau dann, wenn die A
 echo "  tatsaechlich ueber TLS hereinkommt. Hinter einem TLS-Proxy braucht es dafuer\n";
 echo "  den Kopf X-Forwarded-Proto: https — sonst fehlt das Flag, die Seite laeuft\n";
 echo "  aber weiter.\n";
+
+// ------------------------------------------------------ Pflichtangaben
+$befund->abschnitt('Rechtliche Pflichtangaben');
+
+if (!is_file($root . '/config/impressum.php')) {
+    $befund->problem(
+        'config/impressum.php fehlt',
+        'Ohne Anbieterkennzeichnung nach § 5 DDG gehoert die Seite nicht ins Netz.',
+    );
+} else {
+    try {
+        $identity = $container->get(SiteIdentity::class);
+        $fehlt = $identity->missing();
+
+        if ($fehlt !== []) {
+            $befund->problem(
+                'Im Impressum fehlen ' . count($fehlt) . ' Pflichtangaben',
+                'config/impressum.php ausfuellen: ' . implode('; ', $fehlt),
+            );
+        } elseif (!$identity->isComplete()) {
+            // Angaben stehen, der Schalter nicht: Dann zeigt jede Rechtsseite
+            // weiter den Warnhinweis — und der gehoert nicht auf eine
+            // oeffentliche Seite.
+            $befund->problem(
+                "In config/impressum.php steht noch 'unvollstaendig' => true",
+                'Die Angaben sind vollstaendig. Auf false setzen, damit der Warnhinweis verschwindet.',
+            );
+        } else {
+            $befund->ok('Impressum vollstaendig: ' . implode(', ', $identity->addressLines()));
+        }
+
+        $identity->contact()['telefon'] === '' && !$identity->readyForDisputeResolution()
+            ? $befund->warnung(
+                'Kein Telefon im Impressum',
+                'Neben der E-Mail verlangt § 5 DDG einen zweiten Weg fuer unmittelbare '
+                . 'Kommunikation. Das Kontaktformular unter /kontakt zaehlt nur, wenn darauf '
+                . 'zuegig geantwortet wird.',
+            )
+            : $befund->ok('Zweiter Kontaktweg vorhanden');
+
+        ($identity->hosting()['avv_geschlossen'] ?? '') === '1'
+            ? $befund->ok('Auftragsverarbeitungsvertrag mit dem Hoster vermerkt')
+            : $befund->warnung(
+                'Kein Auftragsverarbeitungsvertrag vermerkt',
+                'Art. 28 DSGVO verlangt ihn mit jedem Hoster. Nach Abschluss in '
+                . "config/impressum.php 'avv_geschlossen' => true setzen.",
+            );
+    } catch (Throwable $exception) {
+        $befund->problem('config/impressum.php ist nicht lesbar', $exception->getMessage());
+    }
+}
 
 // ---------------------------------------------------------------- Betrieb
 $befund->abschnitt('Betrieb');

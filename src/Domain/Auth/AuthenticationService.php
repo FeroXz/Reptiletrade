@@ -104,7 +104,13 @@ final readonly class AuthenticationService
         }
 
         if ($user->status !== UserStatus::Aktiv) {
-            throw new AuthenticationException('Dieses Konto ist gesperrt.');
+            // Erst hier, nach der Passwortpruefung: Wer das Passwort nicht
+            // kennt, soll nicht erfahren, ob und warum ein Konto gesperrt ist.
+            // Wer es kennt, muss es erfahren — sonst kann er weder nachfragen
+            // noch abwarten.
+            $sperre = $this->users->banState($user->id);
+
+            throw new AuthenticationException($sperre?->explanation() ?? 'Dieses Konto ist gesperrt.');
         }
 
         // Kosten nachziehen, wenn die Parameter inzwischen erhoeht wurden.

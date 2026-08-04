@@ -1,0 +1,16 @@
+{# Ein Impressum mit Platzhaltern sieht aus wie ein fertiges. Solange
+   Pflichtangaben fehlen, sagt die Seite das — sichtbar, nicht im Quelltext. #}
+{% if unvollstaendig %}
+    <div class="karte border-amber-300 p-4 text-sm">
+        <p class="font-semibold">Diese Angaben sind noch nicht vollständig.</p>
+        <p class="mt-1">
+            Der Betreiber muss <code>config/impressum.php</code> ausfüllen. Bis dahin genügt diese Seite
+            nicht den gesetzlichen Anforderungen.
+        </p>
+        {% if fehlend is not empty %}
+            <ul class="mt-2 list-disc space-y-1 pl-5">
+                {% for eintrag in fehlend %}<li>{{ eintrag }}</li>{% endfor %}
+            </ul>
+        {% endif %}
+    </div>
+{% endif %}

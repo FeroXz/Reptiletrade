@@ -1,0 +1,84 @@
+{% extends 'layout/basis.html.twig' %}
+{% block titel %}Nutzungsbedingungen — Reptilienmarkt{% endblock %}
+
+{% block inhalt %}
+    <div class="mx-auto max-w-2xl space-y-6">
+        <h1 class="text-xl font-semibold">Nutzungsbedingungen</h1>
+
+        {% include 'recht/unvollstaendig.html.twig' %}
+
+        <div class="karte border-amber-300 p-4 text-sm">
+            <p class="font-semibold">Entwurf — vor dem Start anwaltlich prüfen lassen.</p>
+            <p class="mt-1">
+                Die folgenden Regeln beschreiben, wie die Plattform tatsächlich arbeitet. Sie ersetzen keine
+                geprüften AGB. Wer gewerblich verkauft, braucht darüber hinaus eigene Bedingungen,
+                Widerrufsbelehrung und Preisangaben nach PAngV — dafür ist der jeweilige Anbieter zuständig,
+                nicht die Plattform.
+            </p>
+        </div>
+
+        <section class="karte space-y-2 p-6">
+            <h2 class="font-semibold">1. Was diese Plattform ist</h2>
+            <p class="text-sm">
+                Ein Marktplatz für Anzeigen. Verträge über Tiere kommen ausschließlich zwischen Anbieter und
+                Interessent zustande. Wir sind nicht Partei, wickeln keine Zahlungen ab und nehmen kein Geld
+                für Tiere entgegen — bezahlt wird zwischen euch, bei der Übergabe.
+            </p>
+        </section>
+
+        <section class="karte space-y-2 p-6">
+            <h2 class="font-semibold">2. Konto</h2>
+            <p class="text-sm">
+                Ein Konto je Person, Angaben wahrheitsgemäß, Zugangsdaten nicht weitergeben. Wer gewerblich
+                handelt, muss das kenntlich machen und ein Impressum hinterlegen.
+            </p>
+        </section>
+
+        <section class="karte space-y-2 p-6">
+            <h2 class="font-semibold">3. Anzeigen</h2>
+            <p class="text-sm">
+                Angeboten werden darf nur, was rechtmäßig gehalten und abgegeben werden darf. Schutzstatus,
+                Melde- und Dokumentationspflichten prüft die Plattform als Hinweis — die Verantwortung dafür
+                bleibt beim Anbieter. Verlangte Nachweise sind hochzuladen. Anzeigen zu Wildfängen geschützter
+                Arten ohne gültigen Nachweis sind unzulässig.
+            </p>
+        </section>
+
+        <section class="karte space-y-2 p-6">
+            <h2 class="font-semibold">4. Umgang miteinander</h2>
+            <p class="text-sm">
+                Keine Beleidigungen, keine Vorkasse per anonymem Zahlungsweg, keine Weitergabe fremder
+                Kontaktdaten. Verdächtiges bitte über den Melden-Knopf oder das
+                <a class="underline" href="/kontakt">Kontaktformular</a> melden.
+            </p>
+        </section>
+
+        <section class="karte space-y-2 p-6">
+            <h2 class="font-semibold">5. Maßnahmen</h2>
+            <p class="text-sm">
+                Bei Verstößen können wir einzelne Anzeigen pausieren oder sperren und Konten befristet oder
+                dauerhaft sperren. Der Grund wird genannt, und gegen jede Maßnahme kann über das
+                Kontaktformular Widerspruch eingelegt werden. Eine befristete Sperre endet automatisch.
+            </p>
+        </section>
+
+        <section class="karte space-y-2 p-6">
+            <h2 class="font-semibold">6. Haftung</h2>
+            <p class="text-sm">
+                Für Vorsatz und grobe Fahrlässigkeit sowie bei Verletzung von Leben, Körper und Gesundheit
+                haften wir unbeschränkt. Im Übrigen haften wir nur bei Verletzung wesentlicher Vertragspflichten
+                und begrenzt auf den vorhersehbaren, vertragstypischen Schaden.
+            </p>
+        </section>
+
+        <section class="karte space-y-2 p-6">
+            <h2 class="font-semibold">{{ disclaimer_titel }}</h2>
+            <p class="text-sm">{{ disclaimer_text }}</p>
+        </section>
+
+        <p class="text-sm gedaempft">
+            Siehe auch <a class="underline" href="/impressum">Impressum</a> und
+            <a class="underline" href="/datenschutz">Datenschutzerklärung</a>.
+        </p>
+    </div>
+{% endblock %}

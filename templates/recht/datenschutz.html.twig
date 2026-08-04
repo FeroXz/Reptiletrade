@@ -1,0 +1,131 @@
+{% extends 'layout/basis.html.twig' %}
+{% block titel %}Datenschutzerklärung — Reptilienmarkt{% endblock %}
+
+{% block inhalt %}
+    <div class="mx-auto max-w-2xl space-y-6">
+        <h1 class="text-xl font-semibold">Datenschutzerklärung</h1>
+
+        {% include 'recht/unvollstaendig.html.twig' %}
+
+        <section class="karte space-y-2 p-6">
+            <h2 class="font-semibold">1. Verantwortlicher</h2>
+            <address class="not-italic text-sm">
+                {% for zeile in anschrift %}<div>{{ zeile }}</div>{% endfor %}
+                <div>E-Mail: <a class="underline" href="mailto:{{ kontakt.email }}">{{ kontakt.email }}</a></div>
+            </address>
+            {% if datenschutz.beauftragter %}
+                <p class="text-sm">
+                    Datenschutzbeauftragte Person: {{ datenschutz.beauftragter }}
+                    {% if datenschutz.beauftragter_email %} ({{ datenschutz.beauftragter_email }}){% endif %}
+                </p>
+            {% endif %}
+        </section>
+
+        <section class="karte space-y-2 p-6">
+            <h2 class="font-semibold">2. Was wir verarbeiten und warum</h2>
+            <dl class="space-y-3 text-sm">
+                <div>
+                    <dt class="font-medium">Konto</dt>
+                    <dd class="gedaempft">
+                        E-Mail-Adresse, Anzeigename, Passwort-Hash, optional Telefonnummer, Postleitzahl und Land.
+                        Zweck: Betrieb des Kontos. Grundlage: Art. 6 Abs. 1 lit. b DSGVO (Vertrag).
+                    </dd>
+                </div>
+                <div>
+                    <dt class="font-medium">Anzeigen und Bilder</dt>
+                    <dd class="gedaempft">
+                        Angaben zum Tier, Preis, Standort auf Postleitzahlenebene, hochgeladene Bilder.
+                        Bilder werden serverseitig neu gezeichnet; enthaltene Standortdaten (EXIF/GPS) werden
+                        dabei entfernt. Grundlage: Art. 6 Abs. 1 lit. b DSGVO.
+                    </dd>
+                </div>
+                <div>
+                    <dt class="font-medium">Nachrichten</dt>
+                    <dd class="gedaempft">
+                        Inhalt und Zeitpunkt der Nachrichten zwischen Kaufinteressent und Anbieter.
+                        Grundlage: Art. 6 Abs. 1 lit. b DSGVO.
+                    </dd>
+                </div>
+                <div>
+                    <dt class="font-medium">Rechtsnachweise</dt>
+                    <dd class="gedaempft">
+                        Hochgeladene Herkunfts- und Meldenachweise. Sie liegen außerhalb des Webservers und sind
+                        nur über einen berechtigungsgeprüften Abruf erreichbar. Grundlage: Art. 6 Abs. 1 lit. c DSGVO
+                        (rechtliche Verpflichtung) und lit. f (Missbrauchsabwehr).
+                    </dd>
+                </div>
+                <div>
+                    <dt class="font-medium">Protokolle und Missbrauchsabwehr</dt>
+                    <dd class="gedaempft">
+                        IP-Adresse bei Anmeldung, Registrierung, Meldungen und Kontaktanfragen sowie technische
+                        Protokolle. Zweck: Abwehr von Angriffen und Spam. Grundlage: Art. 6 Abs. 1 lit. f DSGVO.
+                    </dd>
+                </div>
+                <div>
+                    <dt class="font-medium">Aufrufzahlen</dt>
+                    <dd class="gedaempft">
+                        Je Anzeige und Tag wird gezählt, wie oft sie aufgerufen wurde. Gespeichert wird nur die
+                        Zahl, kein Besucherprofil. Es gibt keine Tracking-Werkzeuge und keine Weitergabe an Dritte.
+                    </dd>
+                </div>
+            </dl>
+        </section>
+
+        <section class="karte space-y-2 p-6">
+            <h2 class="font-semibold">3. Cookies</h2>
+            <p class="text-sm">
+                Wir setzen ein einziges Cookie: <code>rm_session</code>. Es hält die Sitzung und schützt
+                Formulare vor Fremdeinreichung. Es ist technisch notwendig im Sinne des § 25 Abs. 2 Nr. 2 TDDDG
+                und braucht deshalb keine Einwilligung. Es gibt keine Analyse- oder Werbe-Cookies und
+                folglich kein Cookie-Banner.
+            </p>
+        </section>
+
+        <section class="karte space-y-2 p-6">
+            <h2 class="font-semibold">4. Empfänger</h2>
+            <p class="text-sm">
+                Die Anwendung läuft bei {{ hosting.anbieter }}{% if hosting.ort %} in {{ hosting.ort }}{% endif %}.
+                Mit dem Hoster besteht ein Vertrag zur Auftragsverarbeitung nach Art. 28 DSGVO. Darüber hinaus
+                geben wir Daten nur weiter, wenn wir gesetzlich dazu verpflichtet sind.
+            </p>
+            <p class="text-sm">
+                Was du in einer Anzeige oder Nachricht schreibst, sieht dein Gegenüber — das ist der Zweck der
+                Plattform. Kontaktdaten blenden wir in den ersten Nachrichten aus, um automatisiertes Sammeln
+                zu erschweren.
+            </p>
+        </section>
+
+        <section class="karte space-y-2 p-6">
+            <h2 class="font-semibold">5. Speicherdauer</h2>
+            <p class="text-sm">
+                Je Datenart eine eigene Frist, nachzulesen in <code>config/aufbewahrung.php</code>:
+                Gespräche 730 Tage nach der letzten Nachricht, Identitätsnachweise 30 Tage nach der Prüfung,
+                Rechtsnachweise 10 Jahre (sie belegen im Streitfall die Rechtmäßigkeit einer Abgabe),
+                beendete Anzeigen 365 Tage, technische Protokolle 90 Tage.
+            </p>
+        </section>
+
+        <section class="karte space-y-2 p-6">
+            <h2 class="font-semibold">6. Deine Rechte</h2>
+            <p class="text-sm">
+                Auskunft (Art. 15), Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung (Art. 18),
+                Datenübertragbarkeit (Art. 20) und Widerspruch (Art. 21 DSGVO).
+            </p>
+            <p class="text-sm">
+                Auskunft und Löschung erledigst du selbst und sofort unter
+                <a class="underline" href="/konto/daten">Meine Daten</a> — die Auskunft kommt als JSON-Datei,
+                die Löschung braucht keine Begründung. Für alles andere:
+                <a class="underline" href="/kontakt">Kontaktformular</a>.
+            </p>
+            <p class="text-sm">
+                Beschwerderecht bei einer Aufsichtsbehörde nach Art. 77 DSGVO:
+                {{ datenschutz.aufsichtsbehoerde }}
+            </p>
+        </section>
+
+        <p class="text-sm gedaempft">
+            Siehe auch <a class="underline" href="/impressum">Impressum</a> und
+            <a class="underline" href="/nutzungsbedingungen">Nutzungsbedingungen</a>.
+        </p>
+    </div>
+{% endblock %}

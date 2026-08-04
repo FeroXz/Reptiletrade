@@ -1,0 +1,61 @@
+{% extends 'layout/basis.html.twig' %}
+{% block titel %}Anfragen — Reptilienmarkt{% endblock %}
+{% block kopf %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block inhalt %}
+    <div class="mx-auto max-w-3xl space-y-6">
+        {% include 'partials/meldungen.html.twig' %}
+
+        <div class="flex flex-wrap items-baseline justify-between gap-3">
+            <h1 class="text-xl font-semibold">Anfragen ({{ offen }} offen)</h1>
+            <div class="flex gap-3 text-sm">
+                <a class="underline" href="/admin/kontakt{{ nur_offen ? '?alle=1' : '' }}">
+                    {{ nur_offen ? 'Alle anzeigen' : 'Nur offene' }}
+                </a>
+                <a class="underline" href="/admin/">{{ t('admin.zurueck') }}</a>
+            </div>
+        </div>
+
+        {% if nachrichten is empty %}
+            <p class="karte p-8 text-center text-sm gedaempft">Keine Anfragen.</p>
+        {% else %}
+            <ul class="space-y-3">
+                {% for nachricht in nachrichten %}
+                    <li class="karte space-y-3 p-6">
+                        <div class="flex flex-wrap items-baseline justify-between gap-2">
+                            <span class="font-medium">{{ nachricht.subject }}</span>
+                            <span class="text-xs gedaempft">
+                                #{{ nachricht.id }} · {{ nachricht.createdAt.format('d.m.Y H:i') }}
+                            </span>
+                        </div>
+
+                        <p class="text-xs gedaempft">
+                            {{ nachricht.topic.label }} · {{ nachricht.name }}
+                            &lt;<a class="underline" href="mailto:{{ nachricht.email }}">{{ nachricht.email }}</a>&gt;
+                            {% if nachricht.userId %} · Konto #{{ nachricht.userId }}{% endif %}
+                        </p>
+
+                        <p class="whitespace-pre-line text-sm">{{ nachricht.body }}</p>
+
+                        {% if nachricht.handled %}
+                            <p class="text-xs gedaempft">
+                                Erledigt{% if nachricht.handledAt %} am {{ nachricht.handledAt.format('d.m.Y') }}{% endif %}{% if nachricht.handledNote %}: {{ nachricht.handledNote }}{% endif %}
+                            </p>
+                        {% else %}
+                            <form method="post" action="/admin/kontakt/{{ nachricht.id }}/erledigt"
+                                  class="flex flex-wrap items-center gap-2">
+                                <input type="hidden" name="_csrf" value="{{ csrf }}">
+                                <input class="feld w-auto flex-1" type="text" name="notiz" maxlength="200"
+                                       placeholder="Notiz (optional)">
+                                <a class="knopf" href="mailto:{{ nachricht.email }}?subject={{ ('Re: ' ~ nachricht.subject)|url_encode }}">
+                                    Antworten
+                                </a>
+                                <button type="submit" class="knopf knopf-primaer">Erledigt</button>
+                            </form>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    </div>
+{% endblock %}

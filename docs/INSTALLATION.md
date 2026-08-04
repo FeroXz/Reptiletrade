@@ -159,6 +159,45 @@ seine E-Mail-Adresse bestätigen oder ein Passwort zurücksetzen.
 `APP_DEBUG=1` zeigt bei jedem Fehler Dateipfade und Programmzeilen im Browser.
 Auf einem öffentlichen Server ist das eine Einladung.
 
+### Pflichtangaben: `config/impressum.php`
+
+Eine deutsche Seite braucht ein Impressum (§ 5 DDG) und eine Datenschutz-
+erklärung (Art. 13 DSGVO), erreichbar mit höchstens zwei Klicks. Beides steht
+im Fuß jeder Seite unter `/impressum` und `/datenschutz` — gespeist aus einer
+einzigen Datei:
+
+```bash
+$EDITOR config/impressum.php
+```
+
+Ausgeliefert wird sie mit Platzhaltern. Solange die drinstehen, zeigt **jede**
+Rechtsseite einen sichtbaren Warnhinweis samt Liste der fehlenden Angaben,
+statt wie ein fertiges Impressum auszusehen. Ein unvollständiges Impressum, das
+vollständig aussieht, fällt niemandem auf — deshalb dieser Umweg.
+
+Auszufüllen sind mindestens:
+
+| Feld | Warum |
+| --- | --- |
+| `anbieter.name` | Voller Name bzw. Firma samt Rechtsform (§ 5 Abs. 1 Nr. 1 DDG) |
+| `anbieter.strasse`, `plz`, `ort` | Ladungsfähige Anschrift — ein Postfach genügt nicht |
+| `kontakt.email` | Pflicht; dazu ein zweiter Weg für unmittelbare Kommunikation |
+| `hosting.anbieter` | Steht in der Datenschutzerklärung |
+| `unvollstaendig` | Nach dem Ausfüllen auf `false` setzen |
+
+Je nach Tätigkeit kommen `register`, `umsatzsteuer_id` (§ 27a UStG — die
+Steuernummer gehört **nicht** ins Impressum), `inhaltlich_verantwortlich`
+(§ 18 Abs. 2 MStV) und `aufsichtsbehoerde` hinzu. Die Datei ist durchkommentiert.
+
+```bash
+php bin/doctor.php     # meldet jede fehlende Pflichtangabe namentlich
+```
+
+Zwei Dinge, die kein Programm für dich erledigt: der Auftragsverarbeitungs-
+vertrag mit dem Hoster (Art. 28 DSGVO — danach `hosting.avv_geschlossen` auf
+`true`), und eine anwaltliche Prüfung vor der Freischaltung. Die Hinweise hier
+sind eine Orientierung, keine Rechtsberatung.
+
 ---
 
 ## 4. Datenbank aufsetzen
@@ -305,6 +344,27 @@ Ruft ein Konto ohne Adminrolle `/admin/` auf, bekommt es **404, nicht 403**. Die
 Verwaltung muss sich nicht dadurch verraten, dass sie einen Zugriff ablehnt. Wer
 also „404“ sieht, obwohl er Administrator sein sollte, hat die Rolle nicht —
 `php bin/admin.php liste` zeigt es.
+
+### Konten sperren und löschen
+
+Unter `/admin/nutzer` lassen sich Konten suchen, sperren und löschen. Eine
+Sperre verlangt immer einen Grund; der Gesperrte bekommt ihn bei der nächsten
+Anmeldung zu lesen, samt Enddatum und Verweis auf `/kontakt`. Voreingestellt
+ist eine Frist (3 bis 90 Tage) — sie läuft stündlich von selbst ab, ohne dass
+jemand daran denken muss. Unbefristet geht auch, ist aber eine eigene Auswahl.
+
+Eine Sperre beendet alle offenen Sitzungen des Kontos und pausiert seine
+Anzeigen; beim Entsperren laufen genau diese wieder an. Anzeigen, die der
+Anbieter selbst pausiert hatte, bleiben pausiert.
+
+Löschen folgt derselben Abwägung wie die Selbstlöschung: Gibt es Bewertungen,
+wird anonymisiert statt gelöscht — sie gehören auch der Gegenseite. Ein Konto
+mit Verwaltungsrechten lässt sich weder sperren noch löschen, solange es die
+Rolle hat; das eigene erst recht nicht.
+
+Anfragen aus dem Kontaktformular stehen unter `/admin/kontakt`. Sie gehen
+zusätzlich an die im Impressum hinterlegte E-Mail-Adresse — fehlt die, bleiben
+sie trotzdem in der Warteschlange stehen.
 
 ---
 

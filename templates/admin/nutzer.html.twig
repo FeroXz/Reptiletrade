@@ -1,0 +1,135 @@
+{% extends 'layout/basis.html.twig' %}
+{% block titel %}Konten — Reptilienmarkt{% endblock %}
+{% block kopf %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block inhalt %}
+    <div class="mx-auto max-w-7xl space-y-6">
+        {% include 'partials/meldungen.html.twig' %}
+
+        <div class="flex flex-wrap items-baseline justify-between gap-3">
+            <h1 class="text-xl font-semibold">Konten</h1>
+            <a class="text-sm underline" href="/admin/">{{ t('admin.zurueck') }}</a>
+        </div>
+
+        <form method="get" action="/admin/nutzer" class="karte flex flex-wrap items-end gap-3 p-4">
+            <div class="flex-1">
+                <label class="text-sm" for="suche">{{ t('admin.suche') }}</label>
+                <input class="feld" id="suche" type="search" name="suche" value="{{ filter.suche }}"
+                       placeholder="Name oder E-Mail">
+            </div>
+            <label class="flex items-center gap-2 pb-2 text-sm">
+                <input type="checkbox" name="nur_gesperrt" value="1" {{ filter.nur_gesperrt ? 'checked' : '' }}>
+                Nur gesperrte
+            </label>
+            <button type="submit" class="knopf knopf-primaer">{{ t('admin.filtern') }}</button>
+        </form>
+
+        {% if zeilen is empty %}
+            <p class="karte p-8 text-center text-sm gedaempft">Keine Konten gefunden.</p>
+        {% else %}
+            <div class="karte overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b text-left" style="border-color: var(--rand)">
+                            <th class="p-3">Konto</th>
+                            <th class="p-3">Rolle</th>
+                            <th class="p-3">Zustand</th>
+                            <th class="p-3">Angemeldet</th>
+                            <th class="p-3">{{ t('admin.spalte_aktion') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for zeile in zeilen %}
+                            <tr class="border-b align-top" style="border-color: var(--rand)">
+                                <td class="p-3">
+                                    <div class="font-medium">{{ zeile.displayName }}</div>
+                                    <div class="text-xs gedaempft">#{{ zeile.id }} · {{ zeile.email }}</div>
+                                    <div class="text-xs gedaempft">
+                                        <a class="underline" href="/admin/anzeigen?suche={{ zeile.displayName|url_encode }}">
+                                            {{ zeile.listings }} Anzeigen
+                                        </a>
+                                        · seit {{ zeile.createdAt.format('d.m.Y') }}
+                                    </div>
+                                    {% if zeile.openReports > 0 %}
+                                        <div class="text-xs" style="color: oklch(0.55 0.19 25)">
+                                            {{ tw('admin.offene_meldungen_zahl', zeile.openReports) }}
+                                        </div>
+                                    {% endif %}
+                                </td>
+                                <td class="p-3">{{ zeile.role.label }}</td>
+                                <td class="p-3">
+                                    <span class="{{ zeile.isBanned ? 'font-medium' : '' }}">{{ zeile.status.label }}</span>
+                                    {% if zeile.ban %}
+                                        <div class="text-xs gedaempft">
+                                            {{ zeile.ban.isPermanent
+                                                ? 'dauerhaft'
+                                                : 'bis ' ~ zeile.ban.until.format('d.m.Y H:i') }}
+                                        </div>
+                                        {% if zeile.ban.reason %}
+                                            <div class="text-xs">{{ zeile.ban.reason }}</div>
+                                        {% endif %}
+                                    {% endif %}
+                                </td>
+                                <td class="p-3 text-xs gedaempft">
+                                    {{ zeile.lastLoginAt ? zeile.lastLoginAt.format('d.m.Y') : 'nie' }}
+                                </td>
+                                <td class="p-3">
+                                    {% if zeile.role.value == 'admin' %}
+                                        <span class="text-xs gedaempft">
+                                            Verwaltungskonto — erst die Rolle nehmen.
+                                        </span>
+                                    {% elseif zeile.status.value == 'geloescht' %}
+                                        <span class="text-xs gedaempft">—</span>
+                                    {% elseif zeile.isBanned %}
+                                        <form method="post" action="/admin/nutzer/{{ zeile.id }}/entsperren">
+                                            <input type="hidden" name="_csrf" value="{{ csrf }}">
+                                            <button type="submit" class="knopf">Entsperren</button>
+                                        </form>
+                                    {% else %}
+                                        {# Der Grund ist Pflicht: Der Gesperrte bekommt ihn zu sehen. #}
+                                        <form method="post" action="/admin/nutzer/{{ zeile.id }}/sperren"
+                                              class="space-y-2">
+                                            <input type="hidden" name="_csrf" value="{{ csrf }}">
+                                            <input class="feld" type="text" name="grund" required maxlength="300"
+                                                   placeholder="Grund (der Gesperrte sieht ihn)">
+                                            <div class="flex flex-wrap items-center gap-2">
+                                                <select class="feld w-auto" name="tage" aria-label="Dauer">
+                                                    {% for beschriftung, tage in dauern %}
+                                                        <option value="{{ tage }}">{{ beschriftung }}</option>
+                                                    {% endfor %}
+                                                    <option value="0">dauerhaft</option>
+                                                </select>
+                                                <button type="submit" class="knopf">Sperren</button>
+                                            </div>
+                                        </form>
+
+                                        <details class="mt-2">
+                                            <summary class="cursor-pointer text-xs underline">Löschen</summary>
+                                            <form method="post" action="/admin/nutzer/{{ zeile.id }}/loeschen"
+                                                  class="mt-2 space-y-2">
+                                                <input type="hidden" name="_csrf" value="{{ csrf }}">
+                                                <input class="feld" type="text" name="bestaetigung" required
+                                                       autocomplete="off" placeholder="LÖSCHEN">
+                                                <button type="submit" class="knopf knopf-warnung">
+                                                    Konto löschen
+                                                </button>
+                                            </form>
+                                            <p class="mt-1 text-xs gedaempft">
+                                                Gibt es Bewertungen, wird anonymisiert statt gelöscht — sie
+                                                gehören auch der Gegenseite.
+                                            </p>
+                                        </details>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% if zeilen|length >= grenze %}
+                <p class="text-sm gedaempft">{{ t('admin.liste_gekuerzt', {'grenze': grenze}) }}</p>
+            {% endif %}
+        {% endif %}
+    </div>
+{% endblock %}

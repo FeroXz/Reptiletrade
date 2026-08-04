@@ -315,6 +315,12 @@ return [
     'mail.ablauf.text.viele' => "Hallo {name},\n\n"
         . "deine Anzeige \"{anzeige}\" läuft in {anzahl} Tagen ab.\n\n"
         . "Verlängern oder beenden kannst du sie hier:\n{link}\n",
+    'mail.kontakt.betreff' => '[Kontakt] {thema}: {betreff}',
+    'mail.kontakt.text' => "Anfrage #{nummer} über das Kontaktformular.\n\n"
+        . "Thema:   {thema}\n"
+        . "Von:     {name} <{email}>\n"
+        . "Betreff: {betreff}\n\n"
+        . "{nachricht}\n",
     'mail.suchtreffer.betreff' => 'Neue Treffer zu "{suche}"',
     'mail.suchtreffer.text' => "Hallo {name},\n\n"
         . "zu deiner gespeicherten Suche \"{suche}\" gibt es neue Anzeigen:\n\n{treffer}\n\n"

@@ -37,6 +37,9 @@ return [
         'registrierung.ip' => ['limit' => 5, 'fenster' => 3600],
         'anmeldung.ip' => ['limit' => 30, 'fenster' => 900],
         'passwort_reset.ip' => ['limit' => 5, 'fenster' => 3600],
+        // Kontaktformular: ohne Anmeldung erreichbar, also ein lohnendes Ziel
+        // fuer Spam.
+        'kontakt.ip' => ['limit' => 5, 'fenster' => 3600],
         'verifizierung.konto' => ['limit' => 5, 'fenster' => 3600],
     ],
 

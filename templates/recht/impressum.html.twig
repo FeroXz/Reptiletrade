@@ -1,0 +1,101 @@
+{% extends 'layout/basis.html.twig' %}
+{% block titel %}Impressum — Reptilienmarkt{% endblock %}
+
+{% block inhalt %}
+    <div class="mx-auto max-w-2xl space-y-6">
+        <h1 class="text-xl font-semibold">Impressum</h1>
+
+        {% include 'recht/unvollstaendig.html.twig' %}
+
+        <section class="karte space-y-2 p-6">
+            <h2 class="font-semibold">Angaben gemäß § 5 DDG</h2>
+            <address class="not-italic text-sm">
+                {% for zeile in anschrift %}<div>{{ zeile }}</div>{% endfor %}
+            </address>
+        </section>
+
+        <section class="karte space-y-2 p-6">
+            <h2 class="font-semibold">Kontakt</h2>
+            <dl class="grid gap-1 text-sm sm:grid-cols-[8rem_1fr]">
+                <dt class="gedaempft">E-Mail</dt>
+                <dd><a class="underline" href="mailto:{{ kontakt.email }}">{{ kontakt.email }}</a></dd>
+                {% if kontakt.telefon %}
+                    <dt class="gedaempft">Telefon</dt>
+                    <dd>{{ kontakt.telefon }}</dd>
+                {% endif %}
+                <dt class="gedaempft">Kontaktformular</dt>
+                <dd><a class="underline" href="/kontakt">Anfrage an die Administration</a></dd>
+            </dl>
+        </section>
+
+        {% if register.gericht or register.nummer %}
+            <section class="karte space-y-2 p-6">
+                <h2 class="font-semibold">Registereintrag</h2>
+                <dl class="grid gap-1 text-sm sm:grid-cols-[8rem_1fr]">
+                    {% if register.gericht %}<dt class="gedaempft">Registergericht</dt><dd>{{ register.gericht }}</dd>{% endif %}
+                    {% if register.nummer %}<dt class="gedaempft">Registernummer</dt><dd>{{ register.nummer }}</dd>{% endif %}
+                </dl>
+            </section>
+        {% endif %}
+
+        {% if ust_id %}
+            <section class="karte space-y-2 p-6">
+                <h2 class="font-semibold">Umsatzsteuer-Identifikationsnummer</h2>
+                <p class="text-sm">Gemäß § 27a Umsatzsteuergesetz: {{ ust_id }}</p>
+            </section>
+        {% endif %}
+
+        {% if verantwortlich %}
+            <section class="karte space-y-2 p-6">
+                <h2 class="font-semibold">Redaktionell verantwortlich</h2>
+                <p class="text-sm">Gemäß § 18 Abs. 2 MStV: {{ verantwortlich }}</p>
+            </section>
+        {% endif %}
+
+        {% if aufsicht %}
+            <section class="karte space-y-2 p-6">
+                <h2 class="font-semibold">Aufsichtsbehörde</h2>
+                <p class="text-sm">{{ aufsicht }}</p>
+            </section>
+        {% endif %}
+
+        <section class="karte space-y-2 p-6">
+            <h2 class="font-semibold">Verbraucherstreitbeilegung</h2>
+            {% if streit_bereit %}
+                <p class="text-sm">
+                    Wir nehmen an einem Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle teil.
+                    Zuständig ist: {{ streit_stelle }}
+                </p>
+            {% else %}
+                <p class="text-sm">
+                    Wir sind nicht verpflichtet und nicht bereit, an einem Streitbeilegungsverfahren vor einer
+                    Verbraucherschlichtungsstelle teilzunehmen (§ 36 VSBG).
+                </p>
+            {% endif %}
+        </section>
+
+        <section class="karte space-y-2 p-6">
+            <h2 class="font-semibold">Haftung für Inhalte und Links</h2>
+            <p class="text-sm">
+                Die Anzeigen auf dieser Plattform stammen von den jeweiligen Anbietern. Wir prüfen sie
+                stichprobenartig und nach Meldung, machen sie uns aber nicht zu eigen. Für fremde Inhalte
+                sind wir als Diensteanbieter nach §§ 7 ff. DDG erst ab Kenntnis einer konkreten Rechtsverletzung
+                verantwortlich; ab Kenntnis entfernen wir sie umgehend.
+            </p>
+            <p class="text-sm">
+                Für Inhalte verlinkter externer Seiten ist ausschließlich deren Betreiber verantwortlich.
+                Bei Bekanntwerden von Rechtsverletzungen entfernen wir solche Links.
+            </p>
+        </section>
+
+        <section class="karte space-y-2 p-6">
+            <h2 class="font-semibold">{{ disclaimer_titel }}</h2>
+            <p class="text-sm">{{ disclaimer_text }}</p>
+        </section>
+
+        <p class="text-sm gedaempft">
+            Siehe auch <a class="underline" href="/datenschutz">Datenschutzerklärung</a> und
+            <a class="underline" href="/nutzungsbedingungen">Nutzungsbedingungen</a>.
+        </p>
+    </div>
+{% endblock %}

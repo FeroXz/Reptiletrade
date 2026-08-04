@@ -6,10 +6,13 @@ namespace Reptilienmarkt\Infra\Persistence;
 
 use DateTimeImmutable;
 use Reptilienmarkt\Domain\Geo\Country;
+use Reptilienmarkt\Domain\User\AdminUserRow;
+use Reptilienmarkt\Domain\User\BanState;
 use Reptilienmarkt\Domain\User\Role;
 use Reptilienmarkt\Domain\User\User;
 use Reptilienmarkt\Domain\User\UserRepository;
 use Reptilienmarkt\Domain\User\UserStatus;
+use Reptilienmarkt\Support\Timestamp;
 
 final readonly class PdoUserRepository implements UserRepository
 {
@@ -184,5 +187,143 @@ final readonly class PdoUserRepository implements UserRepository
     private function date(mixed $value): ?DateTimeImmutable
     {
         return \is_string($value) && $value !== '' ? new DateTimeImmutable($value) : null;
+    }
+
+    // --------------------------------------------------------- Kontosperren
+
+    public function ban(int $userId, DateTimeImmutable $at, ?DateTimeImmutable $until, string $reason, ?int $byUserId): void
+    {
+        $this->database->execute(
+            "UPDATE users
+                SET status = 'gesperrt',
+                    banned_at = :at,
+                    banned_until = :until,
+                    banned_reason = :reason,
+                    banned_by = :by,
+                    updated_at = :at
+              WHERE id = :id",
+            [
+                'at' => Timestamp::utc($at),
+                'until' => Timestamp::utcOrNull($until),
+                'reason' => $reason,
+                'by' => $byUserId,
+                'id' => $userId,
+            ],
+        );
+    }
+
+    public function unban(int $userId): void
+    {
+        // Der Status geht auf "aktiv" zurueck, nicht auf den Zustand davor:
+        // Gesperrt wird nur, was vorher aktiv war, und ein geloeschtes Konto
+        // faengt die Pruefung im Dienst ab.
+        $this->database->execute(
+            "UPDATE users
+                SET status = 'aktiv',
+                    banned_at = NULL,
+                    banned_until = NULL,
+                    banned_reason = NULL,
+                    banned_by = NULL,
+                    updated_at = :now
+              WHERE id = :id AND status = 'gesperrt'",
+            ['now' => Timestamp::now(), 'id' => $userId],
+        );
+    }
+
+    public function banState(int $userId): ?BanState
+    {
+        $row = $this->database->selectOne(
+            'SELECT banned_at, banned_until, banned_reason, banned_by FROM users WHERE id = :id',
+            ['id' => $userId],
+        );
+
+        if ($row === null || !\is_string($row['banned_at'])) {
+            return null;
+        }
+
+        return new BanState(
+            Timestamp::parse($row['banned_at']) ?? new DateTimeImmutable($row['banned_at']),
+            \is_string($row['banned_until']) ? Timestamp::parse($row['banned_until']) : null,
+            \is_string($row['banned_reason']) && $row['banned_reason'] !== '' ? $row['banned_reason'] : null,
+            $row['banned_by'] === null ? null : (int) $row['banned_by'],
+        );
+    }
+
+    public function withExpiredBan(DateTimeImmutable $now): array
+    {
+        $rows = $this->database->select(
+            "SELECT " . self::COLUMNS . " FROM users
+              WHERE status = 'gesperrt' AND banned_until IS NOT NULL AND banned_until <= :now
+              LIMIT 500",
+            ['now' => Timestamp::utc($now)],
+        );
+
+        return array_map(fn(array $row): User => $this->map($row), $rows);
+    }
+
+    public function forAdmin(array $filters = [], int $limit = 100): array
+    {
+        $bedingungen = [];
+        $parameter = ['limit' => $limit];
+
+        if (isset($filters['status']) && UserStatus::tryFrom($filters['status']) !== null) {
+            $bedingungen[] = 'u.status = :status';
+            $parameter['status'] = $filters['status'];
+        }
+
+        if (($filters['nur_gesperrt'] ?? false) === true) {
+            $bedingungen[] = "u.status = 'gesperrt'";
+        }
+
+        if (isset($filters['suche']) && trim($filters['suche']) !== '') {
+            $bedingungen[] = '(u.display_name LIKE :suche OR u.email LIKE :suche)';
+            $parameter['suche'] = '%' . trim($filters['suche']) . '%';
+        }
+
+        $where = $bedingungen === [] ? '' : ' WHERE ' . implode(' AND ', $bedingungen);
+
+        $rows = $this->database->select(
+            'SELECT u.id, u.email, u.display_name, u.role, u.status, u.created_at, u.last_login_at,
+                    u.banned_at, u.banned_until, u.banned_reason, u.banned_by,
+                    (SELECT COUNT(*) FROM listings l WHERE l.user_id = u.id) AS anzeigen,
+                    (SELECT COUNT(*) FROM reports r
+                      WHERE r.target_type = \'user\' AND r.target_id = u.id AND r.status = \'offen\') AS meldungen
+               FROM users u'
+            . $where
+            . ' ORDER BY u.created_at DESC LIMIT :limit',
+            $parameter,
+        );
+
+        return array_map($this->mapAdminRow(...), $rows);
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     */
+    private function mapAdminRow(array $row): AdminUserRow
+    {
+        $sperre = null;
+
+        if (\is_string($row['banned_at'])) {
+            $sperre = new BanState(
+                Timestamp::parse($row['banned_at']) ?? new DateTimeImmutable($row['banned_at']),
+                \is_string($row['banned_until']) ? Timestamp::parse($row['banned_until']) : null,
+                \is_string($row['banned_reason']) && $row['banned_reason'] !== '' ? $row['banned_reason'] : null,
+                $row['banned_by'] === null ? null : (int) $row['banned_by'],
+            );
+        }
+
+        return new AdminUserRow(
+            (int) $row['id'],
+            (string) $row['email'],
+            (string) $row['display_name'],
+            Role::from((string) $row['role']),
+            UserStatus::from((string) $row['status']),
+            new DateTimeImmutable((string) $row['created_at']),
+            \is_string($row['last_login_at']) ? new DateTimeImmutable($row['last_login_at']) : null,
+            (int) $row['anzeigen'],
+            (int) $row['meldungen'],
+            $sperre,
+        );
     }
 }

@@ -51,11 +51,19 @@
     {% block inhalt %}{% endblock %}
 </main>
 
-<footer class="mx-auto max-w-7xl px-4 py-10 text-sm gedaempft">
+<footer class="mx-auto max-w-7xl space-y-3 px-4 py-10 text-sm gedaempft">
     <p>
         Angaben zu Schutzstatus und Nachweispflichten sind Hinweise, keine Rechtsberatung.
         Prüfe vor Kauf und Abgabe die für dich geltenden Vorschriften.
     </p>
+    {# Impressum und Datenschutz gehoeren auf jede Seite und muessen mit
+       hoechstens zwei Klicks erreichbar sein. #}
+    <nav class="flex flex-wrap gap-4">
+        <a class="underline" href="/impressum">Impressum</a>
+        <a class="underline" href="/datenschutz">Datenschutz</a>
+        <a class="underline" href="/nutzungsbedingungen">Nutzungsbedingungen</a>
+        <a class="underline" href="/kontakt">Kontakt</a>
+    </nav>
 </footer>
 {% block skripte %}{% endblock %}
 </body>

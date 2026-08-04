@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Reptilienmarkt\Domain\User;
 
+use DateTimeImmutable;
+
 interface UserRepository
 {
     public function findById(int $id): ?User;
@@ -46,4 +48,29 @@ interface UserRepository
     public function publishedListingCount(int $userId): int;
 
     public function findByDisplayName(string $displayName): ?User;
+
+    /**
+     * Sperrt ein Konto. $until ist null bei einer unbefristeten Sperre.
+     */
+    public function ban(int $userId, DateTimeImmutable $at, ?DateTimeImmutable $until, string $reason, ?int $byUserId): void;
+
+    public function unban(int $userId): void;
+
+    public function banState(int $userId): ?BanState;
+
+    /**
+     * Konten, deren befristete Sperre abgelaufen ist.
+     *
+     * @return list<User>
+     */
+    public function withExpiredBan(DateTimeImmutable $now): array;
+
+    /**
+     * Liste fuer die Verwaltung.
+     *
+     * @param array{status?: string, suche?: string, nur_gesperrt?: bool} $filters
+     *
+     * @return list<AdminUserRow>
+     */
+    public function forAdmin(array $filters = [], int $limit = 100): array;
 }

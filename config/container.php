@@ -21,6 +21,8 @@ use Reptilienmarkt\Domain\Billing\PaymentRepository;
 use Reptilienmarkt\Domain\Billing\SubscriptionRepository;
 use Reptilienmarkt\Domain\Breeding\BreedingAnnouncementRepository;
 use Reptilienmarkt\Domain\Breeding\BreedingAnnouncementService;
+use Reptilienmarkt\Domain\Contact\ContactRepository;
+use Reptilienmarkt\Domain\Contact\ContactService;
 use Reptilienmarkt\Domain\Geo\PostalCodeRepository;
 use Reptilienmarkt\Domain\Identity\IdentityProvider;
 use Reptilienmarkt\Domain\Identity\LocalIdentityProvider;
@@ -50,6 +52,7 @@ use Reptilienmarkt\Domain\Review\ReviewService;
 use Reptilienmarkt\Domain\Search\ListingSearchRepository;
 use Reptilienmarkt\Domain\Search\SearchIndex;
 use Reptilienmarkt\Domain\Setting\Settings;
+use Reptilienmarkt\Domain\Site\SiteIdentity;
 use Reptilienmarkt\Domain\Species\MorphRepository;
 use Reptilienmarkt\Domain\Species\SpeciesRepository;
 use Reptilienmarkt\Domain\Trust\AutoModerationPolicy;
@@ -62,16 +65,20 @@ use Reptilienmarkt\Domain\User\AccountService;
 use Reptilienmarkt\Domain\User\BreederProfileRepository;
 use Reptilienmarkt\Domain\User\BreederProfileService;
 use Reptilienmarkt\Domain\User\UserDocumentRepository;
+use Reptilienmarkt\Domain\User\UserModerationService;
 use Reptilienmarkt\Domain\User\UserRepository;
 use Reptilienmarkt\Domain\User\VerificationRepository;
 use Reptilienmarkt\Http\Controller\AccountController;
 use Reptilienmarkt\Http\Controller\AdminController;
 use Reptilienmarkt\Http\Controller\AdminListingController;
+use Reptilienmarkt\Http\Controller\AdminUserController;
 use Reptilienmarkt\Http\Controller\AnnouncementController;
 use Reptilienmarkt\Http\Controller\ApiController;
 use Reptilienmarkt\Http\Controller\AuthController;
 use Reptilienmarkt\Http\Controller\BillingController;
+use Reptilienmarkt\Http\Controller\ContactController;
 use Reptilienmarkt\Http\Controller\LegalDocumentController;
+use Reptilienmarkt\Http\Controller\LegalPageController;
 use Reptilienmarkt\Http\Controller\ListingController;
 use Reptilienmarkt\Http\Controller\ListingManagementController;
 use Reptilienmarkt\Http\Controller\ListingWizardController;
@@ -94,6 +101,7 @@ use Reptilienmarkt\Http\Session\SessionManager;
 use Reptilienmarkt\Http\Session\Viewer;
 use Reptilienmarkt\Http\View\TwigFactory;
 use Reptilienmarkt\Http\View\ViewContext;
+use Reptilienmarkt\Infra\Job\Handler\BanExpiryHandler;
 use Reptilienmarkt\Infra\Job\Handler\BoostExpiryHandler;
 use Reptilienmarkt\Infra\Job\Handler\ListingArchiveHandler;
 use Reptilienmarkt\Infra\Job\Handler\ListingExpiryNoticeHandler;
@@ -112,6 +120,7 @@ use Reptilienmarkt\Infra\Persistence\PdoAuditLog;
 use Reptilienmarkt\Infra\Persistence\PdoBoostRepository;
 use Reptilienmarkt\Infra\Persistence\PdoBreederProfileRepository;
 use Reptilienmarkt\Infra\Persistence\PdoBreedingAnnouncementRepository;
+use Reptilienmarkt\Infra\Persistence\PdoContactRepository;
 use Reptilienmarkt\Infra\Persistence\PdoConversationRepository;
 use Reptilienmarkt\Infra\Persistence\PdoJobRepository;
 use Reptilienmarkt\Infra\Persistence\PdoLegalDocumentRepository;
@@ -426,6 +435,60 @@ $container->set(SellerStatsService::class, static fn(Container $c): SellerStatsS
 $container->set(StatsController::class, static fn(Container $c): StatsController => new StatsController(
     $c->get(SellerStatsService::class),
     $c->get(EntitlementService::class),
+    $c->get(Viewer::class),
+    $c->get(SessionManager::class),
+    $c->get(Environment::class),
+));
+
+// ------------------------------------- Impressum, Kontakt, Kontosperren
+$container->set(SiteIdentity::class, static function () use ($root): SiteIdentity {
+    /** @var array<string, mixed> $config */
+    $config = require $root . '/config/impressum.php';
+
+    return new SiteIdentity($config);
+});
+
+$container->set(ContactRepository::class, static fn(Container $c): ContactRepository => new PdoContactRepository($c->get(Database::class)));
+
+$container->set(ContactService::class, static fn(Container $c): ContactService => new ContactService(
+    $c->get(ContactRepository::class),
+    $c->get(Mailer::class),
+    $c->get(Translator::class),
+    $c->get(AuditLog::class),
+    // Anfragen gehen an die Adresse aus dem Impressum — eine zweite zu pflegen
+    // waere eine, die irgendwann nicht mehr stimmt.
+    $c->get(SiteIdentity::class)->contact()['email'] ?? '',
+));
+
+$container->set(UserModerationService::class, static fn(Container $c): UserModerationService => new UserModerationService(
+    $c->get(UserRepository::class),
+    $c->get(SessionRepository::class),
+    $c->get(ListingRepository::class),
+    $c->get(ListingIndexer::class),
+    $c->get(AccountDeletionService::class),
+    $c->get(AuditLog::class),
+    $c->get(Clock::class),
+));
+
+$container->set(LegalPageController::class, static fn(Container $c): LegalPageController => new LegalPageController(
+    $c->get(SiteIdentity::class),
+    $c->get(Environment::class),
+    Env::string('APP_URL', 'https://example.tld'),
+));
+
+$container->set(ContactController::class, static fn(Container $c): ContactController => new ContactController(
+    $c->get(ContactService::class),
+    $c->get(SiteIdentity::class),
+    $c->get(RateLimiter::class),
+    $c->get(Viewer::class),
+    $c->get(SessionManager::class),
+    $c->get(Environment::class),
+));
+
+$container->set(AdminUserController::class, static fn(Container $c): AdminUserController => new AdminUserController(
+    $c->get(UserRepository::class),
+    $c->get(UserModerationService::class),
+    $c->get(ContactRepository::class),
     $c->get(Viewer::class),
     $c->get(SessionManager::class),
     $c->get(Environment::class),
@@ -780,6 +843,7 @@ $container->set('jobs.handlers', static function (Container $c) use ($root): arr
         new BoostExpiryHandler($c->get(BoostService::class), $c->get(BillingService::class)),
         new SearchReindexHandler($c->get(ListingIndexer::class)),
         new LogRotationHandler($c->get('paths.logs'), $c->get(RetentionPolicy::class)),
+        new BanExpiryHandler($c->get(UserModerationService::class)),
     ];
 
     $indiziert = [];

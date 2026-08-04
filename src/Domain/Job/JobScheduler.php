@@ -30,6 +30,8 @@ final readonly class JobScheduler
         // Stuendlich: Was schnell wirken soll.
         'listing.archive' => null,
         'billing.expire' => null,
+        // Eine befristete Sperre, die niemand aufhebt, ist eine unbefristete.
+        'user.ban_expiry' => null,
 
         // Nachts, wenn wenig los ist.
         'listing.expiry_notice' => 6,

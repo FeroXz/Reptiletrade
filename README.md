@@ -21,6 +21,7 @@ Architekturentscheidungen (Router, SQLite vs. PostgreSQL, Migrationsstrategie, K
 | 6 | Monetarisierung (vorbereitet, **nicht aktiviert**) | umgesetzt |
 | 7 | Admin, DSGVO, Betrieb | umgesetzt |
 | 8 | Anzeigen verwalten (bearbeiten, pausieren, löschen) | umgesetzt |
+| 9 | Kontosperren, Kontaktformular, Rechtsseiten | umgesetzt |
 
 ## Voraussetzungen
 
@@ -421,6 +422,68 @@ beanstandete Zeile verhindert den Import vollständig — beim Schutzstatus ist 
 gefährlicher als gar keiner. Zugeordnet wird über den wissenschaftlichen Namen, nicht über die
 Kennung; unbekannte Spalten werden übergangen, damit ein Export aus einer neueren Fassung einlesbar
 bleibt. Ein Probelauf prüft, ohne zu schreiben.
+
+## Konten sperren und löschen
+
+`/admin/nutzer` listet alle Konten mit Status, Rolle, Anzeigenzahl und offenen Meldungen; filtern
+lässt sich nach Status, Suchbegriff und „nur gesperrte“.
+
+Eine Sperre verlangt **immer einen Grund**, und zwar einen, den der Betroffene zu sehen bekommt: Wer
+nicht erfährt, warum er ausgesperrt ist, kann weder nachfragen noch etwas ändern. Er liest ihn beim
+nächsten Anmeldeversuch — erst nach der Passwortprüfung, damit ein Fremder nicht erfährt, ob und
+warum ein Konto gesperrt ist —, zusammen mit dem Enddatum und dem Verweis auf `/kontakt`.
+
+**Befristet ist die Voreinstellung** (3, 7, 30 oder 90 Tage). Eine Frist läuft stündlich von selbst
+ab (`user.ban_expiry`), ohne dass jemand daran denken muss; unbefristet geht auch, ist aber eine
+eigene Auswahl und kein Nebenprodukt.
+
+Eine Sperre tut drei Dinge, sonst ist sie keine:
+
+1. **Sitzungen verwerfen.** Der Status allein käme erst bei der nächsten Anmeldung an — wer gerade
+   angemeldet ist, bliebe es sonst bis zum Ablauf seiner Sitzung.
+2. **Anzeigen pausieren, nicht löschen.** Eine befristete Sperre soll den Anbieter danach nicht vor
+   einem leeren Konto stehen lassen. Beim Entsperren laufen genau die Anzeigen wieder an, die die
+   Sperre angehalten hat — erkennbar am Vermerk der Verwaltung. Was der Anbieter selbst pausiert
+   hatte, bleibt pausiert.
+3. **Den Grund festhalten**, für den Betroffenen und für den Audit-Trail.
+
+Gelöscht wird über denselben Dienst wie bei der Selbstlöschung: Gibt es Bewertungen, wird
+anonymisiert statt gelöscht — auch die Verwaltung darf die Bewertungshistorie der Gegenseite nicht
+ausradieren. Es braucht dasselbe getippte `LÖSCHEN` wie dort; ein Fehlklick in einer Tabellenzeile
+darf kein Konto auslöschen. Ein Konto mit Verwaltungsrechten lässt sich weder sperren noch löschen,
+solange es die Rolle hat — wer das will, nimmt sie ihm zuerst, und das ist eine bewusste zweite
+Handlung. Das eigene Konto ist ausgenommen.
+
+## Kontakt und Rechtsseiten
+
+`/kontakt` steht **ohne Anmeldung** offen. Das ist der Punkt: Ausgerechnet wer nicht mehr
+hineinkommt — gesperrtes Konto, vergessene Adresse — muss schreiben können. Angemeldete müssen ihren
+Namen nicht abtippen und können ihn auch nicht fälschen; beides kommt aus dem Konto.
+
+Anfragen landen in `contact_messages` **und** gehen als Mail hinaus. Nur Mail wäre zu wenig: Im
+Postfach sieht niemand, was noch offen ist, und eine verlorene Nachricht fällt erst auf, wenn jemand
+nachfragt. Die Verwaltung arbeitet sie unter `/admin/kontakt` ab. Gegen Bots stehen ein
+Honigtopf-Feld und eine IP-Grenze; wer in die Falle tappt, bekommt dieselbe Bestätigung wie alle —
+ein Bot soll nicht lernen, woran er gescheitert ist. Der Inhalt der Nachricht steht **nicht** im
+Audit-Trail: Er kann alles enthalten, und der Trail wird nie gelöscht.
+
+`/impressum`, `/datenschutz` und `/nutzungsbedingungen` sind aus dem Fuß jeder Seite mit einem Klick
+erreichbar und speisen sich aus [`config/impressum.php`](config/impressum.php) — der einzigen Datei,
+die der Betreiber dafür ausfüllt (§ 5 DDG, § 18 Abs. 2 MStV, Art. 13 DSGVO, § 36 VSBG, § 27a UStG,
+durchkommentiert).
+
+Ausgeliefert wird sie mit Platzhaltern, und solange die drinstehen, zeigt jede Rechtsseite einen
+sichtbaren Warnhinweis samt Liste der fehlenden Angaben. **Ein unvollständiges Impressum, das
+aussieht wie ein vollständiges, ist gefährlicher als gar keines: Es fällt niemandem auf.**
+`php bin/doctor.php` meldet jede fehlende Pflichtangabe namentlich.
+
+> Die Rechtstexte und die Hinweise in der Konfiguration sind eine Orientierung und **keine
+> Rechtsberatung**. Vor der Freischaltung gehört beides anwaltlich geprüft.
+
+Ein Cookie-Banner gibt es nicht, und das ist kein Versehen: Gesetzt wird genau ein Cookie, das
+Sitzungs-Cookie, und das ist nach § 25 Abs. 2 Nr. 2 TDDDG technisch erforderlich. Es gibt keine
+Analyse, keine Werbenetze, keine eingebetteten Fremdinhalte — nichts, wofür eine Einwilligung nötig
+wäre.
 
 ## Datenschutz
 

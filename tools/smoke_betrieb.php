@@ -11,9 +11,12 @@ declare(strict_types=1);
  *   1. Die Verwaltung ist fuer Nichtadmins nicht vorhanden (404, nicht 403).
  *   2. Das Dashboard und der Artenstamm rendern.
  *   3. Export und Import des Artenstamms sind ein Kreis.
- *   4. Die Datenauskunft laeuft ohne Ruecksprache und enthaelt keine Schluessel.
- *   5. Die Loeschung verlangt Passwort und Bestaetigungswort.
- *   6. Auftragsplanung, Worker und Sicherung laufen durch.
+ *   4. Eine Kontosperre schliesst den Zugang, nimmt die Anzeigen vom Markt und
+ *      laesst sie beim Entsperren wieder anlaufen.
+ *   5. Kontaktformular und Rechtsseiten stehen ohne Anmeldung offen.
+ *   6. Die Datenauskunft laeuft ohne Ruecksprache und enthaelt keine Schluessel.
+ *   7. Die Loeschung verlangt Passwort und Bestaetigungswort.
+ *   8. Auftragsplanung, Worker und Sicherung laufen durch.
  *
  * Aufruf: php tools/smoke_betrieb.php [--behalten]
  */
@@ -512,6 +515,169 @@ pruefe(
     artenZahl($database) === $vorher + 1 && str_contains($nachFehler->body, 'Zeile 1'),
     'Eine fehlerhafte Datei schreibt nichts und nennt die Zeile',
     'die Fehlerliste fehlt',
+);
+
+// ------------------------------------------- 4b) Kontosperren durch die Verwaltung
+echo "\nKontosperren\n";
+
+pruefe($ohneRechte->get('/admin/nutzer')->status === 404, 'Die Nutzerliste ist für Nichtadmins nicht vorhanden', 'sie ist sichtbar');
+
+$nutzerliste = $admin->get('/admin/nutzer');
+pruefe($nutzerliste->status === 200, 'Die Nutzerliste antwortet mit 200', 'Status ' . $nutzerliste->status);
+
+// Ohne Grund keine Sperre — der Betroffene muss erfahren, woran er ist.
+$admin->post('/admin/nutzer/' . $besitzerId . '/sperren', ['grund' => '  ', 'tage' => '7']);
+pruefe(
+    (string) $database->scalar('SELECT status FROM users WHERE id = :id', ['id' => $besitzerId]) === 'aktiv',
+    'Ohne Grund wird nicht gesperrt',
+    'das Konto ist gesperrt',
+);
+
+$admin->post('/admin/nutzer/' . $besitzerId . '/sperren', [
+    'grund' => 'Rauchtest: Nachweise fehlen',
+    'tage' => '7',
+]);
+
+pruefe(
+    (string) $database->scalar('SELECT status FROM users WHERE id = :id', ['id' => $besitzerId]) === 'gesperrt',
+    'Die Verwaltung sperrt ein Konto befristet',
+    'das Konto ist nicht gesperrt',
+);
+pruefe(
+    is_string($database->scalar('SELECT banned_until FROM users WHERE id = :id', ['id' => $besitzerId])),
+    'Das Ende der Sperre ist festgehalten',
+    'banned_until ist leer',
+);
+pruefe(
+    (int) (string) $database->scalar('SELECT COUNT(*) FROM sessions WHERE user_id = :id', ['id' => $besitzerId]) === 0,
+    'Alle Sitzungen des Kontos sind beendet — der Status allein käme erst bei der nächsten Anmeldung an',
+    'es besteht noch eine Sitzung',
+);
+pruefe(
+    (string) $database->scalar('SELECT status FROM listings WHERE id = :id', ['id' => $anzeigeId]) === 'pausiert',
+    'Seine Anzeigen sind pausiert, nicht gelöscht',
+    'die Anzeige steht noch',
+);
+pruefe(
+    (int) (string) $database->scalar('SELECT COUNT(*) FROM listing_search WHERE rowid = :id', ['id' => $anzeigeId]) === 0,
+    'Sie sind aus dem Suchindex verschwunden',
+    'die Anzeige steht noch im Index',
+);
+
+// Der Gesperrte kommt nicht mehr hinein — erfaehrt aber, warum.
+$gesperrter = new BetriebsBrowser($containerFabrik, '198.51.100.71');
+$gesperrter->get('/anmelden');
+$abweisung = $gesperrter->sendRawWithCsrf('POST', '/anmelden', [
+    'email' => $anbieterEmail,
+    'passwort' => 'rauchtestPasswort1',
+]);
+pruefe(
+    $abweisung->status >= 400 && str_contains($abweisung->body, 'Nachweise fehlen'),
+    'Die Anmeldung scheitert und nennt den Grund',
+    'Status ' . $abweisung->status,
+);
+pruefe(
+    str_contains($abweisung->body, 'Kontaktformular'),
+    'Sie verweist auf den Weg zur Klärung',
+    'kein Hinweis auf das Kontaktformular',
+);
+
+$admin->post('/admin/nutzer/' . $besitzerId . '/entsperren', []);
+pruefe(
+    (string) $database->scalar('SELECT status FROM users WHERE id = :id', ['id' => $besitzerId]) === 'aktiv'
+        && $database->scalar('SELECT banned_at FROM users WHERE id = :id', ['id' => $besitzerId]) === null,
+    'Das Entsperren räumt die Sperrangaben ab',
+    'die Sperre steht noch',
+);
+pruefe(
+    (string) $database->scalar('SELECT status FROM listings WHERE id = :id', ['id' => $anzeigeId]) === 'aktiv',
+    'Die Anzeigen laufen wieder an',
+    'die Anzeige bleibt pausiert',
+);
+
+// Loeschen verlangt dasselbe Bestaetigungswort wie die Selbstloeschung.
+$admin->post('/admin/nutzer/' . $besitzerId . '/loeschen', ['bestaetigung' => 'ja bitte']);
+pruefe(
+    kontoExistiert($database, $anbieterEmail),
+    'Ohne Bestätigungswort löscht auch die Verwaltung nichts',
+    'das Konto ist weg',
+);
+
+// Ein Verwaltungskonto laesst sich nicht im Vorbeigehen abschalten.
+$admin->post('/admin/nutzer/' . $konto->id . '/sperren', ['grund' => 'Rauchtest', 'tage' => '3']);
+pruefe(
+    (string) $database->scalar('SELECT status FROM users WHERE id = :id', ['id' => $konto->id]) === 'aktiv',
+    'Das eigene Verwaltungskonto lässt sich nicht sperren',
+    'die Verwaltung hat sich selbst ausgesperrt',
+);
+
+// ------------------------------------------- 4c) Kontakt und Rechtsseiten
+echo "\nKontakt und Rechtsseiten\n";
+
+foreach (['/impressum', '/datenschutz', '/nutzungsbedingungen'] as $pfad) {
+    $seite = $ohneRechte->get($pfad);
+    pruefe($seite->status === 200, 'Erreichbar: ' . $pfad, 'Status ' . $seite->status);
+    pruefe(
+        str_contains($seite->body, 'noch nicht vollständig'),
+        'Solange config/impressum.php Platzhalter enthält, sagt ' . $pfad . ' das sichtbar',
+        'kein Hinweis auf die fehlenden Angaben',
+    );
+}
+
+$gast = new BetriebsBrowser($containerFabrik, '198.51.100.88');
+$formular = $gast->get('/kontakt');
+pruefe(
+    $formular->status === 200,
+    'Das Kontaktformular steht auch ohne Anmeldung offen — gerade Gesperrte brauchen es',
+    'Status ' . $formular->status,
+);
+
+$vorher = (int) (string) $database->scalar('SELECT COUNT(*) FROM contact_messages');
+
+// Die Falle: ein Feld, das kein Mensch sieht. Wer es ausfuellt, bekommt
+// dieselbe Bestaetigung — und nichts wird gespeichert.
+$gast->post('/kontakt', [
+    'name' => 'Ein Bot',
+    'email' => 'bot@example.tld',
+    'thema' => 'frage',
+    'betreff' => 'Guenstige Uhren',
+    'nachricht' => 'Hier koennte Ihre Werbung stehen, und zwar sehr ausfuehrlich.',
+    'website' => 'http://spam.example',
+]);
+pruefe(
+    (int) (string) $database->scalar('SELECT COUNT(*) FROM contact_messages') === $vorher,
+    'Wer die Falle ausfüllt, schreibt nichts in die Warteschlange',
+    'die Nachricht wurde gespeichert',
+);
+
+$gast->post('/kontakt', [
+    'name' => 'Rauchtest Gast',
+    'email' => 'gast@example.tld',
+    'thema' => 'konto',
+    'betreff' => 'Warum ist mein Konto gesperrt?',
+    'nachricht' => 'Ich komme seit heute nicht mehr hinein und weiß nicht, woran es liegt.',
+]);
+pruefe(
+    (int) (string) $database->scalar('SELECT COUNT(*) FROM contact_messages') === $vorher + 1,
+    'Eine echte Anfrage landet in der Warteschlange',
+    'die Nachricht fehlt',
+);
+
+$nachrichtId = (int) (string) $database->scalar('SELECT MAX(id) FROM contact_messages');
+
+$warteschlange = $admin->get('/admin/kontakt');
+pruefe(
+    $warteschlange->status === 200 && str_contains($warteschlange->body, 'Warum ist mein Konto gesperrt?'),
+    'Die Verwaltung sieht sie in der Warteschlange',
+    'Status ' . $warteschlange->status,
+);
+pruefe($ohneRechte->get('/admin/kontakt')->status === 404, 'Für Nichtadmins ist sie nicht vorhanden', 'sie ist sichtbar');
+
+$admin->post('/admin/kontakt/' . $nachrichtId . '/erledigt', ['notiz' => 'Rauchtest: per Mail beantwortet']);
+pruefe(
+    (string) $database->scalar('SELECT status FROM contact_messages WHERE id = :id', ['id' => $nachrichtId]) === 'erledigt',
+    'Sie lässt sich abhaken',
+    'die Nachricht steht noch offen',
 );
 
 // ------------------------------------------------- 4) Auskunft und Loeschung

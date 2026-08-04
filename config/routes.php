@@ -5,11 +5,14 @@ declare(strict_types=1);
 use Reptilienmarkt\Http\Controller\AccountController;
 use Reptilienmarkt\Http\Controller\AdminController;
 use Reptilienmarkt\Http\Controller\AdminListingController;
+use Reptilienmarkt\Http\Controller\AdminUserController;
 use Reptilienmarkt\Http\Controller\AnnouncementController;
 use Reptilienmarkt\Http\Controller\ApiController;
 use Reptilienmarkt\Http\Controller\AuthController;
 use Reptilienmarkt\Http\Controller\BillingController;
+use Reptilienmarkt\Http\Controller\ContactController;
 use Reptilienmarkt\Http\Controller\LegalDocumentController;
+use Reptilienmarkt\Http\Controller\LegalPageController;
 use Reptilienmarkt\Http\Controller\ListingController;
 use Reptilienmarkt\Http\Controller\ListingManagementController;
 use Reptilienmarkt\Http\Controller\ListingWizardController;
@@ -35,6 +38,13 @@ $router->get('/markt/', MarketController::class, 'search', 'markt');
 $router->get('/markt/{art}/', MarketController::class, 'search', 'markt.art');
 $router->get('/markt/{art}/{morphs}/', MarketController::class, 'search', 'markt.art.morphs');
 $router->get('/markt/{art}/{morphs}/{region}/', MarketController::class, 'search', 'markt.art.morphs.region');
+
+// Pflichtangaben und Kontakt — ohne Anmeldung erreichbar
+$router->get('/impressum', LegalPageController::class, 'imprint', 'impressum');
+$router->get('/datenschutz', LegalPageController::class, 'privacy', 'datenschutz');
+$router->get('/nutzungsbedingungen', LegalPageController::class, 'terms', 'nutzungsbedingungen');
+$router->get('/kontakt', ContactController::class, 'show', 'kontakt');
+$router->post('/kontakt', ContactController::class, 'submit', 'kontakt.absenden');
 
 // Artenprofil als Landingpage
 $router->get('/art/{slug}/', SpeciesController::class, 'show', 'art');
@@ -110,6 +120,12 @@ $router->get('/admin/', AdminController::class, 'dashboard', 'admin');
 $router->get('/admin/anzeigen', AdminListingController::class, 'index', 'admin.anzeigen');
 $router->post('/admin/anzeige/{id}/pausieren', AdminListingController::class, 'pause', 'admin.anzeige.pausieren');
 $router->post('/admin/anzeige/{id}/fortsetzen', AdminListingController::class, 'resume', 'admin.anzeige.fortsetzen');
+$router->get('/admin/nutzer', AdminUserController::class, 'index', 'admin.nutzer');
+$router->post('/admin/nutzer/{id}/sperren', AdminUserController::class, 'ban', 'admin.nutzer.sperren');
+$router->post('/admin/nutzer/{id}/entsperren', AdminUserController::class, 'unban', 'admin.nutzer.entsperren');
+$router->post('/admin/nutzer/{id}/loeschen', AdminUserController::class, 'delete', 'admin.nutzer.loeschen');
+$router->get('/admin/kontakt', AdminUserController::class, 'contactQueue', 'admin.kontakt');
+$router->post('/admin/kontakt/{id}/erledigt', AdminUserController::class, 'resolveContact', 'admin.kontakt.erledigt');
 $router->get('/admin/artenstamm', AdminController::class, 'catalog', 'admin.artenstamm');
 $router->get('/admin/artenstamm/{art}/export', AdminController::class, 'exportCatalog', 'admin.artenstamm.export');
 $router->post('/admin/artenstamm/{art}/import', AdminController::class, 'importCatalog', 'admin.artenstamm.import');
