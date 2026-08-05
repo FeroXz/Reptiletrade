@@ -89,11 +89,28 @@ final class AccountServiceTest extends DatabaseTestCase
 
     private function tokenAusMail(string $parameter = 'token'): string
     {
-        preg_match('/[?&]' . $parameter . '=([^\s&]+)/', $this->letzteMail()->body, $treffer);
+        return rawurldecode($this->ausMail('/[?&]' . $parameter . '=([^\s&]+)/', 'In der Mail steht kein Token.'));
+    }
 
-        self::assertArrayHasKey(1, $treffer, 'In der Mail steht kein Token.');
+    private function codeAusMail(): string
+    {
+        return $this->ausMail('/Code lautet: (\d{6})/', 'In der Mail steht kein Code.');
+    }
 
-        return rawurldecode($treffer[1]);
+    /**
+     * Der erste Klammerausdruck aus der zuletzt verschickten Mail.
+     *
+     * Der Rueckgabewert von preg_match wird geprueft und nicht nur der Treffer:
+     * Ohne Treffer liefe der Test mit einer leeren Zeichenkette weiter und
+     * scheiterte spaeter an einer Stelle, die mit der Ursache nichts zu tun hat.
+     */
+    private function ausMail(string $muster, string $meldung): string
+    {
+        if (preg_match($muster, $this->letzteMail()->body, $treffer) !== 1) {
+            self::fail($meldung);
+        }
+
+        return $treffer[1];
     }
 
     // ------------------------------------------------------------- E-Mail
@@ -185,10 +202,7 @@ final class AccountServiceTest extends DatabaseTestCase
 
         $this->accounts->startPhoneVerification($user, '0176 12345678');
 
-        preg_match('/Code lautet: (\d{6})/', $this->letzteMail()->body, $treffer);
-        self::assertArrayHasKey(1, $treffer);
-
-        $bestaetigt = $this->accounts->confirmPhone($user, $treffer[1]);
+        $bestaetigt = $this->accounts->confirmPhone($user, $this->codeAusMail());
 
         self::assertSame(VerificationLevel::Telefon, $bestaetigt->verificationLevel());
     }
@@ -374,11 +388,11 @@ final class AccountServiceTest extends DatabaseTestCase
             '0176 12345678',
         );
 
-        preg_match('/Code lautet: (\d{6})/', $this->letzteMail()->body, $treffer);
+        $code = $this->codeAusMail();
 
         $this->expectException(AccountException::class);
 
-        $this->accounts->confirmPhone($zweiterNutzer, $treffer[1]);
+        $this->accounts->confirmPhone($zweiterNutzer, $code);
     }
 
     public function testTokenlaufzeitenUnterscheidenSichNachZweck(): void
