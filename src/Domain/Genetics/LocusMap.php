@@ -131,7 +131,9 @@ final readonly class LocusMap
      */
     public function morphOf(string $locusId, string $allele): ?Morph
     {
-        return $this->loci[$locusId]?->morph($allele);
+        $locus = $this->loci[$locusId] ?? null;
+
+        return $locus?->morph($allele);
     }
 
     private static function locusId(Morph $morph): string

@@ -1,0 +1,35 @@
+name: CI
+
+# Die drei Prüfungen aus dem Abschnitt "Qualitätssicherung" der README laufen
+# hier bei jedem Push und jedem Pull Request. Ohne sie ist "grün" eine Aussage
+# über den letzten Rechner, auf dem jemand daran gedacht hat.
+on:
+  push:
+  pull_request:
+
+jobs:
+  pruefen:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: PHP einrichten
+        uses: shivammathur/setup-php@v2
+        with:
+          # composer.json verlangt >= 8.3 und pinnt die Plattform auf 8.3.0.
+          php-version: '8.3'
+          extensions: json, mbstring, pdo, pdo_sqlite, zlib, gd
+          coverage: none
+
+      - name: Abhängigkeiten
+        uses: ramsey/composer-install@v3
+
+      - name: Tests
+        run: composer test
+
+      - name: Statische Analyse (Level 8)
+        run: composer stan
+
+      - name: Codestil
+        run: composer cs

@@ -276,6 +276,6 @@ final readonly class Genotype
             return strcmp($a, $b);
         });
 
-        return array_values($alleles);
+        return $alleles;
     }
 }

@@ -175,7 +175,6 @@ return [
     'genetik.nach_geschlecht' => 'Nach Geschlecht',
     'genetik.soehne' => 'Söhne',
     'genetik.toechter' => 'Töchter',
-    'genetik.genotypen' => 'Genotypen',
     'genetik.punnett' => 'Punnett-Quadrate',
     'genetik.punnett_erklaerung' => 'Ein Feld je Genort: oben die Allele des ersten Elterntiers, '
         . 'links die des zweiten.',
@@ -186,7 +185,6 @@ return [
     'genetik.berichte' => 'Meine Genetik-Berichte',
     'genetik.keine_berichte' => 'Noch keine Berichte gespeichert.',
     'genetik.zum_rechner' => 'Zum Verpaarungs-Simulator',
-    'genetik.eltern' => 'Elterntiere',
     'genetik.fussnote' => 'Die Angaben sind eine Rechnung nach den Mendelschen Regeln auf Grundlage der '
         . 'angegebenen Merkmale. Sie sagen voraus, was zu erwarten ist — nicht, was in einem einzelnen '
         . 'Gelege eintritt. Anlagen, von denen niemand weiß, sind darin nicht enthalten.',

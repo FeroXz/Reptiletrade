@@ -99,6 +99,17 @@ vendor/bin/php-cs-fixer fix --dry-run --diff
 vendor/bin/phpstan analyse            # Level 8
 ```
 
+Dieselben drei Läufe stehen als GitHub-Action in
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) und laufen bei jedem Push und jedem Pull
+Request. Lokal grün und im Zweig rot ist sonst ein Zustand, den niemand bemerkt.
+
+> Kommt `composer install` in einer abgeschotteten Umgebung nicht an PHPStan heran (das Paket wird
+> ausschließlich als Zipball über `api.github.com` ausgeliefert), hilft der Umweg über einen Klon:
+> `git clone --depth 1 --branch <version> https://github.com/phpstan/phpstan.git` enthält die fertige
+> `phpstan.phar`. **Die Version muss die aus `composer.lock` sein** — zwischen zwei Nebenversionen
+> ändert sich, wie genau PHPStan etwa Treffer von `preg_match` modelliert, und dann ist lokal grün,
+> was in der CI rot ist.
+
 ## Rechts-Engine
 
 `Reptilienmarkt\Legal\LegalGuard` ist bei jedem Listing-Submit und bei jeder Statusänderung auf

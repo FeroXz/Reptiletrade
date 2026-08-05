@@ -71,7 +71,7 @@ final readonly class Phenotype
 
         sort($names);
 
-        return array_values($names);
+        return $names;
     }
 
     /**
@@ -91,7 +91,7 @@ final readonly class Phenotype
 
         sort($names);
 
-        return array_values($names);
+        return $names;
     }
 
     public function isWildtype(): bool

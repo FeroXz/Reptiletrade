@@ -43,7 +43,7 @@ final readonly class Locus
         $alleles = array_keys($this->morphs);
         $alleles[] = Genotype::WILDTYPE;
 
-        return array_values($alleles);
+        return $alleles;
     }
 
     public function morph(string $allele): ?Morph

@@ -74,12 +74,14 @@ final readonly class CodominantRule extends AutosomalRule
                 continue;
             }
 
+            $base = $locus->morph($allele);
+
             $warnings[] = new GeneticWarning(
                 GeneticWarning::TYPE_ALLELIC,
                 \sprintf(
                     'Beide Elterntiere tragen die Anlage "%s". Ein Teil der Nachzucht bekommt sie doppelt und '
                     . 'wird zur Superform "%s".',
-                    $locus->morph($allele)?->name ?? $allele,
+                    $base === null ? $allele : $base->name,
                     $super->name,
                 ),
                 WarningSeverity::Hinweis,

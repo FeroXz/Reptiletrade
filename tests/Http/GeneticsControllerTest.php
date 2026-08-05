@@ -260,6 +260,68 @@ final class GeneticsControllerTest extends DatabaseTestCase
         self::assertStringContainsString('verschiedenen Arten', $data['fehler']);
     }
 
+    /**
+     * Ein fremder Entwurf ist nicht oeffentlich — und darf es auch über den
+     * Rechner nicht werden: In der Antwort stehen Titel, Geschlecht und
+     * Merkmale des Tieres.
+     */
+    public function testFremdeNichtOeffentlicheAnzeigeIstNichtVerwendbar(): void
+    {
+        $fremder = $this->createUser('fremd@example.tld');
+        $listings = new PdoListingRepository($this->database);
+
+        foreach (['entwurf', 'pausiert', 'gesperrt', 'pruefung'] as $status) {
+            $listingId = $this->createListing($fremder, $this->speciesId, $status);
+            $listings->replaceMorphs($listingId, [$this->hypoId => Zygosity::Visual]);
+
+            $response = $this->controller($this->user())->simulate($this->post([
+                'art_id' => (string) $this->speciesId,
+                'a_anzeige_id' => (string) $listingId,
+                'b_morph' => [(string) $this->hypoId => 'het'],
+            ]));
+
+            self::assertSame(404, $response->status, 'Status "' . $status . '" darf nicht lesbar sein.');
+            self::assertStringNotContainsString('Testanzeige', $response->body);
+        }
+    }
+
+    /**
+     * Eine veroeffentlichte Anzeige eines anderen Anbieters darf dagegen
+     * eingerechnet werden — genau dafuer ist der Rechner da.
+     */
+    public function testFremdeOeffentlicheAnzeigeDarfEingerechnetWerden(): void
+    {
+        $fremder = $this->createUser('anbieter@example.tld');
+        $listingId = $this->createListing($fremder, $this->speciesId);
+        (new PdoListingRepository($this->database))->replaceMorphs($listingId, [$this->hypoId => Zygosity::Visual]);
+
+        $response = $this->controller($this->user())->simulate($this->post([
+            'art_id' => (string) $this->speciesId,
+            'a_anzeige_id' => (string) $listingId,
+            'b_morph' => [(string) $this->hypoId => 'het'],
+        ]));
+
+        self::assertSame(200, $response->status);
+    }
+
+    /**
+     * Der eigene Entwurf bleibt nutzbar: Ein Zuechter rechnet mit Tieren, die
+     * er noch gar nicht angeboten hat.
+     */
+    public function testEigenerEntwurfBleibtNutzbar(): void
+    {
+        $listingId = $this->createListing($this->userId, $this->speciesId, 'entwurf');
+        (new PdoListingRepository($this->database))->replaceMorphs($listingId, [$this->hypoId => Zygosity::Visual]);
+
+        $response = $this->controller($this->user())->simulate($this->post([
+            'art_id' => (string) $this->speciesId,
+            'a_anzeige_id' => (string) $listingId,
+            'b_morph' => [(string) $this->hypoId => 'het'],
+        ]));
+
+        self::assertSame(200, $response->status);
+    }
+
     public function testUnbekannteAnzeigeMeldetSichAlsNichtGefunden(): void
     {
         $response = $this->controller($this->user())->simulate($this->post([

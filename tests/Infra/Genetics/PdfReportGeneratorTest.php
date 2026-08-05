@@ -74,6 +74,22 @@ final class PdfReportGeneratorTest extends DatabaseTestCase
         );
     }
 
+    /**
+     * Der erste Klammerausdruck eines Treffers.
+     *
+     * Geprueft wird der Rueckgabewert von preg_match und nicht nur der Treffer:
+     * Ohne Treffer liefe der Test mit einer leeren Zeichenkette weiter und
+     * meldete einen Fehler, der mit der Ursache nichts zu tun hat.
+     */
+    private function ersterTreffer(string $muster, string $text, string $meldung): string
+    {
+        if (preg_match($muster, $text, $treffer) !== 1) {
+            self::fail($meldung);
+        }
+
+        return $treffer[1];
+    }
+
     private function ergebnis(string $morph = 'Leatherback'): SimulationResult
     {
         return $this->simulation->cross(
@@ -125,10 +141,7 @@ final class PdfReportGeneratorTest extends DatabaseTestCase
     {
         $pdf = $this->generator->generatePdf($this->ergebnis());
 
-        preg_match('/startxref\n(\d+)\n/', $pdf, $treffer);
-        self::assertArrayHasKey(1, $treffer);
-
-        $xrefOffset = (int) $treffer[1];
+        $xrefOffset = (int) $this->ersterTreffer('/startxref\n(\d+)\n/', $pdf, 'Im PDF fehlt der Verweis auf die Verweistabelle.');
         self::assertSame('xref', substr($pdf, $xrefOffset, 4));
 
         preg_match_all('/^(\d{10}) 00000 n $/m', $pdf, $eintraege);
@@ -168,10 +181,9 @@ final class PdfReportGeneratorTest extends DatabaseTestCase
 
         $pdf = $document->render();
 
-        preg_match('/\/Count (\d+)/', $pdf, $treffer);
+        $seiten = (int) $this->ersterTreffer('/\/Count (\d+)/', $pdf, 'Im PDF fehlt die Seitenzahl.');
 
-        self::assertArrayHasKey(1, $treffer);
-        self::assertGreaterThan(1, (int) $treffer[1]);
+        self::assertGreaterThan(1, $seiten);
     }
 
     public function testDerBerichtLaesstSichAusDemGespeichertenJsonWiederAufbauen(): void
