@@ -119,6 +119,11 @@ final readonly class DataExportService
                    FROM sessions WHERE user_id = :id ORDER BY created_at',
                 ['id' => $userId],
             ),
+            'genetik_berichte' => $this->rows(
+                'SELECT id, species_id, listing_a_id, listing_b_id, titel, result_json, created_at
+                   FROM genetics_simulations WHERE user_id = :id ORDER BY id',
+                ['id' => $userId],
+            ),
             'verlauf' => $this->rows(
                 'SELECT occurred_at, action, entity_type, entity_id, data_json
                    FROM audit_log WHERE actor_user_id = :id ORDER BY id',

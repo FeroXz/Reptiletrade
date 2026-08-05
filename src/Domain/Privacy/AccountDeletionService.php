@@ -89,6 +89,10 @@ final readonly class AccountDeletionService
             $database->execute('DELETE FROM saved_searches WHERE user_id = :id', ['id' => $userId]);
             $database->execute('DELETE FROM breeder_profiles WHERE user_id = :id', ['id' => $userId]);
             $database->execute('DELETE FROM breeding_announcements WHERE user_id = :id', ['id' => $userId]);
+            // Genetik-Berichte sind Angaben zum eigenen Zuchtbestand. Sie
+            // gehen auch dann mit, wenn das Konto nur anonymisiert wird —
+            // ein namenloses Konto braucht keine Verpaarungsplanung mehr.
+            $database->execute('DELETE FROM genetics_simulations WHERE user_id = :id', ['id' => $userId]);
 
             if (!$anonymisieren) {
                 // Ohne Bewertungen haengt nichts an dem Konto — die

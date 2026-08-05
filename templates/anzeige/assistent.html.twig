@@ -67,6 +67,14 @@
                     <p class="text-sm gedaempft">
                         Wähle je Merkmal die Ausprägung. Aus der Auswahl entsteht automatisch der Morph-String.
                     </p>
+                    {# Derselbe Merkmalssatz laesst sich im Verpaarungsrechner
+                       durchrechnen — er nutzt denselben Generator und damit
+                       dieselbe Schreibweise wie der Morph-String hier. #}
+                    <p class="text-sm">
+                        <a class="underline" href="/paarung/simulator?art_id={{ listing.speciesId }}">
+                            {{ t('genetik.titel') }}
+                        </a>
+                    </p>
                     <div class="max-h-96 space-y-1 overflow-y-auto">
                         {% for morph in verfuegbare_morphs %}
                             <div class="flex items-center justify-between gap-3 border-b py-1.5" style="border-color: var(--rand)">

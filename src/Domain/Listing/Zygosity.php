@@ -41,4 +41,22 @@ enum Zygosity: string
     {
         return $this === self::Visual;
     }
+
+    /**
+     * Mit welcher Wahrscheinlichkeit traegt das Tier die Anlage tatsaechlich?
+     *
+     * "66 % poss. het" ist keine Auspraegung, sondern eine Aussage ueber die
+     * Herkunft: Aus der Verpaarung zweier Traeger sind drei Viertel der
+     * unauffaelligen Nachkommen Traeger — zwei Drittel bezogen auf die
+     * wildtypisch aussehenden. Die Vererbungsrechnung braucht genau diese Zahl,
+     * um aus einer unsicheren Angabe eine ehrliche Verteilung zu machen.
+     */
+    public function probability(): float
+    {
+        return match ($this) {
+            self::Visual, self::Het => 1.0,
+            self::PossHet66 => 2 / 3,
+            self::PossHet50 => 0.5,
+        };
+    }
 }

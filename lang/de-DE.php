@@ -18,6 +18,7 @@ return [
     'allgemein.weiter' => 'Weiter',
     'allgemein.keine_angabe' => 'Keine Angabe',
     'allgemein.bearbeiten' => 'Bearbeiten',
+    'allgemein.loeschen' => 'Löschen',
     'allgemein.abmelden' => 'Abmelden',
 
     // ----------------------------------------------------------------- Konto
@@ -151,6 +152,44 @@ return [
     'nachzucht.verpaarung' => 'Verpaarung',
     'nachzucht.beschreibung' => 'Beschreibung',
     'nachzucht.zustand' => 'Zustand',
+
+    // -------------------------------------------------------------- Genetik
+    'genetik.titel' => 'Verpaarungs-Simulator',
+    'genetik.erklaerung' => 'Was fällt aus dieser Verpaarung? Wähle zwei Tiere — aus deinen Anzeigen oder '
+        . 'von Hand zusammengestellt — und der Rechner zeigt die zu erwartende Nachzucht mit ihren Anteilen.',
+    'genetik.art' => 'Art',
+    'genetik.art_waehlen' => 'Art wählen',
+    'genetik.merkmale_laden' => 'Merkmale laden',
+    'genetik.tier_a' => 'Elterntier 1',
+    'genetik.tier_b' => 'Elterntier 2',
+    'genetik.aus_anzeige' => 'Aus einer eigenen Anzeige',
+    'genetik.ohne_anzeige' => '— von Hand zusammenstellen —',
+    'genetik.geschlecht' => 'Geschlecht',
+    'genetik.merkmale' => 'Merkmale',
+    'genetik.keine_merkmale' => 'Für diese Art ist noch kein Merkmalskatalog hinterlegt.',
+    'genetik.nicht_vorhanden' => '— nicht vorhanden —',
+    'genetik.berechnen' => 'Verpaarung berechnen',
+    'genetik.ergebnis' => 'Erwartete Nachzucht',
+    'genetik.gelege' => 'Aus einem Gelege von etwa {eier} Eiern sind rund {tiere} lebensfähige '
+        . 'Schlüpflinge zu erwarten. Die Anteile beziehen sich auf diese Tiere.',
+    'genetik.nach_geschlecht' => 'Nach Geschlecht',
+    'genetik.soehne' => 'Söhne',
+    'genetik.toechter' => 'Töchter',
+    'genetik.genotypen' => 'Genotypen',
+    'genetik.punnett' => 'Punnett-Quadrate',
+    'genetik.punnett_erklaerung' => 'Ein Feld je Genort: oben die Allele des ersten Elterntiers, '
+        . 'links die des zweiten.',
+    'genetik.warnungen' => 'Hinweise',
+    'genetik.letal' => 'Nicht lebensfähig',
+    'genetik.letal_anteil' => '{anteil} % der Nachkommen aus dieser Verpaarung sind rechnerisch nicht lebensfähig.',
+    'genetik.pdf' => 'Bericht als PDF',
+    'genetik.berichte' => 'Meine Genetik-Berichte',
+    'genetik.keine_berichte' => 'Noch keine Berichte gespeichert.',
+    'genetik.zum_rechner' => 'Zum Verpaarungs-Simulator',
+    'genetik.eltern' => 'Elterntiere',
+    'genetik.fussnote' => 'Die Angaben sind eine Rechnung nach den Mendelschen Regeln auf Grundlage der '
+        . 'angegebenen Merkmale. Sie sagen voraus, was zu erwarten ist — nicht, was in einem einzelnen '
+        . 'Gelege eintritt. Anlagen, von denen niemand weiß, sind darin nicht enthalten.',
 
     // --------------------------------------------------------------- Anzeige
     'anzeige.meine' => 'Meine Anzeigen',

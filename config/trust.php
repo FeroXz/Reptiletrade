@@ -41,6 +41,11 @@ return [
         // fuer Spam.
         'kontakt.ip' => ['limit' => 5, 'fenster' => 3600],
         'verifizierung.konto' => ['limit' => 5, 'fenster' => 3600],
+        // Vererbungsrechner: Ein Zuechter rechnet eine Verpaarung mehrfach
+        // durch, bis die Angaben stimmen. Sechzig Laeufe in der Stunde stoeren
+        // dabei niemanden und begrenzen zugleich, wie viele Berichte ein Konto
+        // in kurzer Zeit anlegen kann.
+        'genetik.konto' => ['limit' => 60, 'fenster' => 3600],
     ],
 
     /**

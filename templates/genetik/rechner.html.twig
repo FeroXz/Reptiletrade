@@ -1,0 +1,193 @@
+{% extends 'layout/basis.html.twig' %}
+{% block titel %}{{ t('genetik.titel') }} — Reptilienmarkt{% endblock %}
+{% block kopf %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block inhalt %}
+    <div class="mx-auto max-w-5xl space-y-6">
+        {% include 'partials/meldungen.html.twig' %}
+
+        <header class="flex flex-wrap items-baseline justify-between gap-3">
+            <div>
+                <h1 class="text-xl font-semibold">{{ t('genetik.titel') }}</h1>
+                <p class="gedaempft">{{ t('genetik.erklaerung') }}</p>
+            </div>
+            <a class="text-sm underline" href="/konto/genetik-berichte">{{ t('genetik.berichte') }}</a>
+        </header>
+
+        {# Schritt 1: die Art. Ohne sie gibt es keinen Merkmalskatalog, und ohne
+           Katalog keine Auswahl — deshalb ein eigenes, kleines Formular. #}
+        <form method="get" action="/paarung/simulator" class="karte flex flex-wrap items-end gap-3 p-6">
+            <div class="grow">
+                <label class="text-sm" for="art_id">{{ t('genetik.art') }}</label>
+                <select class="feld" id="art_id" name="art_id">
+                    <option value="">{{ t('genetik.art_waehlen') }}</option>
+                    {% for art in arten %}
+                        <option value="{{ art.id }}" {{ gewaehlte_art and gewaehlte_art.id == art.id ? 'selected' : '' }}>
+                            {{ art.commonNameDe }} ({{ art.scientificName }})
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="knopf">{{ t('genetik.merkmale_laden') }}</button>
+        </form>
+
+        {% if gewaehlte_art %}
+            {% if morphs is empty %}
+                <p class="karte p-4 text-sm gedaempft">{{ t('genetik.keine_merkmale') }}</p>
+            {% else %}
+                <form method="post" action="/paarung/simulator" class="space-y-4">
+                    <input type="hidden" name="_csrf" value="{{ csrf }}">
+                    <input type="hidden" name="art_id" value="{{ gewaehlte_art.id }}">
+
+                    <div class="grid gap-4 md:grid-cols-2">
+                        {% for seite in [{'praefix': 'a', 'titel': t('genetik.tier_a')}, {'praefix': 'b', 'titel': t('genetik.tier_b')}] %}
+                            <section class="karte space-y-3 p-6">
+                                <h2 class="font-semibold">{{ seite.titel }}</h2>
+
+                                <div>
+                                    <label class="text-sm" for="{{ seite.praefix }}_anzeige_id">{{ t('genetik.aus_anzeige') }}</label>
+                                    <select class="feld" id="{{ seite.praefix }}_anzeige_id" name="{{ seite.praefix }}_anzeige_id">
+                                        <option value="">{{ t('genetik.ohne_anzeige') }}</option>
+                                        {% for anzeige in meine_anzeigen %}
+                                            {% if anzeige.speciesId == gewaehlte_art.id %}
+                                                <option value="{{ anzeige.id }}">
+                                                    {{ anzeige.title != '' ? anzeige.title : t('anzeige.ohne_titel') }}
+                                                </option>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label class="text-sm" for="{{ seite.praefix }}_geschlecht">{{ t('genetik.geschlecht') }}</label>
+                                    <select class="feld" id="{{ seite.praefix }}_geschlecht" name="{{ seite.praefix }}_geschlecht">
+                                        {% for geschlecht in geschlechter %}
+                                            <option value="{{ geschlecht.value }}"
+                                                {{ (seite.praefix == 'a' and geschlecht.value == 'm') or (seite.praefix == 'b' and geschlecht.value == 'w') ? 'selected' : '' }}>
+                                                {{ geschlecht.label }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+
+                                <fieldset class="space-y-2">
+                                    <legend class="text-sm font-medium">{{ t('genetik.merkmale') }}</legend>
+                                    {% for morph in morphs %}
+                                        <div class="flex items-center justify-between gap-2">
+                                            <span class="text-sm">
+                                                {{ morph.name }}
+                                                <span class="ml-1 text-xs gedaempft">{{ morph.inheritance.label }}</span>
+                                            </span>
+                                            <select class="feld w-44" name="{{ seite.praefix }}_morph[{{ morph.id }}]"
+                                                    aria-label="{{ morph.name }}">
+                                                <option value="">{{ t('genetik.nicht_vorhanden') }}</option>
+                                                {% for zyg in zygositaeten %}
+                                                    {% if zyg.value == 'visual' or morph.inheritance.allowsHeterozygous %}
+                                                        <option value="{{ zyg.value }}">{{ zyg.label }}</option>
+                                                    {% endif %}
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    {% endfor %}
+                                </fieldset>
+                            </section>
+                        {% endfor %}
+                    </div>
+
+                    <button type="submit" class="knopf knopf-primaer">{{ t('genetik.berechnen') }}</button>
+                </form>
+            {% endif %}
+        {% endif %}
+
+        {% if ergebnis %}
+            <section class="karte space-y-4 p-6">
+                <div class="flex flex-wrap items-baseline justify-between gap-3">
+                    <h2 class="text-lg font-semibold">{{ t('genetik.ergebnis') }}</h2>
+                    {% if bericht_id %}
+                        <a class="knopf" href="/paarung/simulator/{{ bericht_id }}/pdf">{{ t('genetik.pdf') }}</a>
+                    {% endif %}
+                </div>
+
+                <p class="text-sm">
+                    {% for elternteil in ergebnis.parentage %}
+                        <span class="font-medium">{{ elternteil.sex.label }}:</span> {{ elternteil.morphString }}{{ loop.last ? '' : ' × ' }}
+                    {% endfor %}
+                </p>
+
+                <p class="text-sm gedaempft">
+                    {{ t('genetik.gelege', {'eier': ergebnis.expectedClutchSize, 'tiere': ergebnis.expectedOffspringCount}) }}
+                </p>
+
+                {% include 'genetik/_verteilung.html.twig' with {'verteilung': ergebnis.offspringPhenotypes} only %}
+
+                {% if ergebnis.lethalShare > 0 %}
+                    <p class="text-sm font-semibold" style="color: var(--fehler-text, #b91c1c)">
+                        {{ t('genetik.letal_anteil', {'anteil': (ergebnis.lethalShare * 100)|number_format(1, ',', '.')}) }}
+                    </p>
+                {% endif %}
+
+                {% set maennlich = ergebnis.offspringPhenotypesBySex['m']|default({}) %}
+                {% set weiblich = ergebnis.offspringPhenotypesBySex['w']|default({}) %}
+                {% if maennlich != weiblich %}
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <div>
+                            <h3 class="text-sm font-semibold">{{ t('genetik.soehne') }}</h3>
+                            {% include 'genetik/_verteilung.html.twig' with {'verteilung': maennlich} only %}
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-semibold">{{ t('genetik.toechter') }}</h3>
+                            {% include 'genetik/_verteilung.html.twig' with {'verteilung': weiblich} only %}
+                        </div>
+                    </div>
+                {% endif %}
+
+                {% if ergebnis.warnings is not empty %}
+                    <div class="space-y-2">
+                        <h3 class="font-semibold">{{ t('genetik.warnungen') }}</h3>
+                        <ul class="space-y-2 text-sm">
+                            {% for warnung in ergebnis.warnings %}
+                                <li class="karte p-3 {{ warnung.severity.value == 'fehler' ? 'border-red-300' : (warnung.severity.value == 'warnung' ? 'border-amber-300' : '') }}">
+                                    <span class="font-medium">{{ warnung.severity.label }}:</span> {{ warnung.message }}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
+
+                {% if ergebnis.punnettFields is not empty %}
+                    <details class="space-y-2">
+                        <summary class="cursor-pointer font-semibold">{{ t('genetik.punnett') }}</summary>
+                        <p class="text-sm gedaempft">{{ t('genetik.punnett_erklaerung') }}</p>
+                        {% for feld in ergebnis.punnettFields %}
+                            <div class="space-y-1">
+                                <p class="text-sm font-medium">{{ feld.label }}</p>
+                                <table class="punnett text-sm">
+                                    <thead>
+                                        <tr>
+                                            <th></th>
+                                            {% for spalte in feld.columns %}<th scope="col">{{ spalte }}</th>{% endfor %}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for zeilenIndex, zeile in feld.grid %}
+                                            <tr>
+                                                <th scope="row">{{ feld.rows[zeilenIndex] }}</th>
+                                                {% for zelle in zeile %}
+                                                    <td {{ feld.isLethal(zelle) ? 'class="letal"' : '' }}>
+                                                        {{ zelle }}{{ feld.isLethal(zelle) ? ' †' : '' }}
+                                                    </td>
+                                                {% endfor %}
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% endfor %}
+                    </details>
+                {% endif %}
+
+                <p class="text-xs gedaempft">{{ t('genetik.fussnote') }}</p>
+            </section>
+        {% endif %}
+    </div>
+{% endblock %}

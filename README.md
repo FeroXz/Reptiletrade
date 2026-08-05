@@ -22,6 +22,7 @@ Architekturentscheidungen (Router, SQLite vs. PostgreSQL, Migrationsstrategie, K
 | 7 | Admin, DSGVO, Betrieb | umgesetzt |
 | 8 | Anzeigen verwalten (bearbeiten, pausieren, löschen) | umgesetzt |
 | 9 | Kontosperren, Kontaktformular, Rechtsseiten | umgesetzt |
+| 10 | Vererbungsrechnung (Verpaarungs-Simulator) | umgesetzt |
 
 ## Voraussetzungen
 
@@ -318,6 +319,103 @@ Die Aufrufe liegen in `listing_views` als eine Zeile je Anzeige und Tag statt je
 Statistik fragt immer nach Summen über Zeiträume, und Millionen Einzelzeilen liest niemand. Die
 Zahlen sieht ausschließlich der Anbieter selbst.
 
+## Vererbungsrechnung
+
+`/paarung/simulator` beantwortet die Frage, mit der jede Verpaarung anfängt: **Was fällt dabei
+heraus?** Zwei Elterntiere — aus den eigenen Anzeigen oder von Hand zusammengestellt — ergeben eine
+Verteilung der zu erwartenden Nachzucht, die Punnett-Quadrate dahinter, die Hinweise dazu und einen
+Bericht als PDF.
+
+Gerechnet wird **je Genort und erst danach kombiniert**. Ein Genort ist nicht dasselbe wie ein
+Merkmal: Zero und Witblits bei der Bartagame besetzen denselben Ort und können nur zusammen auf zwei
+Chromosomen liegen. Wer je Merkmal rechnet, bekommt Nachkommen heraus, die es nicht geben kann —
+deshalb bildet `LocusMap` den Merkmalskatalog erst auf Genorte ab (`allele_group` aus der Tabelle
+`morphs`), und `CrossSimulation` führt die Einzelfelder anschließend zusammen.
+
+| Erbgang | Klasse | Was ihn ausmacht |
+|---|---|---|
+| dominant | `DominantRule` | ein Allel genügt; homozygot sieht aus wie heterozygot |
+| rezessiv | `RecessiveRule` | sichtbar erst reinerbig; Mischerbige am selben Genort zeigen beide Merkmale |
+| unvollständig dominant | `CodominantRule` | homozygot ergibt die Superform (Silkback zu Leatherback) |
+| geschlechtsgebunden | `SexLinkedRule` | ZW/XY: das hemizygote Geschlecht zeigt schon eine Anlage |
+| polygen, liniengezüchtet | `PolygenicRule` | additives Modell, Tendenz statt Wahrscheinlichkeit |
+| Paradox | `NonHeritableRule` | keine Erbanlage — es wird nichts vorhergesagt |
+| homozygot letal | `LethalComboRule` | legt sich um einen Erbgang, statt ihn zu ersetzen |
+
+Drei Entscheidungen prägen das Ergebnis:
+
+**Unsichere Angaben werden nicht gerundet.** "66 % poss. het Clown" heißt: Das Tier trägt die Anlage
+mit zwei Dritteln Wahrscheinlichkeit. Daraus einen sicheren Träger zu machen verspricht Nachkommen,
+die es in einem Drittel der Fälle nicht geben kann; die Angabe zu verwerfen unterschlägt, was der
+Züchter weiß. `GenotypeFactory` rechnet stattdessen jede Möglichkeit einzeln durch und führt sie
+gewichtet zusammen.
+
+**Nicht lebensfähige Nachkommen werden ausgewiesen, nicht herausgekürzt.** Aus zwei Trägern eines
+homozygot letalen Merkmals fällt ein Viertel des Geleges nicht lebensfähig aus. Die Verteilung
+bezieht sich auf die lebensfähigen Tiere, der Ausfall steht daneben und geht in die erwartete
+Schlüpflingszahl ein. Ist *keine* lebensfähige Kombination möglich, gibt es kein Ergebnis mit
+Warnung, sondern eine `LethalCrossException`.
+
+**Geschlechtsgebundene Merkmale werden nach Geschlecht getrennt.** Bei Arten mit ZW-System (Bartagame,
+Königspython) bekommen Töchter ihr Z immer vom Vater: Aus einem sichtbaren Vater fallen ausnahmslos
+sichtbare Töchter, aus einer sichtbaren Mutter dagegen Söhne, die nur Träger sind. Ein gewöhnliches
+Punnett-Quadrat liefert für beide Richtungen dasselbe Ergebnis — und liegt in einer davon falsch.
+
+**Der Morph-String ist derselbe wie im Anzeigenassistenten.** Der Simulator beschreibt seine
+Nachkommen über denselben `GeneticsCalculator`, der den Morph-String einer Anzeige erzeugt. "Hypo het
+Zero" heißt an beiden Stellen dasselbe; zwei Schreibweisen wären im Marktplatz ein Suchproblem.
+
+### Was nicht aus dem Katalog kommt
+
+[`config/genetik.php`](config/genetik.php) trägt, was sich aus dem Merkmalskatalog nicht ableiten
+lässt: Superformen (dass "Silkback" die homozygote Leatherback ist, sieht man dem Namen nicht an),
+das Geschlechtschromosomen-System je Art (viele Reptilien bestimmen das Geschlecht über die
+Bruttemperatur und haben gar keines), Gelegegrößen und Schlupfquoten für die erwartete
+Schlüpflingszahl sowie Tierschutzhinweise zu Merkmalen wie Silkback, Spider oder Enigma. Die Hinweise
+erscheinen, sobald das Merkmal in der Nachzucht auftreten **kann** — nicht erst, wenn jemand es
+anbietet.
+
+### Berichte
+
+Jeder Lauf wird gespeichert (`genetics_simulations`, Ergebnis als JSON) und ist unter
+`/konto/genetik-berichte` wieder aufrufbar. Das JSON ist der Grund: Ein Bericht ist ein Beleg zu
+einem Zeitpunkt, kein Datenbestand, über den abgefragt wird — er darf sich nicht rückwirkend ändern,
+wenn der Merkmalskatalog gepflegt wird. `SimulationResult::fromArray()` baut ihn ohne Datenbank und
+ohne Katalog wieder auf, PDF und HTML entstehen daraus.
+
+Das PDF schreibt `Infra\Genetics\PdfDocument` selbst — Base-14-Schriften, WinAnsi-Kodierung, eigene
+Seitenumbrüche. Der übliche Weg wäre ein HTML-nach-PDF-Wandler, also ein vollständiger Browser als
+Abhängigkeit für eine Seite mit zwei Tabellen. Der Preis der Entscheidung ist, dass Bericht-HTML und
+Bericht-PDF getrennt gepflegt werden; dafür läuft der Download ohne Systemabhängigkeit.
+
+### Schnittstelle
+
+`POST /paarung/simulator` beantwortet dieselbe Anfrage als Seite oder als JSON, je nach `Accept`.
+Angemeldet, CSRF-geschützt und auf 60 Läufe je Konto und Stunde begrenzt.
+
+```
+POST /paarung/simulator
+Accept: application/json
+
+{
+  "_csrf": "…",
+  "art_id": 1,
+  "a_geschlecht": "m", "a_morph": {"3": "het"},
+  "b_geschlecht": "w", "b_morph": {"3": "het"}
+}
+```
+
+Statt `art_id` und `*_morph` kann `a_anzeige_id`/`b_anzeige_id` stehen — dann kommen Art, Geschlecht
+und Merkmale aus der Anzeige. Verschiedene Arten beantwortet die Schnittstelle mit **400 und einem
+Klartext** ("Die beiden Tiere gehören verschiedenen Arten an"), ein fremder Bericht mit **404, nicht
+403**.
+
+Der Rechner steht hinter einem Schalter: `config/genetik.php` beziehungsweise
+`GENETIK_SIMULATOR_ENABLED`, mit stufenweiser Freischaltung über `GENETIK_ROLLOUT_PROZENT` (Zuordnung
+über die Konto-ID, damit das Merkmal nicht zwischen zwei Klicks verschwindet). Ist es für ein Konto
+nicht freigeschaltet, antworten die Routen mit 404 — ein 403 wäre eine Auskunft über etwas, das es
+für dieses Konto nicht gibt.
+
 ## Monetarisierung — vorbereitet, nicht aktiviert
 
 `config/monetarisierung.php` steht auf `enabled => false`, der Zahlungsanbieter ist `keiner`. In
@@ -544,7 +642,7 @@ docs/         Architekturplan
 migrations/   Versionierte Migrationen, eine Datei je Migration
 public/       Front-Controller und Assets
 src/Domain/   Entitäten, Value Objects, Repository-Interfaces (framework- und PDO-frei)
-              Auth, Listing, Message, Moderation, Review, Trust, User, ...
+              Auth, Genetics, Listing, Message, Moderation, Review, Trust, User, ...
 src/Infra/    PDO-Repositories, Importer
 src/Http/     Controller, Middleware
 src/Infra/Payment/  Zahlungsanbieter (Null und Stripe als Referenz)

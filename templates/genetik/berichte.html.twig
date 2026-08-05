@@ -1,0 +1,54 @@
+{% extends 'layout/basis.html.twig' %}
+{% block titel %}{{ t('genetik.berichte') }} — Reptilienmarkt{% endblock %}
+{% block kopf %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block inhalt %}
+    <div class="mx-auto max-w-3xl space-y-6">
+        {% include 'partials/meldungen.html.twig' %}
+
+        <header class="flex flex-wrap items-baseline justify-between gap-3">
+            <h1 class="text-xl font-semibold">{{ t('genetik.berichte') }}</h1>
+            <a class="text-sm underline" href="/paarung/simulator">{{ t('genetik.zum_rechner') }}</a>
+        </header>
+
+        {% if berichte is empty %}
+            <p class="karte p-4 text-sm gedaempft">{{ t('genetik.keine_berichte') }}</p>
+        {% else %}
+            <ul class="space-y-2">
+                {% for bericht in berichte %}
+                    <li class="karte space-y-2 p-4">
+                        <div class="flex flex-wrap items-baseline justify-between gap-2">
+                            <span class="font-medium">{{ bericht.title }}</span>
+                            <span class="text-sm gedaempft">
+                                {{ bericht.createdAt ? bericht.createdAt|date('d.m.Y H:i') : '' }}
+                            </span>
+                        </div>
+
+                        <p class="text-sm gedaempft">{{ bericht.result.speciesName }}</p>
+
+                        <ul class="text-sm">
+                            {% for bezeichnung, anteil in bericht.result.offspringPhenotypes|slice(0, 3) %}
+                                <li>{{ bezeichnung }}: {{ (anteil * 100)|number_format(1, ',', '.') }} %</li>
+                            {% endfor %}
+                        </ul>
+
+                        {% if bericht.result.lethalShare > 0 %}
+                            <p class="text-sm font-semibold" style="color: var(--fehler-text, #b91c1c)">
+                                {{ t('genetik.letal') }}:
+                                {{ (bericht.result.lethalShare * 100)|number_format(1, ',', '.') }} %
+                            </p>
+                        {% endif %}
+
+                        <div class="flex flex-wrap items-center gap-3">
+                            <a class="knopf" href="/paarung/simulator/{{ bericht.id }}/pdf">{{ t('genetik.pdf') }}</a>
+                            <form method="post" action="/konto/genetik-berichte/{{ bericht.id }}/loeschen">
+                                <input type="hidden" name="_csrf" value="{{ csrf }}">
+                                <button type="submit" class="text-sm underline">{{ t('allgemein.loeschen') }}</button>
+                            </form>
+                        </div>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    </div>
+{% endblock %}

@@ -142,7 +142,12 @@ final readonly class MorphStringGenerator implements GeneticsCalculator
         $locus = mb_strtolower($entry->shortLabel());
 
         return match ($entry->morph->inheritance) {
-            Inheritance::Recessive => match ($entry->zygosity) {
+            // Geschlechtsgebundene Merkmale stehen hier wie rezessive. Die
+            // Kurzform der Anzeige kennt das Geschlecht nicht, und beim
+            // hemizygoten Geschlecht gaebe es streng genommen nur ein Allel —
+            // diese Unterscheidung trifft die Vererbungsrechnung
+            // (Domain\Genetics), nicht der Anzeigetext.
+            Inheritance::Recessive, Inheritance::SexLinked => match ($entry->zygosity) {
                 Zygosity::Visual => $locus . '/' . $locus,
                 Zygosity::Het => $locus . '/' . self::WILDTYPE,
                 Zygosity::PossHet66, Zygosity::PossHet50 => $locus . '/?',

@@ -1,0 +1,131 @@
+{# Der Bericht als eigenstaendige Seite: ohne Layout, ohne Navigation, mit
+   eigenem Stylesheet. Er wird ausgedruckt, weitergegeben und archiviert —
+   deshalb haengt er an nichts, was die Anwendung sonst mitliefert. #}
+<!doctype html>
+<html lang="de">
+<head>
+    <meta charset="utf-8">
+    <title>Genetik-Bericht — {{ ergebnis.speciesName }}</title>
+    <style>
+        body { font-family: Arial, Helvetica, sans-serif; margin: 2rem; color: #1f2937; line-height: 1.5; }
+        h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
+        h2 { font-size: 1.1rem; margin-top: 2rem; border-bottom: 1px solid #d1d5db; padding-bottom: 0.25rem; }
+        table { border-collapse: collapse; margin: 0.75rem 0; }
+        .punnett td, .punnett th { border: 1px solid #cbd5e1; padding: 0.4rem 0.75rem; text-align: center; }
+        .punnett th { background: #f1f5f9; }
+        .punnett td.letal { background: #fee2e2; }
+        .verteilung td { padding: 0.2rem 0.75rem 0.2rem 0; }
+        .balken { display: inline-block; height: 0.6rem; background: #2f6f4e; vertical-align: middle; }
+        .warnung { margin: 0.4rem 0; padding: 0.5rem 0.75rem; border-left: 4px solid #d97706; background: #fffbeb; }
+        .warnung.fehler { border-color: #b91c1c; background: #fef2f2; }
+        .fuss { margin-top: 2rem; font-size: 0.8rem; color: #6b7280; }
+        @media print { body { margin: 0; } }
+    </style>
+</head>
+<body>
+    <h1>Genetik-Bericht</h1>
+    <p>{{ ergebnis.speciesName }} · erstellt am {{ erstellt_am|date('d.m.Y H:i') }} Uhr</p>
+
+    <h2>Elterntiere</h2>
+    <table>
+        {% for elternteil in [eltern_a, eltern_b] %}
+            <tr>
+                <td><strong>{{ elternteil.sex.label }}</strong></td>
+                <td>{{ elternteil.morphString }}</td>
+                <td><code>{{ elternteil.genotypeString }}</code></td>
+            </tr>
+        {% endfor %}
+    </table>
+
+    <h2>Erwartete Nachzucht</h2>
+    <p>
+        Aus einem Gelege von etwa {{ ergebnis.expectedClutchSize }} Eiern sind rund
+        {{ ergebnis.expectedOffspringCount }} lebensfähige Schlüpflinge zu erwarten.
+        Die Anteile beziehen sich auf diese Tiere.
+    </p>
+
+    <table class="verteilung">
+        {% for bezeichnung, anteil in phaenotypen %}
+            <tr>
+                <td>{{ bezeichnung }}</td>
+                <td><span class="balken" style="width: {{ (anteil * 160)|round }}px"></span></td>
+                <td><strong>{{ (anteil * 100)|number_format(1, ',', '.') }} %</strong></td>
+            </tr>
+        {% endfor %}
+    </table>
+
+    {% if ergebnis.lethalShare > 0 %}
+        <p><strong>Nicht lebensfähig: {{ (ergebnis.lethalShare * 100)|number_format(1, ',', '.') }} %</strong>
+            der Nachkommen aus dieser Verpaarung.</p>
+    {% endif %}
+
+    {% set maennlich = nach_geschlecht['m']|default({}) %}
+    {% set weiblich = nach_geschlecht['w']|default({}) %}
+    {% if maennlich != weiblich %}
+        <h2>Nach Geschlecht</h2>
+        <table class="verteilung">
+            <tr><th style="text-align: left">Söhne</th><th></th></tr>
+            {% for bezeichnung, anteil in maennlich %}
+                <tr><td>{{ bezeichnung }}</td><td>{{ (anteil * 100)|number_format(1, ',', '.') }} %</td></tr>
+            {% endfor %}
+            <tr><th style="text-align: left">Töchter</th><th></th></tr>
+            {% for bezeichnung, anteil in weiblich %}
+                <tr><td>{{ bezeichnung }}</td><td>{{ (anteil * 100)|number_format(1, ',', '.') }} %</td></tr>
+            {% endfor %}
+        </table>
+    {% endif %}
+
+    {% if punnett is not empty %}
+        <h2>Punnett-Quadrate</h2>
+        <p>Ein Feld je Genort: oben die Allele des ersten Elterntiers, links die des zweiten.</p>
+
+        {% for feld in punnett %}
+            <p><strong>{{ feld.label }}</strong></p>
+            <table class="punnett">
+                <tr>
+                    <th></th>
+                    {% for spalte in feld.columns %}<th>{{ spalte }}</th>{% endfor %}
+                </tr>
+                {% for zeilenIndex, zeile in feld.grid %}
+                    <tr>
+                        <th>{{ feld.rows[zeilenIndex] }}</th>
+                        {% for zelle in zeile %}
+                            <td class="{{ feld.isLethal(zelle) ? 'letal' : '' }}">
+                                {{ zelle }}{{ feld.isLethal(zelle) ? ' †' : '' }}
+                            </td>
+                        {% endfor %}
+                    </tr>
+                {% endfor %}
+            </table>
+        {% endfor %}
+        <p>† nicht lebensfähig</p>
+    {% endif %}
+
+    {% if warnungen is not empty %}
+        <h2>Hinweise</h2>
+        {% for warnung in warnungen %}
+            <p class="warnung {{ warnung.severity.value == 'fehler' ? 'fehler' : '' }}">
+                <strong>{{ warnung.severity.label }}:</strong> {{ warnung.message }}
+            </p>
+        {% endfor %}
+    {% endif %}
+
+    {% if genotypen is not empty %}
+        <h2>Genotypen</h2>
+        <table class="verteilung">
+            {% for kurzform, anteil in genotypen %}
+                <tr>
+                    <td><code>{{ kurzform }}</code></td>
+                    <td>{{ (anteil * 100)|number_format(1, ',', '.') }} %</td>
+                </tr>
+            {% endfor %}
+        </table>
+    {% endif %}
+
+    <p class="fuss">
+        Die Angaben sind eine Rechnung nach den Mendelschen Regeln auf Grundlage der angegebenen Merkmale.
+        Sie sagen voraus, was zu erwarten ist — nicht, was in einem einzelnen Gelege eintritt.
+        Anlagen, von denen niemand weiß, sind darin nicht enthalten.
+    </p>
+</body>
+</html>

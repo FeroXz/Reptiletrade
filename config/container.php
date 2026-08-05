@@ -23,6 +23,9 @@ use Reptilienmarkt\Domain\Breeding\BreedingAnnouncementRepository;
 use Reptilienmarkt\Domain\Breeding\BreedingAnnouncementService;
 use Reptilienmarkt\Domain\Contact\ContactRepository;
 use Reptilienmarkt\Domain\Contact\ContactService;
+use Reptilienmarkt\Domain\Genetics\CrossSimulation;
+use Reptilienmarkt\Domain\Genetics\GeneticsConfiguration;
+use Reptilienmarkt\Domain\Genetics\GeneticsSimulationRepository;
 use Reptilienmarkt\Domain\Geo\PostalCodeRepository;
 use Reptilienmarkt\Domain\Identity\IdentityProvider;
 use Reptilienmarkt\Domain\Identity\LocalIdentityProvider;
@@ -77,6 +80,7 @@ use Reptilienmarkt\Http\Controller\ApiController;
 use Reptilienmarkt\Http\Controller\AuthController;
 use Reptilienmarkt\Http\Controller\BillingController;
 use Reptilienmarkt\Http\Controller\ContactController;
+use Reptilienmarkt\Http\Controller\GeneticsController;
 use Reptilienmarkt\Http\Controller\LegalDocumentController;
 use Reptilienmarkt\Http\Controller\LegalPageController;
 use Reptilienmarkt\Http\Controller\ListingController;
@@ -101,6 +105,7 @@ use Reptilienmarkt\Http\Session\SessionManager;
 use Reptilienmarkt\Http\Session\Viewer;
 use Reptilienmarkt\Http\View\TwigFactory;
 use Reptilienmarkt\Http\View\ViewContext;
+use Reptilienmarkt\Infra\Genetics\PdfReportGenerator;
 use Reptilienmarkt\Infra\Job\Handler\BanExpiryHandler;
 use Reptilienmarkt\Infra\Job\Handler\BoostExpiryHandler;
 use Reptilienmarkt\Infra\Job\Handler\ListingArchiveHandler;
@@ -122,6 +127,7 @@ use Reptilienmarkt\Infra\Persistence\PdoBreederProfileRepository;
 use Reptilienmarkt\Infra\Persistence\PdoBreedingAnnouncementRepository;
 use Reptilienmarkt\Infra\Persistence\PdoContactRepository;
 use Reptilienmarkt\Infra\Persistence\PdoConversationRepository;
+use Reptilienmarkt\Infra\Persistence\PdoGeneticsSimulationRepository;
 use Reptilienmarkt\Infra\Persistence\PdoJobRepository;
 use Reptilienmarkt\Infra\Persistence\PdoLegalDocumentRepository;
 use Reptilienmarkt\Infra\Persistence\PdoLegalTextRepository;
@@ -800,6 +806,50 @@ $container->set(AnnouncementController::class, static fn(Container $c): Announce
     $c->get(Viewer::class),
     $c->get(SessionManager::class),
     $c->get(Environment::class),
+));
+
+// ------------------------------------------ Vererbungsrechnung (Phase 10)
+// Der Schalter steht in config/genetik.php; das Setting "genetik.enabled"
+// sticht ihn zur Laufzeit, und rollout_percentage gibt das Merkmal
+// stufenweise frei.
+$container->set(GeneticsConfiguration::class, static function (Container $c) use ($root): GeneticsConfiguration {
+    /** @var array<string, mixed> $config */
+    $config = require $root . '/config/genetik.php';
+
+    return new GeneticsConfiguration($config, $c->get(Settings::class));
+});
+
+$container->set(GeneticsSimulationRepository::class, static fn(Container $c): GeneticsSimulationRepository => new PdoGeneticsSimulationRepository($c->get(Database::class)));
+
+// Die Simulation nutzt denselben GeneticsCalculator wie der
+// Anzeigenassistent: Ein Nachkomme "Hypo het Zero" heisst im Bericht genau so
+// wie in der Anzeige, die spaeter daraus wird.
+$container->set(CrossSimulation::class, static fn(Container $c): CrossSimulation => new CrossSimulation(
+    $c->get(MorphRepository::class),
+    $c->get(SpeciesRepository::class),
+    $c->get(GeneticsConfiguration::class),
+    $c->get(Clock::class),
+    $c->get(GeneticsCalculator::class),
+));
+
+$container->set(PdfReportGenerator::class, static fn(Container $c): PdfReportGenerator => new PdfReportGenerator(
+    $c->get(Environment::class),
+));
+
+$container->set(GeneticsController::class, static fn(Container $c): GeneticsController => new GeneticsController(
+    $c->get(CrossSimulation::class),
+    $c->get(GeneticsSimulationRepository::class),
+    $c->get(PdfReportGenerator::class),
+    $c->get(GeneticsConfiguration::class),
+    $c->get(ListingRepository::class),
+    $c->get(SpeciesRepository::class),
+    $c->get(MorphRepository::class),
+    $c->get(RateLimiter::class),
+    $c->get(Viewer::class),
+    $c->get(SessionManager::class),
+    $c->get(Environment::class),
+    $c->get(Logger::class),
+    $c->get(Clock::class),
 ));
 
 // ------------------------------------------- Auftraege und Betrieb (Phase 7)
