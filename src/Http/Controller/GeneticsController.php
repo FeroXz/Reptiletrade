@@ -87,8 +87,8 @@ final readonly class GeneticsController
         }
 
         try {
-            $first = $this->animal($payload, 'a');
-            $second = $this->animal($payload, 'b');
+            $first = $this->animal($payload, 'a', $user);
+            $second = $this->animal($payload, 'b', $user);
         } catch (HttpException $exception) {
             return $this->fail($request, $exception->getMessage(), $exception->status);
         }
@@ -243,14 +243,20 @@ final readonly class GeneticsController
      *
      * @param array<string, mixed> $payload
      */
-    private function animal(array $payload, string $prefix): BreedingAnimal
+    private function animal(array $payload, string $prefix, User $user): BreedingAnimal
     {
         $listingId = $this->intOrNull($payload, $prefix . '_anzeige_id');
 
         if ($listingId !== null) {
             $listing = $this->listings->findById($listingId);
 
-            if ($listing === null || $listing->id === null) {
+            // Dieselbe Sichtbarkeitsregel wie auf der Detailseite: Ein Entwurf,
+            // eine pausierte oder gesperrte Anzeige gehoert nur ihrem Anbieter.
+            // Ohne diese Pruefung waere der Rechner ein Leseweg auf fremde
+            // Entwuerfe — Titel, Geschlecht und Merkmale stehen in der Antwort.
+            $ownListing = $listing !== null && $listing->belongsTo($user->id ?? 0);
+
+            if ($listing === null || $listing->id === null || (!$ownListing && !$listing->status->isPubliclyVisible())) {
                 throw HttpException::notFound(\sprintf('Die Anzeige %d gibt es nicht.', $listingId));
             }
 
@@ -263,7 +269,7 @@ final readonly class GeneticsController
                 $this->listings->morphSelections($listing->id),
                 \sprintf(
                     '%s – %s',
-                    $species?->commonNameDe ?? 'Anzeige',
+                    $species === null ? 'Anzeige' : $species->commonNameDe,
                     $listing->title !== '' ? $listing->title : 'Anzeige #' . $listing->id,
                 ),
             );

@@ -160,6 +160,10 @@ final readonly class SpeciesCatalogService
             }
         }
 
+        foreach ($this->mixedAlleleGroups($geprueft) as $meldung) {
+            $fehler[] = $meldung;
+        }
+
         if ($fehler !== []) {
             return new ImportResult(0, 0, $fehler);
         }
@@ -198,6 +202,79 @@ final readonly class SpeciesCatalogService
     }
 
     // -------------------------------------------------------- Hilfsmittel
+
+    /**
+     * Merkmale einer Allelgruppe besetzen denselben Genort — und ein Genort hat
+     * genau einen Erbgang.
+     *
+     * Ohne diese Pruefung geht ein Katalog durch, in dem Zero rezessiv und ein
+     * Merkmal derselben Gruppe dominant vererbt wird. Die Vererbungsrechnung
+     * (Domain\Genetics\LocusMap) muesste sich dann fuer einen der beiden
+     * entscheiden und lieferte still falsche Wahrscheinlichkeiten. Ein
+     * abgelehnter Import ist besser als eine Zahl, die niemand nachrechnet.
+     *
+     * Geprueft wird gegen den Bestand, nicht nur gegen die Datei: Ein
+     * Teilimport kann eine bestehende Gruppe genauso mischen wie ein
+     * vollstaendiger.
+     *
+     * @param list<Morph> $importiert
+     *
+     * @return list<string>
+     */
+    private function mixedAlleleGroups(array $importiert): array
+    {
+        /** @var array<string, array{art: int, gruppe: string, erbgaenge: array<string, true>}> $gruppen */
+        $gruppen = [];
+        $namen = [];
+
+        foreach ($importiert as $morph) {
+            $namen[$morph->speciesId . "\0" . $morph->name] = true;
+
+            if ($morph->alleleGroup === null) {
+                continue;
+            }
+
+            $schluessel = $morph->speciesId . "\0" . $morph->alleleGroup;
+            $gruppen[$schluessel] ??= ['art' => $morph->speciesId, 'gruppe' => $morph->alleleGroup, 'erbgaenge' => []];
+            $gruppen[$schluessel]['erbgaenge'][$morph->inheritance->value] = true;
+        }
+
+        // Der Bestand zaehlt mit — ausser bei Merkmalen, die der Import selbst
+        // ueberschreibt.
+        foreach (array_unique(array_column($importiert, 'speciesId')) as $speciesId) {
+            foreach ($this->morphs->forSpecies($speciesId) as $vorhanden) {
+                if ($vorhanden->alleleGroup === null || isset($namen[$speciesId . "\0" . $vorhanden->name])) {
+                    continue;
+                }
+
+                $schluessel = $speciesId . "\0" . $vorhanden->alleleGroup;
+
+                if (!isset($gruppen[$schluessel])) {
+                    continue;
+                }
+
+                $gruppen[$schluessel]['erbgaenge'][$vorhanden->inheritance->value] = true;
+            }
+        }
+
+        $meldungen = [];
+        foreach ($gruppen as $gruppe) {
+            if (\count($gruppe['erbgaenge']) < 2) {
+                continue;
+            }
+
+            $erbgaenge = array_keys($gruppe['erbgaenge']);
+            sort($erbgaenge);
+
+            $meldungen[] = \sprintf(
+                'Allelgruppe "%s": Merkmale eines Genorts brauchen denselben Erbgang, angegeben sind %s.',
+                $gruppe['gruppe'],
+                implode(' und ', $erbgaenge),
+            );
+        }
+
+        return $meldungen;
+    }
 
     /**
      * @param list<string> $columns
@@ -293,7 +370,8 @@ final readonly class SpeciesCatalogService
         $zeilen = [];
 
         while (($werte = fgetcsv($handle, 0, ',', '"', '\\')) !== false) {
-            if ($werte === [null] || $werte === []) {
+            // Eine Leerzeile liefert [null] — ein leeres Array gibt fgetcsv nie zurueck.
+            if ($werte === [null]) {
                 continue;
             }
 

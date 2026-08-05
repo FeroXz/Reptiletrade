@@ -130,6 +130,101 @@ final class SpeciesCatalogServiceTest extends DatabaseTestCase
         self::assertStringContainsString('nicht im Bestand', $ergebnis->errors[0]);
     }
 
+    /**
+     * Merkmale einer Allelgruppe sitzen auf demselben Genort und haben deshalb
+     * denselben Erbgang. Ohne diese Pruefung rechnet die Vererbungsrechnung
+     * still mit einem der beiden — und liefert falsche Wahrscheinlichkeiten.
+     */
+    public function testEineAllelgruppeMitZweiErbgaengenWirdAbgelehnt(): void
+    {
+        $this->createSpecies('Pogona vitticeps', 'pogona-vitticeps');
+
+        $json = json_encode([
+            [
+                'species_scientific_name' => 'Pogona vitticeps',
+                'name' => 'Zero',
+                'inheritance' => 'recessive',
+                'allele_group' => 'zero_witblits',
+            ],
+            [
+                'species_scientific_name' => 'Pogona vitticeps',
+                'name' => 'Witblits',
+                'inheritance' => 'dominant',
+                'allele_group' => 'zero_witblits',
+            ],
+        ], \JSON_THROW_ON_ERROR);
+
+        $ergebnis = $this->catalog->importMorphs($json, 'json');
+
+        self::assertSame(0, $ergebnis->created);
+        self::assertCount(1, $ergebnis->errors);
+        self::assertStringContainsString('zero_witblits', $ergebnis->errors[0]);
+        self::assertStringContainsString('denselben Erbgang', $ergebnis->errors[0]);
+    }
+
+    /**
+     * Auch der Bestand zaehlt mit: Ein Teilimport darf eine bestehende Gruppe
+     * nicht nachtraeglich mischen.
+     */
+    public function testEinTeilimportDarfEineBestehendeGruppeNichtMischen(): void
+    {
+        $artId = $this->createSpecies('Pogona vitticeps', 'pogona-vitticeps');
+
+        $this->database->execute(
+            "INSERT INTO morphs (species_id, name, inheritance, allele_group, aliases, created_at, updated_at)
+             VALUES (:art, 'Zero', 'recessive', 'zero_witblits', '[]', :now, :now)",
+            ['art' => $artId, 'now' => gmdate('Y-m-d\TH:i:s\Z')],
+        );
+
+        $json = json_encode([[
+            'species_scientific_name' => 'Pogona vitticeps',
+            'name' => 'Witblits',
+            'inheritance' => 'incomplete_dominant',
+            'allele_group' => 'zero_witblits',
+        ]], \JSON_THROW_ON_ERROR);
+
+        $ergebnis = $this->catalog->importMorphs($json, 'json');
+
+        self::assertSame(0, $ergebnis->created);
+        self::assertCount(1, $ergebnis->errors);
+    }
+
+    /**
+     * Wird das bestehende Merkmal vom Import selbst ueberschrieben, ist die
+     * Gruppe danach wieder einheitlich — das muss durchgehen.
+     */
+    public function testEinImportDarfDenErbgangEinerGanzenGruppeAendern(): void
+    {
+        $artId = $this->createSpecies('Pogona vitticeps', 'pogona-vitticeps');
+
+        $this->database->execute(
+            "INSERT INTO morphs (species_id, name, inheritance, allele_group, aliases, created_at, updated_at)
+             VALUES (:art, 'Zero', 'recessive', 'zero_witblits', '[]', :now, :now)",
+            ['art' => $artId, 'now' => gmdate('Y-m-d\TH:i:s\Z')],
+        );
+
+        $json = json_encode([
+            [
+                'species_scientific_name' => 'Pogona vitticeps',
+                'name' => 'Zero',
+                'inheritance' => 'incomplete_dominant',
+                'allele_group' => 'zero_witblits',
+            ],
+            [
+                'species_scientific_name' => 'Pogona vitticeps',
+                'name' => 'Witblits',
+                'inheritance' => 'incomplete_dominant',
+                'allele_group' => 'zero_witblits',
+            ],
+        ], \JSON_THROW_ON_ERROR);
+
+        $ergebnis = $this->catalog->importMorphs($json, 'json');
+
+        self::assertSame([], $ergebnis->errors);
+        self::assertSame(1, $ergebnis->created);
+        self::assertSame(1, $ergebnis->updated);
+    }
+
     public function testLegtMorphsMitAliasenUndErbgangAn(): void
     {
         $artId = $this->createSpecies('Python regius', 'python-regius');

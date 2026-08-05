@@ -129,6 +129,7 @@
                 {% set maennlich = ergebnis.offspringPhenotypesBySex['m']|default({}) %}
                 {% set weiblich = ergebnis.offspringPhenotypesBySex['w']|default({}) %}
                 {% if maennlich != weiblich %}
+                    <h3 class="font-semibold">{{ t('genetik.nach_geschlecht') }}</h3>
                     <div class="grid gap-4 sm:grid-cols-2">
                         <div>
                             <h3 class="text-sm font-semibold">{{ t('genetik.soehne') }}</h3>

@@ -267,6 +267,18 @@ echo "\nAnzeigenverwaltung\n";
 
 $verwaltung = $containerFabrik();
 $anzeigeId = (int) (string) $database->scalar("SELECT id FROM listings WHERE status = 'aktiv' ORDER BY id LIMIT 1");
+
+// Ohne aktive Anzeige laeuft der Abschnitt gegen die ID 0 und bricht mit einem
+// 404 ab, aus dem niemand die eigentliche Ursache liest. Die Voraussetzung
+// gehoert deshalb vor den ersten Aufruf, mit dem Befehl, der sie herstellt.
+if ($anzeigeId === 0) {
+    fwrite(\STDERR, "\nAbbruch: In der Datenbank steht keine aktive Anzeige.\n"
+        . "Der Abschnitt \"Anzeigenverwaltung\" braucht eine — anlegen mit:\n"
+        . "  APP_ENV=local php tools/generate_demo_listings.php --anzahl=50\n");
+
+    exit(1);
+}
+
 $besitzerId = (int) (string) $database->scalar('SELECT user_id FROM listings WHERE id = :id', ['id' => $anzeigeId]);
 
 $liste = $admin->get('/admin/anzeigen');
