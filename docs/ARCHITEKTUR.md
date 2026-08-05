@@ -58,6 +58,8 @@ src/Domain/
                   BnatschgStatus(enum), CareLevel(enum), SpeciesRepository, MorphRepository
   Listing/        Listing, ListingMorph, Zygosity(enum), ListingType(enum), ListingStatus(enum),
                   Sex(enum), CbStatus(enum), Handover(enum), ListingRepository, MorphStringGenerator
+  Genetics/       Genotype, Phenotype, Locus, LocusMap, Punnett, InheritanceRule (+ Erbgaenge),
+                  CrossSimulation, SimulationResult, GeneticsConfiguration, SexSystem(enum)
   Geo/            PostalCode, Country(enum), Coordinates, BoundingBox, Distance, PostalCodeRepository
   User/           User, Role(enum), VerificationLevel(enum), UserRepository, IdentityProvider
   Trust/          Review, Report, ReportReason(enum), ReviewRepository, ReportRepository
@@ -69,6 +71,7 @@ src/Infra/
   Persistence/    Database, Pdo*Repository, Mapper, Migrator, Migration
   Search/         SearchIndex, Fts5SearchIndex
   Storage/        FileStorage, PrivateStorage, ImagePipeline (EXIF-Strip, WebP, Thumbs)
+  Genetics/       PdfReportGenerator, PdfDocument (eigener PDF-Schreiber, keine Fremdbibliothek)
   Mail/           Mailer, Translator-gestützte Templates
 src/Http/         Kernel, Router, Route, Middleware/*, Controller/*, Message/*
 src/Support/      Env, Clock, Translator, Slugger, Json

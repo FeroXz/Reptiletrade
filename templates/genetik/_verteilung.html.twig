@@ -1,0 +1,13 @@
+{# Eine Verteilung als Liste mit Balken. Ohne Diagrammbibliothek — dieselbe
+   Darstellung wie in der Anzeigenstatistik. #}
+<ul class="space-y-1 text-sm">
+    {% for bezeichnung, anteil in verteilung %}
+        <li class="flex items-center gap-3">
+            <span class="w-56 shrink-0">{{ bezeichnung }}</span>
+            <span class="h-2 grow rounded" style="background: var(--rand, #e5e7eb)">
+                <span class="block h-2 rounded" style="width: {{ (anteil * 100)|round(1) }}%; background: var(--primaer, #2f6f4e)"></span>
+            </span>
+            <span class="w-16 shrink-0 text-right font-medium">{{ (anteil * 100)|number_format(1, ',', '.') }} %</span>
+        </li>
+    {% endfor %}
+</ul>

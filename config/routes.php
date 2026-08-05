@@ -11,6 +11,7 @@ use Reptilienmarkt\Http\Controller\ApiController;
 use Reptilienmarkt\Http\Controller\AuthController;
 use Reptilienmarkt\Http\Controller\BillingController;
 use Reptilienmarkt\Http\Controller\ContactController;
+use Reptilienmarkt\Http\Controller\GeneticsController;
 use Reptilienmarkt\Http\Controller\LegalDocumentController;
 use Reptilienmarkt\Http\Controller\LegalPageController;
 use Reptilienmarkt\Http\Controller\ListingController;
@@ -109,6 +110,14 @@ $router->post('/api/v1/zahlungen/webhook', BillingController::class, 'webhook', 
 $router->get('/konto/nachzuchten', AnnouncementController::class, 'index', 'nachzuchten');
 $router->post('/konto/nachzuchten', AnnouncementController::class, 'create', 'nachzuchten.anlegen');
 $router->post('/konto/nachzuchten/{id}/status', AnnouncementController::class, 'changeStatus', 'nachzuchten.status');
+
+// Vererbungsrechner. Der POST beantwortet dieselbe Anfrage als Seite oder als
+// JSON — je nachdem, was der Aufrufer im Accept-Kopf verlangt.
+$router->get('/paarung/simulator', GeneticsController::class, 'form', 'genetik.rechner');
+$router->post('/paarung/simulator', GeneticsController::class, 'simulate', 'genetik.rechnen');
+$router->get('/paarung/simulator/{id}/pdf', GeneticsController::class, 'downloadPdf', 'genetik.pdf');
+$router->get('/konto/genetik-berichte', GeneticsController::class, 'myReports', 'genetik.berichte');
+$router->post('/konto/genetik-berichte/{id}/loeschen', GeneticsController::class, 'deleteReport', 'genetik.bericht.loeschen');
 
 // DSGVO: Datenauskunft und Kontoloeschung
 $router->get('/konto/daten', PrivacyController::class, 'show', 'daten');
