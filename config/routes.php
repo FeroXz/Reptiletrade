@@ -135,6 +135,8 @@ $router->post('/admin/nutzer/{id}/entsperren', AdminUserController::class, 'unba
 $router->post('/admin/nutzer/{id}/loeschen', AdminUserController::class, 'delete', 'admin.nutzer.loeschen');
 $router->get('/admin/kontakt', AdminUserController::class, 'contactQueue', 'admin.kontakt');
 $router->post('/admin/kontakt/{id}/erledigt', AdminUserController::class, 'resolveContact', 'admin.kontakt.erledigt');
+$router->get('/admin/texte', AdminController::class, 'texts', 'admin.texte');
+$router->post('/admin/texte', AdminController::class, 'saveTexts', 'admin.texte.speichern');
 $router->get('/admin/artenstamm', AdminController::class, 'catalog', 'admin.artenstamm');
 $router->get('/admin/artenstamm/{art}/export', AdminController::class, 'exportCatalog', 'admin.artenstamm.export');
 $router->post('/admin/artenstamm/{art}/import', AdminController::class, 'importCatalog', 'admin.artenstamm.import');

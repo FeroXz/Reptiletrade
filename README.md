@@ -594,6 +594,36 @@ Sitzungs-Cookie, und das ist nach § 25 Abs. 2 Nr. 2 TDDDG technisch erforderlic
 Analyse, keine Werbenetze, keine eingebetteten Fremdinhalte — nichts, wofür eine Einwilligung nötig
 wäre.
 
+## Texte der Oberfläche
+
+`/admin/texte` zeigt der Verwaltung **jede Beschriftung und jede Meldung der Oberfläche** — 274
+Einträge, nach Bereichen gegliedert und durchsuchbar. Was dort geändert wird, gilt sofort, ohne
+Deployment und ohne Dateizugriff auf dem Server.
+
+Geändert wird nicht der Katalog, sondern eine **Überschreibung**: Die ausgelieferten Texte bleiben in
+[`lang/de-DE.php`](lang/de-DE.php), die Änderung liegt in `ui_texts` daneben. Der Grund ist die
+Aktualisierbarkeit — der Katalog gehört zum Stand der Anwendung, wird mit ihr ausgeliefert und mit
+ihr geprüft (ein Test vergleicht die in den Templates verwendeten Schlüssel gegen den Katalog). Wer
+ihn in die Datenbank verschöbe, hätte nach dem nächsten Deployment Texte, die zur Oberfläche nicht
+mehr passen, und keinen Test, der es merkt. So steht neben jeder Änderung der Originaltext, und ein
+Klick stellt ihn wieder her.
+
+Drei Regeln hält der `UiTextService` durch:
+
+| Regel | Warum |
+|---|---|
+| Nur Schlüssel, die es gibt | Ein Text, den kein Template abruft, wäre ein Eintrag, den niemand sieht |
+| Platzhalter müssen erhalten bleiben | Aus „Der Code gilt {minuten} Minuten" darf kein „Der Code gilt kurz" werden — die Zahl fehlte dann für immer, und auffallen würde es erst dem Nutzer |
+| Der ausgelieferte Text wird nicht gespeichert | Wer ihn wieder einträgt, meint „zurück auf Anfang" und bekommt keinen Eintrag „geändert auf denselben Text" |
+
+Jede Änderung und jedes Zurücksetzen steht im Audit-Log (`text.updated`, `text.reset`) — ein Text,
+der plötzlich anders lautet, lässt sich zurückverfolgen. Zugriff hat **nur die Rolle `admin`**; die
+Moderation reicht nicht, denn wer Texte ändert, ändert, was die Plattform ihren Nutzern zusagt.
+
+> Rechtstexte gehören **nicht** hierher. AGB, Widerrufsbelehrung und Datenschutzerklärung liegen
+> versioniert in `legal_texts` mit Stand und Prüfdatum — sie brauchen eine Fassungsgeschichte, keine
+> Überschreibung.
+
 ## Datenschutz
 
 `/konto/daten` bündelt beide Betroffenenrechte, ohne Rückfrage und ohne Begründungspflicht:

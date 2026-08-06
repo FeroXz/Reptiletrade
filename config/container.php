@@ -56,6 +56,8 @@ use Reptilienmarkt\Domain\Search\ListingSearchRepository;
 use Reptilienmarkt\Domain\Search\SearchIndex;
 use Reptilienmarkt\Domain\Setting\Settings;
 use Reptilienmarkt\Domain\Site\SiteIdentity;
+use Reptilienmarkt\Domain\Site\TextOverrideRepository;
+use Reptilienmarkt\Domain\Site\UiTextService;
 use Reptilienmarkt\Domain\Species\MorphRepository;
 use Reptilienmarkt\Domain\Species\SpeciesRepository;
 use Reptilienmarkt\Domain\Trust\AutoModerationPolicy;
@@ -144,6 +146,7 @@ use Reptilienmarkt\Infra\Persistence\PdoSessionRepository;
 use Reptilienmarkt\Infra\Persistence\PdoSettings;
 use Reptilienmarkt\Infra\Persistence\PdoSpeciesRepository;
 use Reptilienmarkt\Infra\Persistence\PdoSubscriptionRepository;
+use Reptilienmarkt\Infra\Persistence\PdoTextOverrideRepository;
 use Reptilienmarkt\Infra\Persistence\PdoTokenRepository;
 use Reptilienmarkt\Infra\Persistence\PdoUserDocumentRepository;
 use Reptilienmarkt\Infra\Persistence\PdoUserRepository;
@@ -167,6 +170,7 @@ use Reptilienmarkt\Support\Log\JsonLogger;
 use Reptilienmarkt\Support\Log\Logger;
 use Reptilienmarkt\Support\Log\LogLevel;
 use Reptilienmarkt\Support\SystemClock;
+use Reptilienmarkt\Support\TranslationOverrides;
 use Reptilienmarkt\Support\Translator;
 use Twig\Environment;
 
@@ -240,9 +244,28 @@ $container->set(IdentityProvider::class, static function (): IdentityProvider {
     };
 });
 
-$container->set(Translator::class, static fn(): Translator => new Translator(
+// Die Textueberschreibungen der Verwaltung liegen ueber dem ausgelieferten
+// Katalog. Dieselbe Instanz bedient den Uebersetzer und die Textverwaltung —
+// sonst saehe die eine die Aenderungen der anderen erst beim naechsten Aufruf.
+// Eine Instanz, zwei Sichten: Der Uebersetzer sieht die Ueberschreibungen
+// (TranslationOverrides), die Verwaltung schreibt sie (TextOverrideRepository).
+// Zwei Instanzen haetten zwei Zwischenspeicher — und der Uebersetzer bekaeme
+// eine Aenderung im selben Aufruf nicht mit.
+$container->set(PdoTextOverrideRepository::class, static fn(Container $c): PdoTextOverrideRepository => new PdoTextOverrideRepository($c->get(Database::class)));
+$container->set(TextOverrideRepository::class, static fn(Container $c): TextOverrideRepository => $c->get(PdoTextOverrideRepository::class));
+$container->set(TranslationOverrides::class, static fn(Container $c): TranslationOverrides => $c->get(PdoTextOverrideRepository::class));
+
+$container->set(Translator::class, static fn(Container $c): Translator => new Translator(
     $root . '/lang',
     Env::string('APP_LOCALE', Translator::BASE_LOCALE),
+    $c->get(TranslationOverrides::class),
+));
+
+$container->set(UiTextService::class, static fn(Container $c): UiTextService => new UiTextService(
+    $c->get(Translator::class),
+    $c->get(TextOverrideRepository::class),
+    $c->get(AuditLog::class),
+    $c->get(Clock::class),
 ));
 
 // --------------------------------------------------------------- Rechts-Engine
@@ -968,8 +991,10 @@ $container->set(AdminController::class, static fn(Container $c): AdminController
     $c->get(SpeciesCatalogService::class),
     $c->get(JobRepository::class),
     $c->get(RetentionPolicy::class),
+    $c->get(UiTextService::class),
     $c->get(Viewer::class),
     $c->get(SessionManager::class),
+    $c->get(Translator::class),
     $c->get(Environment::class),
 ));
 
