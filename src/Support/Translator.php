@@ -15,6 +15,12 @@ use RuntimeException;
  * laeuft, und der Fehler faellt sofort auf.
  *
  * Platzhalter stehen in geschweiften Klammern: "Noch {anzahl} Tage".
+ *
+ * Ueber dem Dateikatalog liegen die Ueberschreibungen der Verwaltung. Die
+ * Reihenfolge ist damit: Ueberschreibung der Sprache, Datei der Sprache,
+ * Ueberschreibung der Basissprache, Datei der Basissprache. Ohne
+ * Ueberschreibungsquelle verhaelt sich der Uebersetzer wie zuvor — bin/-Skripte
+ * und Tests bauen ihn weiterhin mit einem Verzeichnis und sonst nichts.
  */
 final class Translator
 {
@@ -29,6 +35,7 @@ final class Translator
     public function __construct(
         private readonly string $directory,
         private string $locale = self::BASE_LOCALE,
+        private readonly ?TranslationOverrides $overrides = null,
     ) {}
 
     public function locale(): string
@@ -90,11 +97,48 @@ final class Translator
         return array_values($this->missing);
     }
 
+    /**
+     * Alle Schluessel des ausgelieferten Katalogs — die Liste, aus der die
+     * Textverwaltung ihre Ansicht baut. Ueberschreibungen bringen keine neuen
+     * Schluessel hervor: Was in keinem Template steht, ist auch nicht
+     * aenderbar.
+     *
+     * @return list<string>
+     */
+    public function keys(?string $locale = null): array
+    {
+        return array_keys($this->catalogue($locale ?? self::BASE_LOCALE));
+    }
+
+    /**
+     * Der ausgelieferte Text ohne Ueberschreibung.
+     *
+     * Die Verwaltung braucht ihn zweimal: als Vergleich neben dem geaenderten
+     * Text und als Ziel des Zuruecksetzens.
+     */
+    public function original(string $key, ?string $locale = null): ?string
+    {
+        $locale ??= $this->locale;
+
+        return $this->catalogue($locale)[$key] ?? $this->catalogue(self::BASE_LOCALE)[$key] ?? null;
+    }
+
     private function lookup(string $locale, string $key): ?string
     {
-        $catalogue = $this->catalogue($locale);
+        return $this->overrides($locale)[$key] ?? $this->catalogue($locale)[$key] ?? null;
+    }
 
-        return $catalogue[$key] ?? null;
+    /**
+     * Bewusst ohne eigenen Zwischenspeicher: Sonst zeigte der Uebersetzer nach
+     * einer Textaenderung im selben Aufruf noch den alten Stand. Das
+     * Zwischenspeichern ist Sache der Ueberschreibungsquelle — sie weiss, wann
+     * sie ungueltig wird.
+     *
+     * @return array<string, string>
+     */
+    private function overrides(string $locale): array
+    {
+        return $this->overrides?->forLocale($locale) ?? [];
     }
 
     /**

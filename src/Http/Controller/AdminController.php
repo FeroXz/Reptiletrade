@@ -9,6 +9,8 @@ use Reptilienmarkt\Domain\Admin\DashboardService;
 use Reptilienmarkt\Domain\Admin\SpeciesCatalogService;
 use Reptilienmarkt\Domain\Job\JobRepository;
 use Reptilienmarkt\Domain\Privacy\RetentionPolicy;
+use Reptilienmarkt\Domain\Site\TextException;
+use Reptilienmarkt\Domain\Site\UiTextService;
 use Reptilienmarkt\Domain\User\Role;
 use Reptilienmarkt\Domain\User\User;
 use Reptilienmarkt\Http\HttpException;
@@ -17,6 +19,7 @@ use Reptilienmarkt\Http\Message\Response;
 use Reptilienmarkt\Http\Session\SessionManager;
 use Reptilienmarkt\Http\Session\Viewer;
 use Reptilienmarkt\Legal\Disclaimer;
+use Reptilienmarkt\Support\Translator;
 use Twig\Environment;
 
 /**
@@ -32,8 +35,10 @@ final readonly class AdminController
         private SpeciesCatalogService $catalog,
         private JobRepository $jobs,
         private RetentionPolicy $retention,
+        private UiTextService $texts,
         private Viewer $currentUser,
         private SessionManager $session,
+        private Translator $translator,
         private Environment $twig,
     ) {}
 
@@ -45,6 +50,7 @@ final readonly class AdminController
             'kennzahlen' => $this->dashboard->stats(),
             'fehlgeschlagene_jobs' => $this->jobs->recentFailures(10),
             'fristen' => $this->retention->all(),
+            'geaenderte_texte' => $this->texts->changedCount(),
             'disclaimer_titel' => Disclaimer::TITLE,
             'disclaimer_text' => Disclaimer::BODY,
             'csrf' => $this->session->csrfToken(),
@@ -126,6 +132,115 @@ final readonly class AdminController
         $this->session->flash($ergebnis->isSuccessful() ? 'erfolg' : 'fehler', $ergebnis->message());
 
         return Response::redirect('/admin/artenstamm');
+    }
+
+    /**
+     * GET /admin/texte
+     *
+     * Alle Oberflaechentexte auf einer Seite: links der ausgelieferte Text,
+     * rechts der, den die Besucher sehen. Gegliedert nach Bereichen und
+     * durchsuchbar — 274 Texte in einer Liste findet niemand.
+     */
+    public function texts(Request $request): Response
+    {
+        $this->requireAdmin();
+
+        $suche = $request->queryString('q');
+        $bereich = $request->queryString('bereich');
+
+        return Response::html($this->twig->render('admin/texte.html.twig', [
+            'texte' => $this->texts->all($suche, $bereich),
+            'bereiche' => $this->texts->sections(),
+            'suche' => $suche ?? '',
+            'bereich' => $bereich ?? '',
+            'geaendert' => $this->texts->changedCount(),
+            'max_laenge' => UiTextService::MAX_LENGTH,
+            'csrf' => $this->session->csrfToken(),
+            'meldungen' => $this->session->takeFlashes(),
+        ]));
+    }
+
+    /**
+     * POST /admin/texte
+     *
+     * Ein Formular, zwei Aktionen: Speichern schreibt alle geaenderten Felder
+     * der aktuellen Ansicht, der Zuruecksetzen-Knopf einer Zeile traegt ihren
+     * Schluessel. Ohne Javascript, mit einer einzigen Absendung.
+     */
+    public function saveTexts(Request $request): Response
+    {
+        $admin = $this->requireAdmin();
+        $this->guardCsrf($request);
+
+        $ziel = '/admin/texte' . $this->filterQuery($request);
+        $zuruecksetzen = $request->body['zuruecksetzen'] ?? null;
+
+        if (\is_string($zuruecksetzen) && $zuruecksetzen !== '') {
+            $this->texts->reset($zuruecksetzen, $admin->id);
+            $this->session->flash('erfolg', $this->translator->translate('admin.texte.zurueckgesetzt'));
+
+            return Response::redirect($ziel);
+        }
+
+        $eingaben = $request->body['texte'] ?? [];
+
+        if (!\is_array($eingaben)) {
+            return Response::redirect($ziel);
+        }
+
+        $geaendert = 0;
+        $fehler = [];
+
+        foreach ($eingaben as $schluessel => $wert) {
+            if (!\is_string($schluessel) || !\is_string($wert)) {
+                continue;
+            }
+
+            $vorher = $this->texts->find($schluessel);
+
+            // Unveraenderte Felder gar nicht erst anfassen: Sonst stuende nach
+            // jedem Absenden die halbe Oberflaeche im Aenderungsprotokoll.
+            if ($vorher === null || trim($wert) === $vorher->current) {
+                continue;
+            }
+
+            try {
+                $this->texts->update($schluessel, $wert, $admin->id);
+                ++$geaendert;
+            } catch (TextException $exception) {
+                $fehler[] = $exception->getMessage();
+            }
+        }
+
+        foreach ($fehler as $meldung) {
+            $this->session->flash('fehler', $meldung);
+        }
+
+        if ($geaendert > 0) {
+            $this->session->flash('erfolg', $this->translator->choose('admin.texte.gespeichert', $geaendert));
+        } elseif ($fehler === []) {
+            $this->session->flash('hinweis', $this->translator->translate('admin.texte.unveraendert'));
+        }
+
+        return Response::redirect($ziel);
+    }
+
+    /**
+     * Suche und Bereich ueberleben das Speichern — sonst steht die Verwaltung
+     * nach jeder Aenderung wieder am Anfang der Liste.
+     */
+    private function filterQuery(Request $request): string
+    {
+        $parameter = [];
+
+        foreach (['q', 'bereich'] as $name) {
+            $wert = $request->body[$name] ?? null;
+            if (\is_string($wert) && $wert !== '') {
+                $parameter[$name] = $wert;
+            }
+        }
+
+        return $parameter === [] ? '' : '?' . http_build_query($parameter);
     }
 
     private function requireAdmin(): User

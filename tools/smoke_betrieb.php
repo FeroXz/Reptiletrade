@@ -529,6 +529,48 @@ pruefe(
     'die Fehlerliste fehlt',
 );
 
+// -------------------------------------------------- 4a) Texte der Oberflaeche
+echo "\nTexte\n";
+
+$texte = $admin->get('/admin/texte');
+pruefe($texte->status === 200, 'Die Textverwaltung antwortet mit 200', 'Status ' . $texte->status);
+pruefe(
+    str_contains($texte->body, 'postfach.titel'),
+    'Sie listet die Schluessel des Sprachkatalogs',
+    'der Schluessel postfach.titel fehlt',
+);
+
+$ohneRechteTexte = $ohneRechte->get('/admin/texte');
+pruefe($ohneRechteTexte->status === 404, 'Fuer Nichtadmins ist sie nicht vorhanden', 'Status ' . $ohneRechteTexte->status);
+
+// Der eigentliche Nachweis: Der geaenderte Text steht danach auf der Seite,
+// auf der er verwendet wird — nicht nur in der Verwaltung.
+$admin->post('/admin/texte', ['texte' => ['postfach.titel' => 'Nachrichtenzentrale']]);
+$postfach = $admin->get('/postfach/');
+pruefe(
+    str_contains($postfach->body, 'Nachrichtenzentrale'),
+    'Ein geaenderter Text erscheint sofort in der Oberflaeche',
+    'im Postfach steht noch der alte Text',
+);
+
+// Platzhalter sind Pflicht: Ohne {minuten} bliebe im Text eine Luecke, die
+// erst dem Nutzer auffiele.
+$admin->post('/admin/texte', ['texte' => ['konto.telefon_code_gesendet' => 'Der Code ist unterwegs.']]);
+$nachAblehnung = $admin->get('/admin/texte?q=konto.telefon_code_gesendet');
+pruefe(
+    str_contains($nachAblehnung->body, '{minuten}'),
+    'Ein Text ohne den noetigen Platzhalter wird abgewiesen',
+    'der Platzhalter wurde stillschweigend entfernt',
+);
+
+$admin->post('/admin/texte', ['zuruecksetzen' => 'postfach.titel']);
+$postfachZurueck = $admin->get('/postfach/');
+pruefe(
+    str_contains($postfachZurueck->body, 'Postfach') && !str_contains($postfachZurueck->body, 'Nachrichtenzentrale'),
+    'Zuruecksetzen stellt den ausgelieferten Text wieder her',
+    'der geaenderte Text steht noch',
+);
+
 // ------------------------------------------- 4b) Kontosperren durch die Verwaltung
 echo "\nKontosperren\n";
 
