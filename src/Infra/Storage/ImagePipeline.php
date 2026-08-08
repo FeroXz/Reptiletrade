@@ -82,6 +82,74 @@ final readonly class ImagePipeline
         );
     }
 
+    /**
+     * Verarbeitet dasselbe Quellbild in mehrere Kantenlaengen.
+     *
+     * Gebraucht von der Mediathek fuer srcset (400/800/1600). Dieselbe
+     * Verarbeitung wie process(): dekodieren, EXIF-Ausrichtung einrechnen, auf
+     * frische Leinwand kopieren, als WebP schreiben. Damit ueberlebt auch hier
+     * kein Metadatenblock — es gibt schlicht nichts zu uebertragen.
+     *
+     * Die Groessen werden absteigend abgearbeitet und jeweils aus der
+     * vorherigen, groesseren Leinwand gezogen: Das ist schneller als jedes Mal
+     * aus dem Original und bei diesen Faktoren nicht sichtbar schlechter.
+     *
+     * @param array<int, string> $targets maximale Kantenlaenge => Zielpfad
+     *
+     * @return array<int, ProcessedImage> Kantenlaenge => Ergebnis
+     *
+     * @throws ImageException
+     */
+    public function processVariants(string $sourcePath, array $targets): array
+    {
+        if ($targets === []) {
+            throw new ImageException('Es wurde keine Zielgroesse angegeben.');
+        }
+
+        $this->guardFile($sourcePath);
+
+        krsort($targets);
+
+        $image = $this->decode($sourcePath);
+        $results = [];
+
+        try {
+            $image = $this->applyExifOrientation($image, $sourcePath);
+            $current = $image;
+
+            foreach ($targets as $edge => $targetPath) {
+                $resized = $this->resize($current, $edge);
+
+                // Die grosse Fassung bekommt die hoehere Qualitaet: Sie wird
+                // vergroessert betrachtet, die kleinen sind Vorschauen.
+                $this->writeWebp($resized, $targetPath, $edge >= self::MAX_EDGE ? $this->quality : $this->thumbQuality);
+
+                $size = filesize($targetPath);
+                $results[$edge] = new ProcessedImage(
+                    $targetPath,
+                    $targetPath,
+                    imagesx($resized),
+                    imagesy($resized),
+                    $size === false ? 0 : $size,
+                );
+
+                if ($current !== $image) {
+                    imagedestroy($current);
+                }
+
+                $current = $resized;
+            }
+
+            if ($current !== $image) {
+                imagedestroy($current);
+            }
+        } finally {
+            imagedestroy($image);
+        }
+
+        return $results;
+    }
+
     private function guardFile(string $path): void
     {
         if (!is_file($path)) {

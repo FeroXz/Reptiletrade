@@ -1,0 +1,86 @@
+{% extends 'layout/basis.html.twig' %}
+{% block titel %}{{ t('admin.medien.titel') }} — Reptilienmarkt{% endblock %}
+{% block kopf %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block inhalt %}
+    <div class="mx-auto max-w-5xl space-y-6">
+        {% include 'partials/meldungen.html.twig' %}
+
+        <div class="flex flex-wrap items-baseline justify-between gap-3">
+            <div>
+                <h1 class="text-xl font-semibold">{{ t('admin.medien.titel') }}</h1>
+                <p class="gedaempft">{{ t('admin.medien.erklaerung') }}</p>
+            </div>
+            <a class="text-sm underline" href="/admin/inhalte">{{ t('admin.inhalt.titel') }}</a>
+        </div>
+
+        <form method="post" action="/admin/medien" enctype="multipart/form-data"
+              class="karte flex flex-wrap items-end gap-3 p-4">
+            <input type="hidden" name="_csrf" value="{{ csrf }}">
+            <div class="grow">
+                <label class="text-sm" for="bild">{{ t('admin.medien.hochladen') }}</label>
+                <input class="feld" id="bild" type="file" name="bild" accept="image/jpeg,image/png,image/webp" required
+                       aria-describedby="upload-hilfe">
+                <p class="mt-1 text-xs gedaempft" id="upload-hilfe">{{ t('admin.medien.upload_hilfe') }}</p>
+            </div>
+            <button type="submit" class="knopf knopf-primaer">{{ t('admin.medien.senden') }}</button>
+        </form>
+
+        <form method="get" action="/admin/medien" class="karte flex flex-wrap items-end gap-3 p-4">
+            <div class="grow">
+                <label class="text-sm" for="q">{{ t('admin.medien.suche') }}</label>
+                <input class="feld" id="q" type="search" name="q" value="{{ suche }}">
+            </div>
+            <button type="submit" class="knopf">{{ t('admin.inhalt.filtern') }}</button>
+        </form>
+
+        <p class="text-sm gedaempft">{{ tw('admin.medien.anzahl', gesamt) }}</p>
+
+        {% if medien is empty %}
+            <p class="karte p-6 text-sm gedaempft">{{ t('admin.medien.leer') }}</p>
+        {% else %}
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {% for medium in medien %}
+                    <article class="karte space-y-3 p-4">
+                        <img src="{{ medium.variantUrl(400) }}" alt=""
+                             width="400" height="{{ medium.heightFor(400) }}"
+                             loading="lazy" decoding="async" class="w-full rounded">
+
+                        <p class="text-xs gedaempft">
+                            #{{ medium.id }} · {{ medium.width }}×{{ medium.height }} ·
+                            {{ (medium.byteSize / 1024)|round }} kB
+                        </p>
+                        <p class="truncate text-sm" title="{{ medium.originalFilename }}">{{ medium.originalFilename }}</p>
+
+                        <form method="post" action="/admin/medien/{{ medium.id }}/beschreiben" class="space-y-2">
+                            <input type="hidden" name="_csrf" value="{{ csrf }}">
+                            <label class="text-xs" for="alt-{{ medium.id }}">{{ t('admin.medien.alt_vorschlag') }}</label>
+                            <input class="feld text-sm" id="alt-{{ medium.id }}" name="alt_text" value="{{ medium.altText }}">
+                            <label class="text-xs" for="bu-{{ medium.id }}">{{ t('admin.inhalt.block_bildunterschrift') }}</label>
+                            <input class="feld text-sm" id="bu-{{ medium.id }}" name="bildunterschrift" value="{{ medium.caption }}">
+                            <button type="submit" class="knopf text-xs">{{ t('allgemein.speichern') }}</button>
+                        </form>
+
+                        <p class="text-xs gedaempft">
+                            {{ tw('admin.medien.verwendungen', verwendungen[medium.id]|default(0)) }}
+                        </p>
+
+                        <a class="text-xs underline" href="/admin/medien/{{ medium.id }}/loeschen">{{ t('allgemein.loeschen') }}</a>
+                    </article>
+                {% endfor %}
+            </div>
+
+            {% if gesamt > pro_seite %}
+                <nav class="flex items-center justify-between gap-4 pt-4" aria-label="{{ t('admin.medien.blaettern') }}">
+                    {% if seite > 1 %}
+                        <a class="knopf" rel="prev" href="/admin/medien?seite={{ seite - 1 }}{{ suche ? '&q=' ~ suche : '' }}">{{ t('allgemein.zurueck') }}</a>
+                    {% else %}<span></span>{% endif %}
+
+                    {% if seite * pro_seite < gesamt %}
+                        <a class="knopf" rel="next" href="/admin/medien?seite={{ seite + 1 }}{{ suche ? '&q=' ~ suche : '' }}">{{ t('allgemein.weiter') }}</a>
+                    {% endif %}
+                </nav>
+            {% endif %}
+        {% endif %}
+    </div>
+{% endblock %}

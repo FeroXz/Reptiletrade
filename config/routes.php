@@ -6,6 +6,7 @@ use Reptilienmarkt\Http\Controller\AccountController;
 use Reptilienmarkt\Http\Controller\AdminContentController;
 use Reptilienmarkt\Http\Controller\AdminController;
 use Reptilienmarkt\Http\Controller\AdminListingController;
+use Reptilienmarkt\Http\Controller\AdminMediaController;
 use Reptilienmarkt\Http\Controller\AdminUserController;
 use Reptilienmarkt\Http\Controller\AnnouncementController;
 use Reptilienmarkt\Http\Controller\ApiController;
@@ -158,6 +159,13 @@ $router->post('/admin/inhalte/{id}/loeschen', AdminContentController::class, 'de
 $router->get('/admin/inhalte/{id}/versionen', AdminContentController::class, 'revisions', 'admin.inhalte.versionen');
 $router->post('/admin/inhalte/{id}/versionen/{nr}/zuruecksetzen', AdminContentController::class, 'restore', 'admin.inhalte.zuruecksetzen');
 $router->post('/admin/inhalte/{id}/vorschau', AdminContentController::class, 'preview', 'admin.inhalte.vorschau');
+
+// Mediathek. Loeschen ist zweistufig: erst die Verwendungen zeigen, dann loeschen.
+$router->get('/admin/medien', AdminMediaController::class, 'index', 'admin.medien');
+$router->post('/admin/medien', AdminMediaController::class, 'upload', 'admin.medien.hochladen');
+$router->post('/admin/medien/{id}/beschreiben', AdminMediaController::class, 'describe', 'admin.medien.beschreiben');
+$router->get('/admin/medien/{id}/loeschen', AdminMediaController::class, 'confirmDelete', 'admin.medien.loeschen.fragen');
+$router->post('/admin/medien/{id}/loeschen', AdminMediaController::class, 'delete', 'admin.medien.loeschen');
 
 // Moderation
 $router->get('/moderation/', ModerationController::class, 'queue', 'moderation');

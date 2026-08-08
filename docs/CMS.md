@@ -176,6 +176,32 @@ Suchindex landet, verrät den Entwurf allen. Unbekanntes und abgelaufenes Token 
 Antwort — wer probiert, soll nicht erfahren, ob er einen echten Link erwischt hat, der nur zu
 spät kam. Abgelaufene Links räumt derselbe Auftrag ab, der veröffentlicht.
 
+### E11 — Mediathek getrennt von `listing_media`
+
+Zwei Tabellen, weil es zwei verschiedene Dinge sind: Ein Anzeigenbild gehört einer Anzeige,
+verschwindet mit ihr und wird nie wiederverwendet. Ein Redaktionsbild steht auf mehreren
+Seiten, überlebt jede einzelne davon und trägt eine Beschreibung, die zum Zusammenhang passt.
+Eine gemeinsame Tabelle hätte für beide Fälle die falschen Löschregeln.
+
+Dedupliziert wird über den `sha256` des **verarbeiteten** WebP, nicht der hochgeladenen Datei:
+Zwei JPEGs desselben Motivs mit unterschiedlicher Kompression ergeben dasselbe WebP, und genau
+das soll einmal in der Mediathek stehen.
+
+Der `alt_text` steht am Medium nur als **Vorschlag**; verbindlich ist der am Bildblock.
+Dasselbe Foto heißt auf der Artenseite „Ausgewachsenes Weibchen der Bartagame" und im Beitrag
+über Beleuchtung „Terrarium mit UV-Lampe über dem Sonnenplatz" — ein Alternativtext am Medium
+wäre für einen der beiden Fälle falsch.
+
+`MediaService` liegt in `src/Infra/Storage/`, nicht in `src/Domain/Content/`: Er hängt an GD
+und am Dateisystem. Er kennt die Domain (Entitäten, Repository-Interfaces), nicht umgekehrt —
+dieselbe Richtung wie bei den Anzeigenbildern.
+
+`ImagePipeline` bekommt dafür `processVariants()` — dieselbe Verarbeitung wie `process()`, nur
+in mehrere Kantenlängen (400/800/1600). Die Größen werden absteigend aus der jeweils
+vorherigen, größeren Leinwand gezogen; das ist schneller als jedes Mal aus dem Original und bei
+diesen Faktoren nicht sichtbar schlechter. `srcset` bietet keine Größe an, die über der
+Originalbreite liegt — ein hochskaliertes Bild kostet Bandbreite ohne Gewinn.
+
 ### E10 — Zurücknehmen legt keine Weiterleitung an
 
 `veroeffentlicht` → `entwurf` entfernt die Seite aus dem öffentlichen Bestand, ohne eine 301
@@ -283,6 +309,6 @@ Slug-Kollision mit einer registrierten Route.
 | 10.2 | Markdown-/Blockrenderer, Templates, Reservierungsliste, Catch-all | erledigt |
 | 10.3 | Verwaltungsoberfläche, Redaktionsberechtigung, Audit | erledigt |
 | 10.4 | Revisionen, Vorschau-Token, Planung, Auftrag `content.publish` | erledigt |
-| 10.5 | Medienverwaltung, `media_usages`, `srcset` | offen |
+| 10.5 | Medienverwaltung, `media_usages`, `srcset` | erledigt |
 | 10.6 | Beiträge, Kategorien, `/news/`, `/feed.xml`, FTS5 | offen |
 | 10.7 | Menüs, Weiterleitungen, SEO, `sitemap.xml`, `robots.txt` | offen |

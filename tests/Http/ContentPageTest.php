@@ -21,6 +21,7 @@ use Reptilienmarkt\Http\View\TwigFactory;
 use Reptilienmarkt\Infra\Persistence\PdoContentBlockRepository;
 use Reptilienmarkt\Infra\Persistence\PdoContentEntryRepository;
 use Reptilienmarkt\Infra\Persistence\PdoListingRepository;
+use Reptilienmarkt\Infra\Persistence\PdoMediaRepository;
 use Reptilienmarkt\Infra\Persistence\PdoPreviewTokenRepository;
 use Reptilienmarkt\Infra\Persistence\PdoSpeciesRepository;
 use Reptilienmarkt\Support\Translator;
@@ -56,6 +57,7 @@ final class ContentPageTest extends DatabaseTestCase
                 new MarkdownRenderer(),
                 new PdoListingRepository($this->database),
                 new PdoSpeciesRepository($this->database),
+                new PdoMediaRepository($this->database),
             ),
             new PreviewService(new PdoPreviewTokenRepository($this->database), new FrozenClock(new DateTimeImmutable('2026-08-08T10:00:00+00:00'))),
             TwigFactory::create($root . '/templates', true, null, new Translator($root . '/lang')),

@@ -33,16 +33,22 @@ use Reptilienmarkt\Domain\User\VerificationRepository;
 use Reptilienmarkt\Http\Kernel;
 use Reptilienmarkt\Http\Message\Request;
 use Reptilienmarkt\Http\Message\Response;
+use Reptilienmarkt\Http\Message\UploadedFile;
 use Reptilienmarkt\Http\Session\SessionManager;
 use Reptilienmarkt\Infra\Persistence\Database;
 use Reptilienmarkt\Infra\Persistence\Migrator;
 use Reptilienmarkt\Support\Clock;
 use Reptilienmarkt\Support\Container;
 use Reptilienmarkt\Support\Env;
+use Reptilienmarkt\Tests\Support\JpegWithGps;
 
 $root = dirname(__DIR__);
 
 require $root . '/vendor/autoload.php';
+
+// JpegWithGps liegt bei den Testhelfern: Das Fixture soll es genau einmal
+// geben, sonst laufen zwei Fassungen desselben EXIF-Blocks auseinander.
+require $root . '/tests/Support/JpegWithGps.php';
 
 $behalten = in_array('--behalten', $argv, true);
 
@@ -53,6 +59,7 @@ verzeichnisLeeren($arbeitsverzeichnis);
 @mkdir($arbeitsverzeichnis . '/public', 0o775, true);
 @mkdir($arbeitsverzeichnis . '/private', 0o770, true);
 @mkdir($arbeitsverzeichnis . '/logs', 0o775, true);
+@mkdir($arbeitsverzeichnis . '/media', 0o775, true);
 
 $envDatei = $arbeitsverzeichnis . '/env';
 file_put_contents($envDatei, implode("\n", [
@@ -63,6 +70,7 @@ file_put_contents($envDatei, implode("\n", [
     'DB_DRIVER=sqlite',
     'DB_DATABASE=storage/smoke10/db/smoke.sqlite',
     'STORAGE_PUBLIC=storage/smoke10/public',
+    'STORAGE_MEDIA=storage/smoke10/media',
     'STORAGE_PRIVATE=storage/smoke10/private',
     'LOG_DIRECTORY=storage/smoke10/logs',
     'LOG_LEVEL=debug',
@@ -299,7 +307,80 @@ pruefe(
     'der Entwurf war oeffentlich',
 );
 
-// ---------------------------------------------------------- 7) Fassungen
+// ------------------------------------------------------------ 7) Medien
+echo "\nMediathek\n";
+
+pruefe($redaktion->get('/admin/medien')->status === 200, 'Die Mediathek rendert', 'kein 200');
+
+$quelle = $arbeitsverzeichnis . '/quelle.jpg';
+JpegWithGps::create($quelle);
+pruefe(is_array(@exif_read_data($quelle)), 'Das Quellbild traegt wirklich GPS-Daten', 'kein EXIF im Quellbild');
+
+$redaktion->upload('/admin/medien', [], ['bild' => datei($quelle, 'urlaubsfoto.jpg')]);
+
+$medium = $container->get(Database::class)->selectOne('SELECT id, path FROM media ORDER BY id DESC LIMIT 1');
+pruefe($medium !== null, 'Das Bild liegt in der Mediathek', 'kein Eintrag in media');
+
+$mediumId = (int) ($medium['id'] ?? 0);
+$mediumPfad = (string) ($medium['path'] ?? '');
+$ablage = $root . '/storage/smoke10/media/';
+
+foreach ([400, 800, 1600] as $kante) {
+    $variante = $kante === 1600 ? $mediumPfad : preg_replace('/\.webp$/', '-' . $kante . '.webp', $mediumPfad);
+    pruefe(is_file($ablage . $variante), 'Die Fassung ' . $kante . ' px entsteht', 'fehlt: ' . $variante);
+}
+
+pruefe(
+    @exif_read_data($ablage . $mediumPfad) === false,
+    'Das abgelegte Bild traegt keine Metadaten mehr',
+    'EXIF ueberlebte die Verarbeitung',
+);
+
+// Das Bild einbinden — danach muss die Loeschsperre greifen.
+$redaktion->post('/admin/inhalte/' . $seiteId . '/bearbeiten', [
+    'titel' => 'Haltung im Terrarium',
+    'slug' => 'haltung-im-terrarium',
+    'vorlage' => 'standard',
+    'block' => [
+        ['typ' => 'text', 'text' => "## Grundlagen\n\nEin **wichtiger** Satz mit [Markt](/markt/)."],
+        ['typ' => 'bild', 'media_id' => (string) $mediumId, 'alt_text' => 'Eine Bartagame auf Sand'],
+    ],
+    'aktion' => 'speichern',
+]);
+
+$verwendungen = (int) $container->get(Database::class)->scalar(
+    'SELECT COUNT(*) FROM media_usages WHERE media_id = :id',
+    ['id' => $mediumId],
+);
+pruefe($verwendungen === 1, 'Die Verwendung wird beim Speichern mitgeschrieben', $verwendungen . ' Verwendungen');
+
+$fragen = $redaktion->get('/admin/medien/' . $mediumId . '/loeschen');
+pruefe(
+    str_contains($fragen->body, 'Haltung im Terrarium'),
+    'Vor dem Loeschen wird gezeigt, wo das Bild steht',
+    'die Verwendung fehlt in der Rueckfrage',
+);
+
+$redaktion->sendPost('/admin/medien/' . $mediumId . '/loeschen', []);
+pruefe(
+    $container->get(Database::class)->selectOne('SELECT id FROM media WHERE id = :id', ['id' => $mediumId]) !== null,
+    'Ein verwendetes Bild laesst sich nicht loeschen',
+    'das Bild wurde trotz Verwendung geloescht',
+);
+
+$oeffentlich = $gast->get('/haltung-im-terrarium/');
+pruefe(
+    str_contains($oeffentlich->body, 'srcset='),
+    'Das eingebundene Bild wird mit srcset ausgeliefert',
+    'kein srcset im Markup',
+);
+pruefe(
+    str_contains($oeffentlich->body, 'alt="Eine Bartagame auf Sand"'),
+    'Die Bildbeschreibung steht im Markup',
+    'kein alt-Attribut',
+);
+
+// ---------------------------------------------------------- 8) Fassungen
 echo "\nFassungen\n";
 
 $versionen = $redaktion->get('/admin/inhalte/' . $seiteId . '/versionen');
@@ -327,7 +408,7 @@ $titel = (string) $container->get(Database::class)->scalar(
 );
 pruefe($titel === 'Haltung im Terrarium', 'Das Zuruecksetzen stellt den Titel wieder her', 'Titel ist: ' . $titel);
 
-// ------------------------------------------------------ 8) Statuswechsel
+// ------------------------------------------------------ 9) Statuswechsel
 echo "\nStatuswechsel\n";
 
 $redaktion->post('/admin/inhalte/' . $seiteId . '/zuruecknehmen', []);
@@ -347,7 +428,7 @@ pruefe(
     'Status ' . $archiviert->status,
 );
 
-// ------------------------------------------------------------ 6) Loeschen
+// ------------------------------------------------------------ 10) Loeschen
 echo "\nAufraeumen\n";
 
 $redaktion->post('/admin/inhalte/' . $seiteId . '/loeschen', []);
@@ -452,6 +533,53 @@ final class RedaktionsBrowser
         return is_string($location) ? $location : '';
     }
 
+    /**
+     * @param array<string, mixed>        $body
+     * @param array<string, UploadedFile> $files
+     */
+    public function upload(string $path, array $body, array $files): string
+    {
+        $response = $this->send(new Request(
+            'POST',
+            $path,
+            [],
+            $body + ['_csrf' => $this->csrf],
+            $this->headers(),
+            [],
+            $this->cookies(),
+            $this->ip,
+            $files,
+        ));
+
+        if ($response->status < 300 || $response->status >= 400) {
+            fehler(sprintf('POST %s antwortete mit %d: %s', $path, $response->status, strip_tags($response->body)));
+        }
+
+        $location = $response->headers['location'] ?? '';
+
+        return is_string($location) ? $location : '';
+    }
+
+    /**
+     * Wie post(), aber ohne Pruefung der Weiterleitung — fuer Faelle, in denen
+     * gerade die Abweisung das erwartete Ergebnis ist.
+     *
+     * @param array<string, mixed> $body
+     */
+    public function sendPost(string $path, array $body): Response
+    {
+        return $this->send(new Request(
+            'POST',
+            $path,
+            [],
+            $body + ['_csrf' => $this->csrf],
+            $this->headers(),
+            [],
+            $this->cookies(),
+            $this->ip,
+        ));
+    }
+
     private function send(Request $request): Response
     {
         $response = ($this->container)()->get(Kernel::class)->handle($request);
@@ -489,6 +617,15 @@ final class RedaktionsBrowser
     {
         return ['user-agent' => 'Rauchtest/1.0', 'accept' => 'text/html'];
     }
+}
+
+function datei(string $quelle, string $name): UploadedFile
+{
+    // Der Upload-Pfad verschiebt die Datei, deshalb je Upload eine Kopie.
+    $kopie = $quelle . '.' . bin2hex(random_bytes(3));
+    copy($quelle, $kopie);
+
+    return new UploadedFile($kopie, $name, 'image/jpeg', (int) filesize($kopie));
 }
 
 function pruefe(bool $bedingung, string $erwartet, string $tatsaechlich): void

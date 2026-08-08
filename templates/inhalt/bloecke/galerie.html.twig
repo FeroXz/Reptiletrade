@@ -1,14 +1,16 @@
-{% if block.data.bilder is defined %}
-    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {% for bild in block.data.bilder %}
-            <figure class="space-y-1">
-                <img src="{{ bild.pfad }}" alt="{{ bild.alt_text|default('') }}"
-                     width="{{ bild.breite|default(0) }}" height="{{ bild.hoehe|default(0) }}"
-                     loading="lazy" decoding="async" class="w-full rounded">
-                {% if bild.bildunterschrift is defined and bild.bildunterschrift %}
-                    <figcaption class="text-sm gedaempft">{{ bild.bildunterschrift }}</figcaption>
-                {% endif %}
-            </figure>
-        {% endfor %}
-    </div>
-{% endif %}
+{# Kleinere Kacheln, also kleinere Fassung als Ausgangspunkt. #}
+<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    {% for bild in block.data.bilder %}
+        <figure class="space-y-1">
+            <img src="{{ bild.variantUrl(400) }}"
+                 srcset="{{ bild.srcset() }}"
+                 sizes="(min-width: 64rem) 20rem, (min-width: 40rem) 45vw, 100vw"
+                 alt="{{ bild.altText }}"
+                 width="400" height="{{ bild.heightFor(400) }}"
+                 loading="lazy" decoding="async" class="w-full rounded">
+            {% if bild.caption %}
+                <figcaption class="text-sm gedaempft">{{ bild.caption }}</figcaption>
+            {% endif %}
+        </figure>
+    {% endfor %}
+</div>

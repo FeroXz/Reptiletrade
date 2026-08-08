@@ -1,0 +1,51 @@
+{% extends 'layout/basis.html.twig' %}
+{% block titel %}{{ t('admin.medien.loeschen_titel') }} — Reptilienmarkt{% endblock %}
+{% block kopf %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block inhalt %}
+    <div class="mx-auto max-w-2xl space-y-6">
+        {% include 'partials/meldungen.html.twig' %}
+
+        <h1 class="text-xl font-semibold">{{ t('admin.medien.loeschen_titel') }}</h1>
+
+        <div class="karte space-y-4 p-6">
+            <img src="{{ medium.variantUrl(400) }}" alt=""
+                 width="400" height="{{ medium.heightFor(400) }}" class="rounded">
+
+            <p class="text-sm gedaempft">
+                #{{ medium.id }} · {{ medium.originalFilename }} · {{ medium.width }}×{{ medium.height }}
+            </p>
+
+            {% if verwendungen is empty %}
+                <p class="text-sm">{{ t('admin.medien.keine_verwendung') }}</p>
+
+                <form method="post" action="/admin/medien/{{ medium.id }}/loeschen">
+                    <input type="hidden" name="_csrf" value="{{ csrf }}">
+                    <button type="submit" class="knopf knopf-primaer">{{ t('admin.medien.endgueltig_loeschen') }}</button>
+                </form>
+            {% else %}
+                {# Erst zeigen, dann fragen: Wer ein Bild von drei Seiten
+                   wegnimmt, sieht diese drei Seiten nicht. #}
+                <p class="text-sm">{{ tw('admin.medien.steht_noch', verwendungen|length) }}</p>
+
+                <ul class="space-y-2 text-sm">
+                    {% for verwendung in verwendungen %}
+                        <li>
+                            <span class="gedaempft">{{ verwendung.context.label }}:</span>
+                            {% if verwendung.pfad %}
+                                <a class="underline" href="/admin/inhalte/{{ verwendung.context_id }}/bearbeiten">{{ verwendung.titel }}</a>
+                                <span class="gedaempft">{{ verwendung.pfad }}</span>
+                            {% else %}
+                                #{{ verwendung.context_id }}
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                </ul>
+
+                <p class="text-sm gedaempft">{{ t('admin.medien.zuerst_herausnehmen') }}</p>
+            {% endif %}
+
+            <p><a class="underline" href="/admin/medien">{{ t('allgemein.zurueck') }}</a></p>
+        </div>
+    </div>
+{% endblock %}

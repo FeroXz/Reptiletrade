@@ -26,8 +26,13 @@ use Reptilienmarkt\Infra\Persistence\PdoContentBlockRepository;
 use Reptilienmarkt\Infra\Persistence\PdoContentEditorRepository;
 use Reptilienmarkt\Infra\Persistence\PdoContentEntryRepository;
 use Reptilienmarkt\Infra\Persistence\PdoContentRevisionRepository;
+use Reptilienmarkt\Infra\Persistence\PdoMediaRepository;
+use Reptilienmarkt\Infra\Persistence\PdoMediaUsageRepository;
 use Reptilienmarkt\Infra\Persistence\PdoPreviewTokenRepository;
 use Reptilienmarkt\Infra\Persistence\PdoSessionRepository;
+use Reptilienmarkt\Infra\Storage\ImagePipeline;
+use Reptilienmarkt\Infra\Storage\MediaService;
+use Reptilienmarkt\Infra\Storage\MediaStorage;
 use Reptilienmarkt\Support\Translator;
 use Reptilienmarkt\Tests\DatabaseTestCase;
 use Reptilienmarkt\Tests\Support\FrozenClock;
@@ -359,6 +364,14 @@ final class AdminContentTest extends DatabaseTestCase
             $this->blocks,
             new PdoContentRevisionRepository($this->database),
             new PreviewService(new PdoPreviewTokenRepository($this->database), $this->clock),
+            new MediaService(
+                new PdoMediaRepository($this->database),
+                new PdoMediaUsageRepository($this->database),
+                new ImagePipeline(),
+                new MediaStorage(sys_get_temp_dir() . '/rm-medien-test'),
+                new PdoAuditLog($this->database),
+                $this->clock,
+            ),
             new ContentPermission($this->editors),
             new StubViewer($user),
             $this->session,

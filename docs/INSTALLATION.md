@@ -292,6 +292,13 @@ server {
         location ~ \.php$ { return 403; }
     }
 
+    # Dasselbe für die Mediathek der Redaktion.
+    location ^~ /media/ {
+        location ~ \.php$ { return 403; }
+        expires 30d;                       # eigener Dateiname je Bild, also unveränderlich
+        add_header Cache-Control "public, immutable";
+    }
+
     location ~ /\. { deny all; }
 
     ssl_certificate     /etc/letsencrypt/live/deine-domain.tld/fullchain.pem;
@@ -299,9 +306,20 @@ server {
 }
 ```
 
-Die Reihenfolge zählt: Der `uploads`-Block muss **vor** dem allgemeinen
-`\.php$`-Block greifen, sonst führt PHP-FPM eine als Bild hochgeladene
-Skriptdatei doch noch aus. Das `^~` sorgt genau dafür.
+Die Reihenfolge zählt: Die `uploads`- und `media`-Blöcke müssen **vor** dem
+allgemeinen `\.php$`-Block greifen, sonst führt PHP-FPM eine als Bild
+hochgeladene Skriptdatei doch noch aus. Das `^~` sorgt genau dafür.
+
+Bei Apache übernehmen das `public/uploads/.htaccess` und `public/media/.htaccess`
+— vorausgesetzt, der VirtualHost erlaubt `AllowOverride All`. Ob die Sperre
+tatsächlich greift, prüft `php bin/doctor.php`.
+
+Das Verzeichnis `public/media/` muss für den Webserver-Benutzer beschreibbar
+sein — dort legt die Redaktion ihre Bilder ab, nach Jahr und Monat gegliedert:
+
+```bash
+sudo install -d -o www-data -g www-data -m 775 /var/www/reptilienmarkt/public/media
+```
 
 ---
 

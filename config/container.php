@@ -31,6 +31,8 @@ use Reptilienmarkt\Domain\Content\ContentRenderer;
 use Reptilienmarkt\Domain\Content\ContentRevisionRepository;
 use Reptilienmarkt\Domain\Content\ContentService;
 use Reptilienmarkt\Domain\Content\MarkdownRenderer;
+use Reptilienmarkt\Domain\Content\MediaRepository;
+use Reptilienmarkt\Domain\Content\MediaUsageRepository;
 use Reptilienmarkt\Domain\Content\PreviewService;
 use Reptilienmarkt\Domain\Content\PreviewTokenRepository;
 use Reptilienmarkt\Domain\Genetics\CrossSimulation;
@@ -87,6 +89,7 @@ use Reptilienmarkt\Http\Controller\AccountController;
 use Reptilienmarkt\Http\Controller\AdminContentController;
 use Reptilienmarkt\Http\Controller\AdminController;
 use Reptilienmarkt\Http\Controller\AdminListingController;
+use Reptilienmarkt\Http\Controller\AdminMediaController;
 use Reptilienmarkt\Http\Controller\AdminUserController;
 use Reptilienmarkt\Http\Controller\AnnouncementController;
 use Reptilienmarkt\Http\Controller\ApiController;
@@ -152,6 +155,8 @@ use Reptilienmarkt\Infra\Persistence\PdoLegalDocumentRepository;
 use Reptilienmarkt\Infra\Persistence\PdoLegalTextRepository;
 use Reptilienmarkt\Infra\Persistence\PdoListingMediaRepository;
 use Reptilienmarkt\Infra\Persistence\PdoListingRepository;
+use Reptilienmarkt\Infra\Persistence\PdoMediaRepository;
+use Reptilienmarkt\Infra\Persistence\PdoMediaUsageRepository;
 use Reptilienmarkt\Infra\Persistence\PdoMessageRepository;
 use Reptilienmarkt\Infra\Persistence\PdoMorphRepository;
 use Reptilienmarkt\Infra\Persistence\PdoPaymentRepository;
@@ -174,6 +179,8 @@ use Reptilienmarkt\Infra\Search\ListingIndexer;
 use Reptilienmarkt\Infra\Search\ListingQuery;
 use Reptilienmarkt\Infra\Search\PdoListingSearchRepository;
 use Reptilienmarkt\Infra\Storage\ImagePipeline;
+use Reptilienmarkt\Infra\Storage\MediaService;
+use Reptilienmarkt\Infra\Storage\MediaStorage;
 use Reptilienmarkt\Infra\Storage\PrivateStorage;
 use Reptilienmarkt\Infra\Storage\PublicImageStorage;
 use Reptilienmarkt\Legal\LegalGuard;
@@ -441,12 +448,29 @@ $container->set(ContentService::class, static fn(Container $c): ContentService =
     $c->get(Clock::class),
 ));
 
+$container->set(MediaRepository::class, static fn(Container $c): MediaRepository => new PdoMediaRepository($c->get(Database::class)));
+$container->set(MediaUsageRepository::class, static fn(Container $c): MediaUsageRepository => new PdoMediaUsageRepository($c->get(Database::class)));
+
+$container->set(MediaStorage::class, static fn(): MediaStorage => new MediaStorage(
+    $root . '/' . ltrim(Env::string('STORAGE_MEDIA', 'public/media'), '/'),
+));
+
+$container->set(MediaService::class, static fn(Container $c): MediaService => new MediaService(
+    $c->get(MediaRepository::class),
+    $c->get(MediaUsageRepository::class),
+    $c->get(ImagePipeline::class),
+    $c->get(MediaStorage::class),
+    $c->get(AuditLog::class),
+    $c->get(Clock::class),
+));
+
 $container->set(MarkdownRenderer::class, static fn(): MarkdownRenderer => new MarkdownRenderer());
 
 $container->set(ContentRenderer::class, static fn(Container $c): ContentRenderer => new ContentRenderer(
     $c->get(MarkdownRenderer::class),
     $c->get(ListingRepository::class),
     $c->get(SpeciesRepository::class),
+    $c->get(MediaRepository::class),
 ));
 
 $container->set(ContentController::class, static fn(Container $c): ContentController => new ContentController(
@@ -1072,6 +1096,18 @@ $container->set(AdminContentController::class, static fn(Container $c): AdminCon
     $c->get(ContentBlockRepository::class),
     $c->get(ContentRevisionRepository::class),
     $c->get(PreviewService::class),
+    $c->get(MediaService::class),
+    $c->get(ContentPermission::class),
+    $c->get(Viewer::class),
+    $c->get(SessionManager::class),
+    $c->get(Translator::class),
+    $c->get(Environment::class),
+));
+
+$container->set(AdminMediaController::class, static fn(Container $c): AdminMediaController => new AdminMediaController(
+    $c->get(MediaService::class),
+    $c->get(MediaRepository::class),
+    $c->get(MediaUsageRepository::class),
     $c->get(ContentPermission::class),
     $c->get(Viewer::class),
     $c->get(SessionManager::class),

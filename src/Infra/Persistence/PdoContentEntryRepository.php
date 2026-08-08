@@ -14,8 +14,14 @@ use Reptilienmarkt\Support\Timestamp;
 
 final readonly class PdoContentEntryRepository implements ContentEntryRepository
 {
+    /**
+     * og_image_id kam erst mit der Medienmigration (0026) dazu — bei
+     * eingeschaltetem PRAGMA foreign_keys haette ein Fremdschluessel auf eine
+     * noch fehlende Tabelle jeden Schreibvorgang unmoeglich gemacht. Siehe
+     * docs/CMS.md, E5.
+     */
     private const string COLUMNS = 'id, type, slug, path, parent_id, title, excerpt, status, template,
-             meta_title, meta_description, noindex, locale, published_at,
+             meta_title, meta_description, og_image_id, noindex, locale, published_at,
              created_at, updated_at, author_id, updated_by, sort_order';
 
     public function __construct(private Database $database) {}
@@ -66,6 +72,7 @@ final readonly class PdoContentEntryRepository implements ContentEntryRepository
             'template' => $entry->template->value,
             'meta_title' => $entry->metaTitle,
             'meta_description' => $entry->metaDescription,
+            'og_image_id' => $entry->ogImageId,
             'noindex' => $entry->noindex ? 1 : 0,
             'locale' => $entry->locale,
             'published_at' => Timestamp::utcOrNull($entry->publishedAt),
@@ -78,11 +85,11 @@ final readonly class PdoContentEntryRepository implements ContentEntryRepository
             $this->database->execute(
                 'INSERT INTO content_entries
                      (type, slug, path, parent_id, title, excerpt, status, template, meta_title,
-                      meta_description, noindex, locale, published_at, created_at,
+                      meta_description, og_image_id, noindex, locale, published_at, created_at,
                       updated_at, author_id, updated_by, sort_order)
                  VALUES
                      (:type, :slug, :path, :parent_id, :title, :excerpt, :status, :template, :meta_title,
-                      :meta_description, :noindex, :locale, :published_at, :created_at,
+                      :meta_description, :og_image_id, :noindex, :locale, :published_at, :created_at,
                       :updated_at, :author_id, :updated_by, :sort_order)',
                 $parameters + [
                     'created_at' => Timestamp::utc($entry->createdAt ?? new DateTimeImmutable()),
@@ -99,7 +106,7 @@ final readonly class PdoContentEntryRepository implements ContentEntryRepository
             'UPDATE content_entries
                 SET type = :type, slug = :slug, path = :path, parent_id = :parent_id, title = :title,
                     excerpt = :excerpt, status = :status, template = :template, meta_title = :meta_title,
-                    meta_description = :meta_description, noindex = :noindex,
+                    meta_description = :meta_description, og_image_id = :og_image_id, noindex = :noindex,
                     locale = :locale, published_at = :published_at, updated_at = :updated_at,
                     updated_by = :updated_by, sort_order = :sort_order
               WHERE id = :id',
@@ -243,6 +250,7 @@ final readonly class PdoContentEntryRepository implements ContentEntryRepository
             excerpt: (string) $row['excerpt'],
             metaTitle: $row['meta_title'] === null ? null : (string) $row['meta_title'],
             metaDescription: $row['meta_description'] === null ? null : (string) $row['meta_description'],
+            ogImageId: $row['og_image_id'] === null ? null : (int) $row['og_image_id'],
             noindex: (int) $row['noindex'] === 1,
             locale: (string) $row['locale'],
             publishedAt: Timestamp::parse($row['published_at'] === null ? null : (string) $row['published_at']),

@@ -1,14 +1,17 @@
-{# Die Aufloesung der Medien-IDs kommt mit Paket 10.5. Bis dahin bleibt der
-   Block sichtbar, aber ohne Datei — verschwindender Inhalt waere schlimmer als
-   sichtbar unfertiger. #}
-{% if block.data.pfad is defined and block.data.pfad %}
-    <figure class="space-y-2">
-        <img src="{{ block.data.pfad }}" alt="{{ block.string('alt_text') }}"
-             {% if block.int('breite') %}width="{{ block.int('breite') }}"{% endif %}
-             {% if block.int('hoehe') %}height="{{ block.int('hoehe') }}"{% endif %}
-             loading="lazy" decoding="async" class="w-full rounded">
-        {% if block.string('bildunterschrift') %}
-            <figcaption class="text-sm gedaempft">{{ block.string('bildunterschrift') }}</figcaption>
-        {% endif %}
-    </figure>
-{% endif %}
+{# width/height stehen im Markup, damit der Browser den Platz kennt, bevor das
+   Bild da ist — sonst springt der Text beim Laden nach unten.
+
+   Die Werte sind die der 800er-Fassung, also das, was src laedt. Das
+   Seitenverhaeltnis stimmt fuer alle Groessen, und mehr braucht der Browser
+   nicht. #}
+<figure class="space-y-2">
+    <img src="{{ block.reference.variantUrl(800) }}"
+         srcset="{{ block.reference.srcset() }}"
+         sizes="(min-width: 48rem) 48rem, 100vw"
+         alt="{{ block.string('alt_text') }}"
+         width="800" height="{{ block.reference.heightFor(800) }}"
+         loading="lazy" decoding="async" class="w-full rounded">
+    {% if block.string('bildunterschrift') %}
+        <figcaption class="text-sm gedaempft">{{ block.string('bildunterschrift') }}</figcaption>
+    {% endif %}
+</figure>

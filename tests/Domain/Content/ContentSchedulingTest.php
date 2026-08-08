@@ -26,6 +26,7 @@ use Reptilienmarkt\Infra\Persistence\PdoContentEditorRepository;
 use Reptilienmarkt\Infra\Persistence\PdoContentEntryRepository;
 use Reptilienmarkt\Infra\Persistence\PdoContentRevisionRepository;
 use Reptilienmarkt\Infra\Persistence\PdoListingRepository;
+use Reptilienmarkt\Infra\Persistence\PdoMediaRepository;
 use Reptilienmarkt\Infra\Persistence\PdoPreviewTokenRepository;
 use Reptilienmarkt\Infra\Persistence\PdoSpeciesRepository;
 use Reptilienmarkt\Support\Log\NullLogger;
@@ -231,6 +232,7 @@ final class ContentSchedulingTest extends DatabaseTestCase
                 new MarkdownRenderer(),
                 new PdoListingRepository($this->database),
                 new PdoSpeciesRepository($this->database),
+                new PdoMediaRepository($this->database),
             ),
             $this->previews(),
             TwigFactory::create($root . '/templates', true, null, new Translator($root . '/lang')),

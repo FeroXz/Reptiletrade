@@ -24,6 +24,7 @@ use Reptilienmarkt\Http\Message\Request;
 use Reptilienmarkt\Http\Message\Response;
 use Reptilienmarkt\Http\Session\SessionManager;
 use Reptilienmarkt\Http\Session\Viewer;
+use Reptilienmarkt\Infra\Storage\MediaService;
 use Reptilienmarkt\Support\Translator;
 use Twig\Environment;
 
@@ -46,6 +47,7 @@ final readonly class AdminContentController
         private ContentBlockRepository $blocks,
         private ContentRevisionRepository $revisions,
         private PreviewService $previews,
+        private MediaService $media,
         private ContentPermission $permission,
         private Viewer $currentUser,
         private SessionManager $session,
@@ -221,6 +223,11 @@ final readonly class AdminContentController
             $blocks = $this->applyAction($request, $this->readBlocks($request));
 
             $this->content->saveBlocks($id, $blocks, $user->id ?? 0);
+
+            // Die Verwendungen wandern mit: Wer einen Bildblock loescht, denkt
+            // nicht an die Verwendungstabelle — und eine Verwendung, die
+            // stehenbleibt, sperrt das Bild fuer immer gegen das Loeschen.
+            $this->media->syncUsages($id, $blocks, $entry->ogImageId);
         } catch (ContentException $exception) {
             $this->session->flash('fehler', $exception->getMessage());
 
@@ -261,7 +268,9 @@ final readonly class AdminContentController
                 'eltern_id' => $this->id($request, 'eltern_id'),
             ], $user->id ?? 0);
 
-            $this->content->saveBlocks($id, $this->readBlocks($request), $user->id ?? 0);
+            $blocks = $this->readBlocks($request);
+            $this->content->saveBlocks($id, $blocks, $user->id ?? 0, 'Autosave');
+            $this->media->syncUsages($id, $blocks, $entry->ogImageId);
         } catch (ContentException $exception) {
             return Response::json(['gespeichert' => false, 'fehler' => $exception->getMessage()], 422);
         }
