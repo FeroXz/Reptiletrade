@@ -1,0 +1,9 @@
+<div class="karte flex flex-wrap items-center justify-between gap-4 p-6">
+    <div class="fliesstext">
+        {% if block.string('titel') %}<p class="font-semibold">{{ block.string('titel') }}</p>{% endif %}
+        {{ block.html|raw }}
+    </div>
+    {% if block.string('ziel') and block.string('label') %}
+        <a class="knopf knopf-primaer" href="{{ block.string('ziel') }}">{{ block.string('label') }}</a>
+    {% endif %}
+</div>

@@ -99,11 +99,18 @@ erlaubt, solange der Vorgabewert NULL ist; der `down`-Pfad nutzt `DROP COLUMN`
 
 ### E6 — Catch-all über einen Platzhalter im Router
 
-`Route` kennt bisher nur `{name}` und passt damit auf ein Segment ohne Schrägstrich. Die
+`Route` kannte nur `{name}` und passte damit auf ein Segment ohne Schrägstrich. Die
 Seitenroute `/{pfad*}` braucht mehrere Segmente. Statt einer Sonderbehandlung im Kernel
-bekommt `Route` den Platzhalter `{name*}` („gieriges" Segment, `.+`). Das ist eine additive
-Erweiterung von 40 Zeichen, sie ändert das Verhalten bestehender Routen nicht, und sie hält
-die Route dort, wo alle anderen auch stehen: in `config/routes.php`, als letzte.
+bekommt `Route` den Platzhalter `{name*}` („gieriges" Segment, `.+`). Das ändert das
+Verhalten bestehender Routen nicht und hält die Route dort, wo alle anderen auch stehen: in
+`config/routes.php`, als letzte.
+
+Dazu gehört ein zweiter Handgriff, der beim Bauen aufgefallen ist: Die Auffangroute wird über
+`Router::fallback()` registriert, nicht über `get()`, und `Router::pathExists()` überspringt
+Auffangrouten. Ohne das beantwortet ein POST an eine beliebige Adresse ein 405 („Methode
+nicht erlaubt") statt eines ehrlichen 404 — denn seit der Auffangroute „existiert" jeder
+Pfad. Der Unterschied ist keine Kosmetik: 405 sagt einem Client, er solle es mit einer
+anderen Methode versuchen.
 
 ### E7 — Reservierungsliste **und** Abgleichstest
 
@@ -231,7 +238,7 @@ Slug-Kollision mit einer registrierten Route.
 | Paket | Inhalt | Stand |
 |---|---|---|
 | 10.1 | Plan, `content_entries` + `content_blocks`, Domain, PDO-Umsetzung | erledigt |
-| 10.2 | Markdown-/Blockrenderer, Templates, Reservierungsliste, Catch-all | offen |
+| 10.2 | Markdown-/Blockrenderer, Templates, Reservierungsliste, Catch-all | erledigt |
 | 10.3 | Verwaltungsoberfläche, Redaktionsberechtigung, Audit | offen |
 | 10.4 | Revisionen, Vorschau-Token, Planung, Auftrag `content.publish` | offen |
 | 10.5 | Medienverwaltung, `media_usages`, `srcset` | offen |

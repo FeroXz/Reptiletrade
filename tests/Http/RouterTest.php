@@ -60,9 +60,21 @@ final class RouterTest extends TestCase
         self::assertSame(['slug' => 'pogona-vitticeps'], $match->attributes);
     }
 
-    public function testUnbekannterPfadTrifftNicht(): void
+    public function testUnbekannterPfadLandetBeiDerAuffangroute(): void
     {
-        self::assertNull($this->router()->match($this->request('/gibt-es-nicht/')));
+        // Seit dem Redaktionssystem faengt die letzte Route jeden Pfad ab. Ob es
+        // die Seite gibt, entscheidet der ContentController — und antwortet
+        // sonst mit 404.
+        $match = $this->router()->match($this->request('/gibt-es-nicht/'));
+
+        self::assertNotNull($match);
+        self::assertSame('inhalt.seite', $match->route->name);
+    }
+
+    public function testDieAuffangrouteZaehltNichtAlsVorhandenerPfad(): void
+    {
+        // Sonst beantwortete ein POST an eine beliebige Adresse ein 405
+        // ("Methode nicht erlaubt") statt eines ehrlichen 404.
         self::assertFalse($this->router()->pathExists('/gibt-es-nicht/'));
     }
 
@@ -76,10 +88,13 @@ final class RouterTest extends TestCase
 
     public function testPlatzhalterEndetAmSchraegstrich(): void
     {
-        // Ein Slug darf keinen weiteren Pfadabschnitt verschlucken.
+        // Ein Slug darf keinen weiteren Pfadabschnitt verschlucken: Der Pfad
+        // faellt bis zur Auffangroute durch, statt als Artenprofil zu gelten.
         $match = $this->router()->match($this->request('/art/pogona/vitticeps/'));
 
-        self::assertNull($match);
+        self::assertNotNull($match);
+        self::assertNotSame('art', $match->route->name);
+        self::assertSame('inhalt.seite', $match->route->name);
     }
 
     public function testHeadWirdWieGetBehandelt(): void

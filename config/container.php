@@ -25,6 +25,8 @@ use Reptilienmarkt\Domain\Contact\ContactRepository;
 use Reptilienmarkt\Domain\Contact\ContactService;
 use Reptilienmarkt\Domain\Content\ContentBlockRepository;
 use Reptilienmarkt\Domain\Content\ContentEntryRepository;
+use Reptilienmarkt\Domain\Content\ContentRenderer;
+use Reptilienmarkt\Domain\Content\MarkdownRenderer;
 use Reptilienmarkt\Domain\Genetics\CrossSimulation;
 use Reptilienmarkt\Domain\Genetics\GeneticsConfiguration;
 use Reptilienmarkt\Domain\Genetics\GeneticsSimulationRepository;
@@ -84,6 +86,7 @@ use Reptilienmarkt\Http\Controller\ApiController;
 use Reptilienmarkt\Http\Controller\AuthController;
 use Reptilienmarkt\Http\Controller\BillingController;
 use Reptilienmarkt\Http\Controller\ContactController;
+use Reptilienmarkt\Http\Controller\ContentController;
 use Reptilienmarkt\Http\Controller\GeneticsController;
 use Reptilienmarkt\Http\Controller\LegalDocumentController;
 use Reptilienmarkt\Http\Controller\LegalPageController;
@@ -402,6 +405,21 @@ $container->set(Viewer::class, static fn(Container $c): Viewer => $c->get(Curren
 // ------------------------------------------------------- Redaktionssystem
 $container->set(ContentEntryRepository::class, static fn(Container $c): ContentEntryRepository => new PdoContentEntryRepository($c->get(Database::class)));
 $container->set(ContentBlockRepository::class, static fn(Container $c): ContentBlockRepository => new PdoContentBlockRepository($c->get(Database::class)));
+
+$container->set(MarkdownRenderer::class, static fn(): MarkdownRenderer => new MarkdownRenderer());
+
+$container->set(ContentRenderer::class, static fn(Container $c): ContentRenderer => new ContentRenderer(
+    $c->get(MarkdownRenderer::class),
+    $c->get(ListingRepository::class),
+    $c->get(SpeciesRepository::class),
+));
+
+$container->set(ContentController::class, static fn(Container $c): ContentController => new ContentController(
+    $c->get(ContentEntryRepository::class),
+    $c->get(ContentBlockRepository::class),
+    $c->get(ContentRenderer::class),
+    $c->get(Environment::class),
+));
 
 // ------------------------------------------------------ Anzeigen und Ablage
 $container->set(ListingRepository::class, static fn(Container $c): ListingRepository => new PdoListingRepository($c->get(Database::class)));

@@ -11,6 +11,7 @@ use Reptilienmarkt\Http\Controller\ApiController;
 use Reptilienmarkt\Http\Controller\AuthController;
 use Reptilienmarkt\Http\Controller\BillingController;
 use Reptilienmarkt\Http\Controller\ContactController;
+use Reptilienmarkt\Http\Controller\ContentController;
 use Reptilienmarkt\Http\Controller\GeneticsController;
 use Reptilienmarkt\Http\Controller\LegalDocumentController;
 use Reptilienmarkt\Http\Controller\LegalPageController;
@@ -180,5 +181,11 @@ $router->get('/api/v1/listings', ApiController::class, 'listings', 'api.listings
 $router->get('/api/v1/arten', ApiController::class, 'species', 'api.arten');
 $router->get('/api/v1/arten/{slug}/morphs', ApiController::class, 'morphs', 'api.arten.morphs');
 $router->get('/api/v1/orte', ApiController::class, 'places', 'api.orte');
+
+// Redaktionelle Seiten. Diese Route steht mit Absicht als LETZTE: Sie passt auf
+// jeden Pfad, den bis hierhin niemand beansprucht hat. Damit ein Redakteur
+// nicht in ein Schweigen hineinspeichert, prueft ReservedPaths beim Anlegen —
+// und tests/Http/ReservedPathsTest haelt die Liste gegen genau diese Datei.
+$router->fallback('/{pfad*}', ContentController::class, 'show', 'inhalt.seite');
 
 return $router;

@@ -1,0 +1,18 @@
+{% extends 'layout/basis.html.twig' %}
+
+{% block titel %}{{ eintrag.seoTitle }} — Reptilienmarkt{% endblock %}
+{% block beschreibung %}{{ eintrag.seoDescription ?? eintrag.title }}{% endblock %}
+
+{% block kopf %}
+    <link rel="canonical" href="{{ eintrag.path }}">
+    {% if eintrag.noindex %}<meta name="robots" content="noindex, follow">{% endif %}
+{% endblock %}
+
+{% block inhalt %}
+    {# Volle Breite: fuer Uebersichtsseiten mit Galerien, bei denen eine
+       Lesespalte den Bildern die Flaeche naehme. #}
+    <article class="space-y-6">
+        {% include 'inhalt/_kopf.html.twig' %}
+        {% include 'inhalt/_bloecke.html.twig' %}
+    </article>
+{% endblock %}

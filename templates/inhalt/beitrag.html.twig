@@ -1,0 +1,33 @@
+{% extends 'layout/basis.html.twig' %}
+
+{% block titel %}{{ eintrag.seoTitle }} — Reptilienmarkt{% endblock %}
+{% block beschreibung %}{{ eintrag.seoDescription ?? eintrag.title }}{% endblock %}
+
+{% block kopf %}
+    <link rel="canonical" href="{{ eintrag.path }}">
+    {% if eintrag.noindex %}<meta name="robots" content="noindex, follow">{% endif %}
+{% endblock %}
+
+{% block inhalt %}
+    <article class="mx-auto max-w-3xl space-y-6">
+        {% if vorschau %}
+            <p class="karte p-3 text-sm" role="status">{{ t('inhalt.vorschau_hinweis') }}</p>
+        {% endif %}
+
+        <header class="space-y-2">
+            {% if eintrag.publishedAt %}
+                <p class="text-sm gedaempft">
+                    <time datetime="{{ eintrag.publishedAt|date('Y-m-d') }}">{{ eintrag.publishedAt|date('d.m.Y') }}</time>
+                </p>
+            {% endif %}
+            <h1 class="text-2xl font-semibold">{{ eintrag.title }}</h1>
+            {% if eintrag.excerpt %}<p class="text-base gedaempft">{{ eintrag.excerpt }}</p>{% endif %}
+        </header>
+
+        {% include 'inhalt/_bloecke.html.twig' %}
+
+        <footer class="pt-4">
+            <a class="underline" href="/news/">{{ t('inhalt.alle_beitraege') }}</a>
+        </footer>
+    </article>
+{% endblock %}

@@ -1,0 +1,6 @@
+<figure class="karte p-6">
+    <blockquote class="fliesstext">{{ block.html|raw }}</blockquote>
+    {% if block.string('quelle') %}
+        <figcaption class="mt-3 text-sm gedaempft">— {{ block.string('quelle') }}</figcaption>
+    {% endif %}
+</figure>

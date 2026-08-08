@@ -1,0 +1,14 @@
+{# Die Aufloesung der Medien-IDs kommt mit Paket 10.5. Bis dahin bleibt der
+   Block sichtbar, aber ohne Datei — verschwindender Inhalt waere schlimmer als
+   sichtbar unfertiger. #}
+{% if block.data.pfad is defined and block.data.pfad %}
+    <figure class="space-y-2">
+        <img src="{{ block.data.pfad }}" alt="{{ block.string('alt_text') }}"
+             {% if block.int('breite') %}width="{{ block.int('breite') }}"{% endif %}
+             {% if block.int('hoehe') %}height="{{ block.int('hoehe') }}"{% endif %}
+             loading="lazy" decoding="async" class="w-full rounded">
+        {% if block.string('bildunterschrift') %}
+            <figcaption class="text-sm gedaempft">{{ block.string('bildunterschrift') }}</figcaption>
+        {% endif %}
+    </figure>
+{% endif %}

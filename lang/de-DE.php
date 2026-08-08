@@ -385,4 +385,15 @@ return [
     'mail.suchtreffer.text' => "Hallo {name},\n\n"
         . "zu deiner gespeicherten Suche \"{suche}\" gibt es neue Anzeigen:\n\n{treffer}\n\n"
         . "Benachrichtigungen ändern: {link}\n",
+
+    // ----------------------------------------------------- Redaktion (oeffentlich)
+    'inhalt.alle_beitraege' => 'Alle Beiträge',
+    'inhalt.anzeige' => 'Anzeige',
+    'inhalt.artenprofil' => 'Artenprofil',
+    'inhalt.entfernt_text' => 'Dieser Inhalt wurde zurückgezogen. Er kommt nicht wieder.',
+    'inhalt.entfernt_titel' => 'Nicht mehr verfügbar',
+    'inhalt.pfadleiste' => 'Sie befinden sich hier',
+    'inhalt.verweis_fehlt' => 'Der Block "{typ}" verweist auf etwas, das es nicht mehr gibt. Für Besucher entfällt er.',
+    'inhalt.vorschau_hinweis' => 'Vorschau — diese Fassung ist noch nicht veröffentlicht.',
+    'inhalt.zur_uebersicht' => 'Zur Marktübersicht',
 ];
