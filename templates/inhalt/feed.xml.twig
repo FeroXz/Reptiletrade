@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+    <channel>
+        <title>{{ t('inhalt.news_titel') }} — Reptilienmarkt</title>
+        <link>{{ basis }}/news/</link>
+        <description>{{ t('inhalt.news_beschreibung') }}</description>
+        <language>de-de</language>
+        <lastBuildDate>{{ erzeugt }}</lastBuildDate>
+        {# atom:link mit rel="self" ist in RSS 2.0 die einzige Stelle, an der
+           der Feed seine eigene Adresse nennt. Ohne sie melden Prüfwerkzeuge
+           eine Warnung, und manche Leser finden nach einem Umzug nicht zurück. #}
+        <atom:link href="{{ basis }}/feed.xml" rel="self" type="application/rss+xml"/>
+{% for beitrag in beitraege %}
+        <item>
+            <title>{{ beitrag.title }}</title>
+            <link>{{ basis }}{{ beitrag.path }}</link>
+            <guid isPermaLink="true">{{ basis }}{{ beitrag.path }}</guid>
+{% if beitrag.publishedAt %}
+            <pubDate>{{ beitrag.publishedAt|date('D, d M Y H:i:s O') }}</pubDate>
+{% endif %}
+{% if beitrag.excerpt %}
+            <description>{{ beitrag.excerpt }}</description>
+{% endif %}
+        </item>
+{% endfor %}
+    </channel>
+</rss>

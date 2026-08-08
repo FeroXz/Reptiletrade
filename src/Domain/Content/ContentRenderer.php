@@ -24,6 +24,7 @@ final readonly class ContentRenderer
 {
     public function __construct(
         private MarkdownRenderer $markdown,
+        private ContentText $text,
         private ListingRepository $listings,
         private SpeciesRepository $species,
         private MediaRepository $media,
@@ -81,16 +82,7 @@ final readonly class ContentRenderer
      */
     public function plainText(array $blocks): string
     {
-        $parts = [];
-
-        foreach ($blocks as $block) {
-            $text = $block->searchText();
-            if ($text !== '') {
-                $parts[] = $this->markdown->toPlainText($text);
-            }
-        }
-
-        return trim(implode("\n", $parts));
+        return $this->text->plainText($blocks);
     }
 
     /**

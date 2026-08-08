@@ -10,6 +10,7 @@ use Reptilienmarkt\Domain\Content\ContentPermission;
 use Reptilienmarkt\Domain\Content\ContentRenderer;
 use Reptilienmarkt\Domain\Content\ContentService;
 use Reptilienmarkt\Domain\Content\ContentStatus;
+use Reptilienmarkt\Domain\Content\ContentText;
 use Reptilienmarkt\Domain\Content\ContentType;
 use Reptilienmarkt\Domain\Content\MarkdownRenderer;
 use Reptilienmarkt\Domain\Content\PreviewService;
@@ -29,6 +30,7 @@ use Reptilienmarkt\Infra\Persistence\PdoListingRepository;
 use Reptilienmarkt\Infra\Persistence\PdoMediaRepository;
 use Reptilienmarkt\Infra\Persistence\PdoPreviewTokenRepository;
 use Reptilienmarkt\Infra\Persistence\PdoSpeciesRepository;
+use Reptilienmarkt\Infra\Search\Fts5ContentSearchIndex;
 use Reptilienmarkt\Support\Log\NullLogger;
 use Reptilienmarkt\Support\Translator;
 use Reptilienmarkt\Tests\DatabaseTestCase;
@@ -230,6 +232,7 @@ final class ContentSchedulingTest extends DatabaseTestCase
             $this->blocks,
             new ContentRenderer(
                 new MarkdownRenderer(),
+                new ContentText(new MarkdownRenderer()),
                 new PdoListingRepository($this->database),
                 new PdoSpeciesRepository($this->database),
                 new PdoMediaRepository($this->database),
@@ -255,6 +258,8 @@ final class ContentSchedulingTest extends DatabaseTestCase
             $this->entries,
             $this->blocks,
             new PdoContentRevisionRepository($this->database),
+            new Fts5ContentSearchIndex($this->database),
+            new ContentText(new MarkdownRenderer()),
             new RetentionPolicy(require \dirname(__DIR__, 3) . '/config/aufbewahrung.php', $this->clock),
             new PdoAuditLog($this->database),
             $this->clock,

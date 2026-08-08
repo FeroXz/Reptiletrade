@@ -29,7 +29,10 @@ use Reptilienmarkt\Domain\Content\ContentEntryRepository;
 use Reptilienmarkt\Domain\Content\ContentPermission;
 use Reptilienmarkt\Domain\Content\ContentRenderer;
 use Reptilienmarkt\Domain\Content\ContentRevisionRepository;
+use Reptilienmarkt\Domain\Content\ContentSearchIndex;
 use Reptilienmarkt\Domain\Content\ContentService;
+use Reptilienmarkt\Domain\Content\ContentTermRepository;
+use Reptilienmarkt\Domain\Content\ContentText;
 use Reptilienmarkt\Domain\Content\MarkdownRenderer;
 use Reptilienmarkt\Domain\Content\MediaRepository;
 use Reptilienmarkt\Domain\Content\MediaUsageRepository;
@@ -107,6 +110,7 @@ use Reptilienmarkt\Http\Controller\MarketController;
 use Reptilienmarkt\Http\Controller\MediaController;
 use Reptilienmarkt\Http\Controller\MessageController;
 use Reptilienmarkt\Http\Controller\ModerationController;
+use Reptilienmarkt\Http\Controller\NewsController;
 use Reptilienmarkt\Http\Controller\PasswordResetController;
 use Reptilienmarkt\Http\Controller\PrivacyController;
 use Reptilienmarkt\Http\Controller\ProfileController;
@@ -148,6 +152,7 @@ use Reptilienmarkt\Infra\Persistence\PdoContentBlockRepository;
 use Reptilienmarkt\Infra\Persistence\PdoContentEditorRepository;
 use Reptilienmarkt\Infra\Persistence\PdoContentEntryRepository;
 use Reptilienmarkt\Infra\Persistence\PdoContentRevisionRepository;
+use Reptilienmarkt\Infra\Persistence\PdoContentTermRepository;
 use Reptilienmarkt\Infra\Persistence\PdoConversationRepository;
 use Reptilienmarkt\Infra\Persistence\PdoGeneticsSimulationRepository;
 use Reptilienmarkt\Infra\Persistence\PdoJobRepository;
@@ -174,6 +179,8 @@ use Reptilienmarkt\Infra\Persistence\PdoTokenRepository;
 use Reptilienmarkt\Infra\Persistence\PdoUserDocumentRepository;
 use Reptilienmarkt\Infra\Persistence\PdoUserRepository;
 use Reptilienmarkt\Infra\Persistence\PdoVerificationRepository;
+use Reptilienmarkt\Infra\Search\ContentIndexer;
+use Reptilienmarkt\Infra\Search\Fts5ContentSearchIndex;
 use Reptilienmarkt\Infra\Search\Fts5SearchIndex;
 use Reptilienmarkt\Infra\Search\ListingIndexer;
 use Reptilienmarkt\Infra\Search\ListingQuery;
@@ -443,9 +450,23 @@ $container->set(ContentService::class, static fn(Container $c): ContentService =
     $c->get(ContentEntryRepository::class),
     $c->get(ContentBlockRepository::class),
     $c->get(ContentRevisionRepository::class),
+    $c->get(ContentSearchIndex::class),
+    $c->get(ContentText::class),
     $c->get(RetentionPolicy::class),
     $c->get(AuditLog::class),
     $c->get(Clock::class),
+));
+
+$container->set(ContentTermRepository::class, static fn(Container $c): ContentTermRepository => new PdoContentTermRepository($c->get(Database::class)));
+$container->set(ContentSearchIndex::class, static fn(Container $c): ContentSearchIndex => new Fts5ContentSearchIndex($c->get(Database::class)));
+
+$container->set(ContentText::class, static fn(Container $c): ContentText => new ContentText($c->get(MarkdownRenderer::class)));
+
+$container->set(ContentIndexer::class, static fn(Container $c): ContentIndexer => new ContentIndexer(
+    $c->get(ContentEntryRepository::class),
+    $c->get(ContentBlockRepository::class),
+    $c->get(ContentText::class),
+    $c->get(ContentSearchIndex::class),
 ));
 
 $container->set(MediaRepository::class, static fn(Container $c): MediaRepository => new PdoMediaRepository($c->get(Database::class)));
@@ -468,6 +489,7 @@ $container->set(MarkdownRenderer::class, static fn(): MarkdownRenderer => new Ma
 
 $container->set(ContentRenderer::class, static fn(Container $c): ContentRenderer => new ContentRenderer(
     $c->get(MarkdownRenderer::class),
+    $c->get(ContentText::class),
     $c->get(ListingRepository::class),
     $c->get(SpeciesRepository::class),
     $c->get(MediaRepository::class),
@@ -1095,6 +1117,7 @@ $container->set(AdminContentController::class, static fn(Container $c): AdminCon
     $c->get(ContentEntryRepository::class),
     $c->get(ContentBlockRepository::class),
     $c->get(ContentRevisionRepository::class),
+    $c->get(ContentTermRepository::class),
     $c->get(PreviewService::class),
     $c->get(MediaService::class),
     $c->get(ContentPermission::class),
@@ -1102,6 +1125,14 @@ $container->set(AdminContentController::class, static fn(Container $c): AdminCon
     $c->get(SessionManager::class),
     $c->get(Translator::class),
     $c->get(Environment::class),
+));
+
+$container->set(NewsController::class, static fn(Container $c): NewsController => new NewsController(
+    $c->get(ContentEntryRepository::class),
+    $c->get(ContentTermRepository::class),
+    $c->get(ContentSearchIndex::class),
+    $c->get(Environment::class),
+    Env::string('APP_URL', 'https://example.tld'),
 ));
 
 $container->set(AdminMediaController::class, static fn(Container $c): AdminMediaController => new AdminMediaController(

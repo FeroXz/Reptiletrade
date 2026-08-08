@@ -16,11 +16,13 @@ declare(strict_types=1);
  *   3. Der belegte Pfad wird mit Namen abgewiesen.
  *   4. Ein geplanter Beitrag erscheint erst, wenn der Auftrag gelaufen ist.
  *   5. Ein Vorschaulink zeigt einen Entwurf, ohne Anmeldung und ohne noindex.
- *   6. Eine Fassung laesst sich zuruecksetzen.
- *   7. Zuruecknehmen und Archivieren wirken wie angekuendigt (Entwurf, 410).
+ *   6. Medien: Metadaten weg, srcset im Markup, Loeschsperre bei Verwendung.
+ *   7. Beitraege, Kategoriearchiv, Volltextsuche und Feed.
+ *   8. Eine Fassung laesst sich zuruecksetzen.
+ *   9. Zuruecknehmen und Archivieren wirken wie angekuendigt (Entwurf, 410).
  *
- * Die spaeteren Arbeitspakete ergaenzen hier: Slug-Aenderung mit Weiterleitung,
- * Medien, Sitemap und Feed.
+ * Das letzte Arbeitspaket ergaenzt hier: Slug-Aenderung mit Weiterleitung,
+ * Menues und Sitemap.
  *
  * Aufruf: php tools/smoke_cms.php [--behalten]
  */
@@ -380,7 +382,64 @@ pruefe(
     'kein alt-Attribut',
 );
 
-// ---------------------------------------------------------- 8) Fassungen
+// -------------------------------------------------- 8) Beitraege und Feed
+echo "\nBeitraege, Kategorien und Feed\n";
+
+// Dem geplanten Beitrag eine Kategorie geben und ihn fuellen.
+$redaktion->post('/admin/inhalte/' . $beitragId . '/bearbeiten', [
+    'titel' => 'Nachzuchtsaison 2026',
+    'slug' => 'nachzuchtsaison-2026',
+    'anriss' => 'Was in dieser Saison ansteht.',
+    'vorlage' => 'beitrag',
+    'kategorien' => 'Zucht, Haltung',
+    'schlagwoerter' => 'saison',
+    'block' => [
+        ['typ' => 'text', 'text' => 'Die **Winterruhe** endet, die Zuchtsaison beginnt.'],
+    ],
+    'aktion' => 'speichern',
+]);
+
+$uebersicht = $gast->get('/news/');
+pruefe($uebersicht->status === 200, 'Die Beitragsuebersicht rendert', 'Status ' . $uebersicht->status);
+pruefe(
+    str_contains($uebersicht->body, 'Nachzuchtsaison 2026'),
+    'Der veroeffentlichte Beitrag steht in der Uebersicht',
+    'der Beitrag fehlt',
+);
+pruefe(str_contains($uebersicht->body, 'Zucht'), 'Die Kategorien stehen in der Navigation', 'keine Kategorie sichtbar');
+
+$archiv = $gast->get('/news/kategorie/zucht/');
+pruefe($archiv->status === 200, 'Das Kategoriearchiv rendert', 'Status ' . $archiv->status);
+pruefe(
+    str_contains($archiv->body, 'Nachzuchtsaison 2026'),
+    'Das Archiv zeigt den Beitrag der Kategorie',
+    'der Beitrag fehlt im Archiv',
+);
+
+$treffer = $gast->get('/news/?q=Winterruhe');
+pruefe(
+    str_contains($treffer->body, 'Nachzuchtsaison 2026'),
+    'Die Volltextsuche findet ein Wort aus dem Rumpf',
+    'kein Treffer zu "Winterruhe"',
+);
+
+$feed = $gast->get('/feed.xml');
+pruefe($feed->status === 200, 'Der Feed antwortet', 'Status ' . $feed->status);
+pruefe(
+    str_contains((string) ($feed->headers['content-type'] ?? ''), 'application/rss+xml'),
+    'Der Feed nennt den richtigen Inhaltstyp',
+    (string) ($feed->headers['content-type'] ?? ''),
+);
+
+$xml = @simplexml_load_string($feed->body);
+pruefe($xml !== false, 'Der Feed ist gueltiges XML', 'XML-Fehler im Feed');
+pruefe(
+    $xml !== false && (string) $xml->channel->item[0]->title === 'Nachzuchtsaison 2026',
+    'Der Feed traegt den Beitrag',
+    'der Beitrag fehlt im Feed',
+);
+
+// ---------------------------------------------------------- 9) Fassungen
 echo "\nFassungen\n";
 
 $versionen = $redaktion->get('/admin/inhalte/' . $seiteId . '/versionen');
@@ -408,7 +467,7 @@ $titel = (string) $container->get(Database::class)->scalar(
 );
 pruefe($titel === 'Haltung im Terrarium', 'Das Zuruecksetzen stellt den Titel wieder her', 'Titel ist: ' . $titel);
 
-// ------------------------------------------------------ 9) Statuswechsel
+// ----------------------------------------------------- 10) Statuswechsel
 echo "\nStatuswechsel\n";
 
 $redaktion->post('/admin/inhalte/' . $seiteId . '/zuruecknehmen', []);
@@ -428,7 +487,7 @@ pruefe(
     'Status ' . $archiviert->status,
 );
 
-// ------------------------------------------------------------ 10) Loeschen
+// ----------------------------------------------------------- 11) Loeschen
 echo "\nAufraeumen\n";
 
 $redaktion->post('/admin/inhalte/' . $seiteId . '/loeschen', []);
@@ -492,7 +551,9 @@ final class RedaktionsBrowser
 
     public function get(string $path): Response
     {
-        $response = $this->send(new Request('GET', $path, [], [], $this->headers(), [], $this->cookies(), $this->ip));
+        [$pfad, $query] = self::split($path);
+
+        $response = $this->send(new Request('GET', $pfad, $query, [], $this->headers(), [], $this->cookies(), $this->ip));
 
         if (preg_match('/name="_csrf"\s+value="([^"]+)"/', $response->body, $treffer) === 1) {
             $this->csrf = $treffer[1];
@@ -600,6 +661,26 @@ final class RedaktionsBrowser
         }
 
         return $response;
+    }
+
+    /**
+     * Trennt Pfad und Abfrageteil. Ohne das landet "?q=..." im Pfad, und die
+     * Auffangroute antwortet mit 404 statt zu suchen.
+     *
+     * @return array{0: string, 1: array<string, string>}
+     */
+    private static function split(string $path): array
+    {
+        $stelle = strpos($path, '?');
+
+        if ($stelle === false) {
+            return [$path, []];
+        }
+
+        parse_str(substr($path, $stelle + 1), $query);
+
+        /** @var array<string, string> $query */
+        return [substr($path, 0, $stelle), $query];
     }
 
     /**

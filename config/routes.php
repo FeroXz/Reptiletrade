@@ -24,6 +24,7 @@ use Reptilienmarkt\Http\Controller\MarketController;
 use Reptilienmarkt\Http\Controller\MediaController;
 use Reptilienmarkt\Http\Controller\MessageController;
 use Reptilienmarkt\Http\Controller\ModerationController;
+use Reptilienmarkt\Http\Controller\NewsController;
 use Reptilienmarkt\Http\Controller\PasswordResetController;
 use Reptilienmarkt\Http\Controller\PrivacyController;
 use Reptilienmarkt\Http\Controller\ProfileController;
@@ -206,6 +207,13 @@ $router->get('/api/v1/listings', ApiController::class, 'listings', 'api.listings
 $router->get('/api/v1/arten', ApiController::class, 'species', 'api.arten');
 $router->get('/api/v1/arten/{slug}/morphs', ApiController::class, 'morphs', 'api.arten.morphs');
 $router->get('/api/v1/orte', ApiController::class, 'places', 'api.orte');
+
+// Beitraege: Uebersicht, Kategoriearchiv, Feed. Die Einzelseite eines Beitrags
+// laeuft ueber die Auffangroute — sie ist eine Inhaltsseite wie jede andere,
+// nur mit einem Pfad, der das Jahr traegt.
+$router->get('/news/', NewsController::class, 'index', 'news');
+$router->get('/news/kategorie/{slug}/', NewsController::class, 'category', 'news.kategorie');
+$router->get('/feed.xml', NewsController::class, 'feed', 'news.feed');
 
 // Signierte Vorschau eines Entwurfs — 24 Stunden gueltig, fuer jemanden, der
 // sich nicht anmelden kann.

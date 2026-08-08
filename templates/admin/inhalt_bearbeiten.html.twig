@@ -74,6 +74,21 @@
                     <label class="text-sm" for="anriss">{{ t('admin.inhalt.feld_anriss') }}</label>
                     <textarea class="feld" id="anriss" name="anriss" rows="2">{{ eintrag.excerpt }}</textarea>
                 </div>
+
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <div>
+                        <label class="text-sm" for="kategorien">{{ t('admin.inhalt.feld_kategorien') }}</label>
+                        <input class="feld" id="kategorien" name="kategorien" value="{{ kategorien }}"
+                               aria-describedby="kategorien-hilfe">
+                        <p class="mt-1 text-xs gedaempft" id="kategorien-hilfe">{{ t('admin.inhalt.kategorien_hilfe') }}</p>
+                    </div>
+                    <div>
+                        <label class="text-sm" for="schlagwoerter">{{ t('admin.inhalt.feld_schlagwoerter') }}</label>
+                        <input class="feld" id="schlagwoerter" name="schlagwoerter" value="{{ schlagwoerter }}"
+                               aria-describedby="schlagwoerter-hilfe">
+                        <p class="mt-1 text-xs gedaempft" id="schlagwoerter-hilfe">{{ t('admin.inhalt.schlagwoerter_hilfe') }}</p>
+                    </div>
+                </div>
             </section>
 
             <section class="karte space-y-4 p-6">

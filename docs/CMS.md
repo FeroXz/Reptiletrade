@@ -202,6 +202,45 @@ vorherigen, größeren Leinwand gezogen; das ist schneller als jedes Mal aus dem
 diesen Faktoren nicht sichtbar schlechter. `srcset` bietet keine Größe an, die über der
 Originalbreite liegt — ein hochskaliertes Bild kostet Bandbreite ohne Gewinn.
 
+### E12 — Volltext: eigener FTS5-Index, fortgeschrieben bei jedem Schreibvorgang
+
+`content_search` neben `listing_search`, mit derselben Tokenizer-Einstellung
+(`unicode61 remove_diacritics 2`) — sonst verhielten sich zwei Suchfelder derselben Seite
+verschieden. Wie beim Anzeigenindex bewusst **keine** external-content-Tabelle: Der Rumpftext
+entsteht aus den Blöcken und wird dabei aus Markdown zu Reintext gemacht, was eine
+content-Tabelle nicht abbilden kann.
+
+Fortgeschrieben wird am Ende jeder schreibenden Aktion, nicht in einem nächtlichen Lauf: Ein
+Beitrag, der erst am nächsten Morgen auffindbar ist, ist am Tag seiner Veröffentlichung
+unauffindbar — also genau dann, wenn ihn jemand sucht. Indiziert wird nur Veröffentlichtes; ein
+Entwurf, den die Suche findet, ist kein Entwurf mehr.
+
+Die Umwandlung Markdown → Reintext liegt in `ContentText`, einer eigenen Klasse, weil zwei
+Stellen sie brauchen (Renderer und Index). Zwei Umsetzungen wären zwei Wahrheiten über
+denselben Text, und die Suche fände Wörter, die auf der Seite nicht stehen.
+
+Nutzereingaben laufen durch `Fts5Query` — dieselbe Aufbereitung wie beim Anzeigenindex. Ein
+Sternchen oder ein Anführungszeichen würde die Abfrage sonst umdeuten oder mit einem
+Syntaxfehler abbrechen.
+
+`bin/reindex.php` bekommt `--modul=anzeigen|inhalte|alle` (Vorgabe `alle`).
+
+### E13 — Kategorien entstehen beim Zuordnen
+
+`content_terms` trägt Kategorien und Schlagwörter in einer Tabelle mit `taxonomy`-Spalte, aus
+demselben Grund wie `content_entries`. Der Unterschied ist, was daran hängt: Eine Kategorie
+bekommt ein Archiv unter `/news/kategorie/{slug}/`, ein Schlagwort nicht — sonst entstünden für
+jedes einmal vergebene Wort dünne Archivseiten.
+
+Begriffe entstehen beim Speichern eines Beitrags (`ensure`), nicht in einer eigenen Verwaltung:
+Eine leere Kategorienliste, die erst gepflegt werden muss, bevor der erste Beitrag eine
+bekommt, hält niemanden auf — nur auf. Gezählt und angezeigt werden nur Kategorien mit
+veröffentlichten Beiträgen; eine leere wäre ein Verweis ins Nichts.
+
+Die Einzelseite eines Beitrags läuft über die Auffangroute und den `ContentController`: Sie ist
+eine Inhaltsseite wie jede andere, nur mit einem Pfad, der das Jahr trägt. Eine eigene Ausgabe
+wäre eine zweite Stelle, an der Blöcke gerendert werden.
+
 ### E10 — Zurücknehmen legt keine Weiterleitung an
 
 `veroeffentlicht` → `entwurf` entfernt die Seite aus dem öffentlichen Bestand, ohne eine 301
@@ -310,5 +349,5 @@ Slug-Kollision mit einer registrierten Route.
 | 10.3 | Verwaltungsoberfläche, Redaktionsberechtigung, Audit | erledigt |
 | 10.4 | Revisionen, Vorschau-Token, Planung, Auftrag `content.publish` | erledigt |
 | 10.5 | Medienverwaltung, `media_usages`, `srcset` | erledigt |
-| 10.6 | Beiträge, Kategorien, `/news/`, `/feed.xml`, FTS5 | offen |
+| 10.6 | Beiträge, Kategorien, `/news/`, `/feed.xml`, FTS5 | erledigt |
 | 10.7 | Menüs, Weiterleitungen, SEO, `sitemap.xml`, `robots.txt` | offen |

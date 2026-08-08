@@ -9,7 +9,9 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use Reptilienmarkt\Domain\Content\ContentPermission;
 use Reptilienmarkt\Domain\Content\ContentService;
 use Reptilienmarkt\Domain\Content\ContentStatus;
+use Reptilienmarkt\Domain\Content\ContentText;
 use Reptilienmarkt\Domain\Content\ContentType;
+use Reptilienmarkt\Domain\Content\MarkdownRenderer;
 use Reptilienmarkt\Domain\Content\PreviewService;
 use Reptilienmarkt\Domain\Privacy\RetentionPolicy;
 use Reptilienmarkt\Domain\User\Role;
@@ -26,10 +28,12 @@ use Reptilienmarkt\Infra\Persistence\PdoContentBlockRepository;
 use Reptilienmarkt\Infra\Persistence\PdoContentEditorRepository;
 use Reptilienmarkt\Infra\Persistence\PdoContentEntryRepository;
 use Reptilienmarkt\Infra\Persistence\PdoContentRevisionRepository;
+use Reptilienmarkt\Infra\Persistence\PdoContentTermRepository;
 use Reptilienmarkt\Infra\Persistence\PdoMediaRepository;
 use Reptilienmarkt\Infra\Persistence\PdoMediaUsageRepository;
 use Reptilienmarkt\Infra\Persistence\PdoPreviewTokenRepository;
 use Reptilienmarkt\Infra\Persistence\PdoSessionRepository;
+use Reptilienmarkt\Infra\Search\Fts5ContentSearchIndex;
 use Reptilienmarkt\Infra\Storage\ImagePipeline;
 use Reptilienmarkt\Infra\Storage\MediaService;
 use Reptilienmarkt\Infra\Storage\MediaStorage;
@@ -347,6 +351,8 @@ final class AdminContentTest extends DatabaseTestCase
             $this->entries,
             $this->blocks,
             new PdoContentRevisionRepository($this->database),
+            new Fts5ContentSearchIndex($this->database),
+            new ContentText(new MarkdownRenderer()),
             new RetentionPolicy(require \dirname(__DIR__, 2) . '/config/aufbewahrung.php', $this->clock),
             new PdoAuditLog($this->database),
             $this->clock,
@@ -363,6 +369,7 @@ final class AdminContentTest extends DatabaseTestCase
             $this->entries,
             $this->blocks,
             new PdoContentRevisionRepository($this->database),
+            new PdoContentTermRepository($this->database),
             new PreviewService(new PdoPreviewTokenRepository($this->database), $this->clock),
             new MediaService(
                 new PdoMediaRepository($this->database),

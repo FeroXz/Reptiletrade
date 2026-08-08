@@ -16,8 +16,10 @@ use Reptilienmarkt\Domain\Content\ContentRevisionRepository;
 use Reptilienmarkt\Domain\Content\ContentService;
 use Reptilienmarkt\Domain\Content\ContentStatus;
 use Reptilienmarkt\Domain\Content\ContentTemplate;
+use Reptilienmarkt\Domain\Content\ContentTermRepository;
 use Reptilienmarkt\Domain\Content\ContentType;
 use Reptilienmarkt\Domain\Content\PreviewService;
+use Reptilienmarkt\Domain\Content\Taxonomy;
 use Reptilienmarkt\Domain\User\User;
 use Reptilienmarkt\Http\HttpException;
 use Reptilienmarkt\Http\Message\Request;
@@ -46,6 +48,7 @@ final readonly class AdminContentController
         private ContentEntryRepository $entries,
         private ContentBlockRepository $blocks,
         private ContentRevisionRepository $revisions,
+        private ContentTermRepository $terms,
         private PreviewService $previews,
         private MediaService $media,
         private ContentPermission $permission,
@@ -118,6 +121,8 @@ final readonly class AdminContentController
         return Response::html($this->twig->render('admin/inhalt_bearbeiten.html.twig', [
             'eintrag' => $entry,
             'bloecke' => $this->blocks->forEntry($entry->id ?? 0),
+            'kategorien' => $this->termNames($entry->id ?? 0, Taxonomy::Kategorie),
+            'schlagwoerter' => $this->termNames($entry->id ?? 0, Taxonomy::Schlagwort),
             'blocktypen' => BlockType::choices(),
             'vorlagen' => ContentTemplate::cases(),
             'seiten' => array_values(array_filter(
@@ -228,6 +233,7 @@ final readonly class AdminContentController
             // nicht an die Verwendungstabelle — und eine Verwendung, die
             // stehenbleibt, sperrt das Bild fuer immer gegen das Loeschen.
             $this->media->syncUsages($id, $blocks, $entry->ogImageId);
+            $this->saveTerms($id, $request);
         } catch (ContentException $exception) {
             $this->session->flash('fehler', $exception->getMessage());
 
@@ -338,6 +344,54 @@ final readonly class AdminContentController
         $this->session->flash('erfolg', $this->translator->translate('admin.inhalt.geloescht'));
 
         return Response::redirect('/admin/inhalte');
+    }
+
+    /**
+     * Kategorien und Schlagwoerter aus dem Formular.
+     *
+     * Sie entstehen beim Speichern, nicht in einer eigenen Verwaltung: Eine
+     * leere Kategorienliste, die erst gepflegt werden muss, bevor der erste
+     * Beitrag eine bekommt, haelt niemanden auf — nur auf.
+     */
+    private function saveTerms(int $entryId, Request $request): void
+    {
+        $ids = [];
+
+        // Ein Aufzaehlungswert taugt nicht als Feldschluessel — deshalb Paare.
+        foreach ([[Taxonomy::Kategorie, 'kategorien'], [Taxonomy::Schlagwort, 'schlagwoerter']] as [$taxonomy, $feld]) {
+            foreach (explode(',', $this->text($request, $feld)) as $name) {
+                $name = trim($name);
+
+                if ($name === '') {
+                    continue;
+                }
+
+                $begriff = $this->terms->ensure($taxonomy, $name);
+
+                if ($begriff->id !== null) {
+                    $ids[] = $begriff->id;
+                }
+            }
+        }
+
+        $this->terms->assign($entryId, $ids);
+    }
+
+    /**
+     * Die Namen der zugeordneten Begriffe als Komma-Liste — so, wie das
+     * Formular sie erwartet.
+     */
+    private function termNames(int $entryId, Taxonomy $taxonomy): string
+    {
+        $namen = [];
+
+        foreach ($this->terms->forEntry($entryId) as $begriff) {
+            if ($begriff->taxonomy === $taxonomy) {
+                $namen[] = $begriff->name;
+            }
+        }
+
+        return implode(', ', $namen);
     }
 
     // ------------------------------------------------------------- Bloecke

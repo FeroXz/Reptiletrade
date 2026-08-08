@@ -12,6 +12,7 @@ use Reptilienmarkt\Domain\Content\ContentEntry;
 use Reptilienmarkt\Domain\Content\ContentPath;
 use Reptilienmarkt\Domain\Content\ContentRenderer;
 use Reptilienmarkt\Domain\Content\ContentStatus;
+use Reptilienmarkt\Domain\Content\ContentText;
 use Reptilienmarkt\Domain\Content\ContentType;
 use Reptilienmarkt\Domain\Content\MarkdownRenderer;
 use Reptilienmarkt\Domain\Content\PreviewService;
@@ -55,6 +56,7 @@ final class ContentPageTest extends DatabaseTestCase
             $this->blocks,
             new ContentRenderer(
                 new MarkdownRenderer(),
+                new ContentText(new MarkdownRenderer()),
                 new PdoListingRepository($this->database),
                 new PdoSpeciesRepository($this->database),
                 new PdoMediaRepository($this->database),

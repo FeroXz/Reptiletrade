@@ -11,13 +11,16 @@ use Reptilienmarkt\Domain\Content\ContentBlock;
 use Reptilienmarkt\Domain\Content\ContentException;
 use Reptilienmarkt\Domain\Content\ContentService;
 use Reptilienmarkt\Domain\Content\ContentStatus;
+use Reptilienmarkt\Domain\Content\ContentText;
 use Reptilienmarkt\Domain\Content\ContentType;
+use Reptilienmarkt\Domain\Content\MarkdownRenderer;
 use Reptilienmarkt\Domain\Privacy\RetentionConfigurationException;
 use Reptilienmarkt\Domain\Privacy\RetentionPolicy;
 use Reptilienmarkt\Infra\Persistence\PdoAuditLog;
 use Reptilienmarkt\Infra\Persistence\PdoContentBlockRepository;
 use Reptilienmarkt\Infra\Persistence\PdoContentEntryRepository;
 use Reptilienmarkt\Infra\Persistence\PdoContentRevisionRepository;
+use Reptilienmarkt\Infra\Search\Fts5ContentSearchIndex;
 use Reptilienmarkt\Tests\DatabaseTestCase;
 use Reptilienmarkt\Tests\Support\FrozenClock;
 
@@ -211,6 +214,8 @@ final class ContentRevisionTest extends DatabaseTestCase
             $this->entries,
             $this->blocks,
             $this->revisions,
+            new Fts5ContentSearchIndex($this->database),
+            new ContentText(new MarkdownRenderer()),
             new RetentionPolicy(['inhalt_fassungen_je_eintrag' => $behalten], $this->clock),
             new PdoAuditLog($this->database),
             $this->clock,

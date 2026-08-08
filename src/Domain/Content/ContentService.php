@@ -27,10 +27,40 @@ final readonly class ContentService
         private ContentEntryRepository $entries,
         private ContentBlockRepository $blocks,
         private ContentRevisionRepository $revisions,
+        private ContentSearchIndex $search,
+        private ContentText $text,
         private RetentionPolicy $retention,
         private AuditLog $audit,
         private Clock $clock,
     ) {}
+
+    /**
+     * Schreibt den Volltextindex zu einem Eintrag fort.
+     *
+     * Am Ende jeder schreibenden Aktion statt in einem naechtlichen Lauf: Ein
+     * Beitrag, der erst am naechsten Morgen auffindbar ist, ist am Tag seiner
+     * Veroeffentlichung unauffindbar — also genau dann, wenn ihn jemand sucht.
+     *
+     * Indexiert wird nur Veroeffentlichtes. Ein Entwurf, den die Suche findet,
+     * ist kein Entwurf mehr.
+     */
+    private function reindex(ContentEntry $entry): void
+    {
+        $id = $entry->id ?? 0;
+
+        if (!$entry->isPublic()) {
+            $this->search->remove($id);
+
+            return;
+        }
+
+        $this->search->index(
+            $id,
+            $entry->title,
+            $entry->excerpt,
+            $this->text->plainText($this->blocks->forEntry($id)),
+        );
+    }
 
     /**
      * @throws ContentException
@@ -152,6 +182,7 @@ final readonly class ContentService
         );
 
         $this->entries->save($updated);
+        $this->reindex($updated);
 
         $moved = $path === $entry->path ? [] : [['alt' => $entry->path, 'neu' => $path]];
 
@@ -179,6 +210,7 @@ final readonly class ContentService
         $this->entries->save($entry->withTouch($this->clock->now(), $actorId));
 
         $this->snapshot($entry, $actorId, $comment);
+        $this->reindex($entry);
     }
 
     /**
@@ -303,6 +335,8 @@ final readonly class ContentService
             'pfad' => $entry->path,
         ]);
 
+        $this->reindex($restored);
+
         return $restored;
     }
 
@@ -347,6 +381,7 @@ final readonly class ContentService
         ]);
 
         $this->snapshot($updated, $actorId, $scheduled ? 'Geplant' : 'Veroeffentlicht');
+        $this->reindex($updated);
 
         return $updated;
     }
@@ -369,6 +404,7 @@ final readonly class ContentService
                 ->withTouch($now, null);
 
             $this->entries->save($updated);
+            $this->reindex($updated);
 
             $this->audit->record(new AuditEntry(
                 'content.published',
@@ -397,6 +433,7 @@ final readonly class ContentService
         $this->entries->save($updated);
 
         $this->record('content.unpublished', $id, $actorId, ['pfad' => $entry->path]);
+        $this->reindex($updated);
 
         return $updated;
     }
@@ -413,6 +450,7 @@ final readonly class ContentService
         $this->entries->save($updated);
 
         $this->record('content.archived', $id, $actorId, ['pfad' => $entry->path]);
+        $this->reindex($updated);
 
         return $updated;
     }
@@ -440,6 +478,11 @@ final readonly class ContentService
         ]);
 
         $this->entries->delete($id);
+
+        // Der Trigger auf content_entries raeumt den Index bereits ab; der
+        // Aufruf hier macht es unabhaengig davon richtig, falls eine spaetere
+        // Umsetzung ohne Trigger auskommt.
+        $this->search->remove($id);
     }
 
     /**
