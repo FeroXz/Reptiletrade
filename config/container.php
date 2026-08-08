@@ -23,6 +23,8 @@ use Reptilienmarkt\Domain\Breeding\BreedingAnnouncementRepository;
 use Reptilienmarkt\Domain\Breeding\BreedingAnnouncementService;
 use Reptilienmarkt\Domain\Contact\ContactRepository;
 use Reptilienmarkt\Domain\Contact\ContactService;
+use Reptilienmarkt\Domain\Content\ContentBlockRepository;
+use Reptilienmarkt\Domain\Content\ContentEntryRepository;
 use Reptilienmarkt\Domain\Genetics\CrossSimulation;
 use Reptilienmarkt\Domain\Genetics\GeneticsConfiguration;
 use Reptilienmarkt\Domain\Genetics\GeneticsSimulationRepository;
@@ -128,6 +130,8 @@ use Reptilienmarkt\Infra\Persistence\PdoBoostRepository;
 use Reptilienmarkt\Infra\Persistence\PdoBreederProfileRepository;
 use Reptilienmarkt\Infra\Persistence\PdoBreedingAnnouncementRepository;
 use Reptilienmarkt\Infra\Persistence\PdoContactRepository;
+use Reptilienmarkt\Infra\Persistence\PdoContentBlockRepository;
+use Reptilienmarkt\Infra\Persistence\PdoContentEntryRepository;
 use Reptilienmarkt\Infra\Persistence\PdoConversationRepository;
 use Reptilienmarkt\Infra\Persistence\PdoGeneticsSimulationRepository;
 use Reptilienmarkt\Infra\Persistence\PdoJobRepository;
@@ -394,6 +398,10 @@ $container->set(CurrentUser::class, static fn(Container $c): CurrentUser => new 
     $c->get(UserRepository::class),
 ));
 $container->set(Viewer::class, static fn(Container $c): Viewer => $c->get(CurrentUser::class));
+
+// ------------------------------------------------------- Redaktionssystem
+$container->set(ContentEntryRepository::class, static fn(Container $c): ContentEntryRepository => new PdoContentEntryRepository($c->get(Database::class)));
+$container->set(ContentBlockRepository::class, static fn(Container $c): ContentBlockRepository => new PdoContentBlockRepository($c->get(Database::class)));
 
 // ------------------------------------------------------ Anzeigen und Ablage
 $container->set(ListingRepository::class, static fn(Container $c): ListingRepository => new PdoListingRepository($c->get(Database::class)));
