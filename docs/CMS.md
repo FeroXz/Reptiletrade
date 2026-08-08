@@ -196,6 +196,12 @@ ohne aus Zeichenketten gebautes Markup. Dieselbe Linie wie `markt.js` und `anzei
 Blocktypen v1: `text`, `bild`, `galerie`, `zitat`, `trenner`, `hinweis`, `cta`,
 `anzeigen-teaser`, `arten-teaser`.
 
+Kopf und Blöcke stehen in **einem** Formular. Jeder Knopf trägt seine Aktion im `name`/`value`-Paar
+(`aktion=block-hoch:2`), sodass Hinzufügen, Verschieben und Löschen gewöhnliche Absendungen sind —
+und dabei kein ungespeicherter Text verlorengeht. Übernommen wird pro Blocktyp nur, was er kennt
+(`blockData`); alles andere aus dem Formular fällt weg, statt in `data_json` und von dort in die
+Ausgabe zu wandern.
+
 Ein Roh-HTML-Block würde entweder `unsafe-inline` verlangen oder einen Sanitizer, der jedem
 neuen Browser-Trick hinterherläuft. Wenn er später kommt, dann als eigener Blocktyp, nur für
 `admin`, mit Vermerk im Audit-Trail.
@@ -239,7 +245,7 @@ Slug-Kollision mit einer registrierten Route.
 |---|---|---|
 | 10.1 | Plan, `content_entries` + `content_blocks`, Domain, PDO-Umsetzung | erledigt |
 | 10.2 | Markdown-/Blockrenderer, Templates, Reservierungsliste, Catch-all | erledigt |
-| 10.3 | Verwaltungsoberfläche, Redaktionsberechtigung, Audit | offen |
+| 10.3 | Verwaltungsoberfläche, Redaktionsberechtigung, Audit | erledigt |
 | 10.4 | Revisionen, Vorschau-Token, Planung, Auftrag `content.publish` | offen |
 | 10.5 | Medienverwaltung, `media_usages`, `srcset` | offen |
 | 10.6 | Beiträge, Kategorien, `/news/`, `/feed.xml`, FTS5 | offen |

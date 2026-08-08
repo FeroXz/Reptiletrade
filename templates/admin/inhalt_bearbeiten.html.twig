@@ -1,0 +1,259 @@
+{% extends 'layout/basis.html.twig' %}
+{% block titel %}{{ eintrag.title }} — {{ t('admin.inhalt.titel') }}{% endblock %}
+{% block kopf %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block inhalt %}
+    <div class="mx-auto max-w-4xl space-y-6">
+        {% include 'partials/meldungen.html.twig' %}
+
+        <div class="flex flex-wrap items-baseline justify-between gap-3">
+            <div>
+                <h1 class="text-xl font-semibold">{{ eintrag.title }}</h1>
+                <p class="text-sm gedaempft">
+                    {{ eintrag.type.label }} · {{ eintrag.status.label }} ·
+                    {% if eintrag.isPublic %}
+                        <a class="underline" href="{{ eintrag.path }}">{{ eintrag.path }}</a>
+                    {% else %}
+                        {{ eintrag.path }}
+                    {% endif %}
+                </p>
+            </div>
+            <a class="text-sm underline" href="/admin/inhalte">{{ t('admin.inhalt.titel') }}</a>
+        </div>
+
+        {# Ein Formular für Kopf UND Blöcke. Jeder Knopf trägt seine Aktion im
+           name/value-Paar — dadurch geht beim Hinzufügen, Verschieben oder
+           Löschen eines Blocks kein ungespeicherter Text verloren, und der
+           Editor braucht dafür kein Javascript. #}
+        <form method="post" action="/admin/inhalte/{{ eintrag.id }}/bearbeiten" class="space-y-6"
+              id="inhalt-formular" data-autosave="/admin/inhalte/{{ eintrag.id }}/autosave">
+            <input type="hidden" name="_csrf" value="{{ csrf }}">
+
+            <section class="karte space-y-4 p-6">
+                <h2 class="text-base font-semibold">{{ t('admin.inhalt.abschnitt_kopf') }}</h2>
+
+                <div>
+                    <label class="text-sm" for="titel">{{ t('admin.inhalt.feld_titel') }}</label>
+                    <input class="feld" id="titel" name="titel" value="{{ eintrag.title }}" required>
+                </div>
+
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <div>
+                        <label class="text-sm" for="slug">{{ t('admin.inhalt.feld_slug') }}</label>
+                        <input class="feld" id="slug" name="slug" value="{{ eintrag.slug }}" aria-describedby="slug-hilfe">
+                        <p class="mt-1 text-xs gedaempft" id="slug-hilfe">{{ t('admin.inhalt.slug_aenderung') }}</p>
+                    </div>
+                    <div>
+                        <label class="text-sm" for="vorlage">{{ t('admin.inhalt.feld_vorlage') }}</label>
+                        <select class="feld" id="vorlage" name="vorlage">
+                            {% for vorlage in vorlagen %}
+                                <option value="{{ vorlage.value }}" {{ eintrag.template == vorlage ? 'selected' : '' }}>{{ vorlage.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                {% if eintrag.type.allowsParent %}
+                    <div>
+                        <label class="text-sm" for="eltern_id">{{ t('admin.inhalt.feld_eltern') }}</label>
+                        <select class="feld" id="eltern_id" name="eltern_id">
+                            <option value="">{{ t('admin.inhalt.keine_eltern') }}</option>
+                            {% for seite in seiten %}
+                                <option value="{{ seite.id }}" {{ eintrag.parentId == seite.id ? 'selected' : '' }}>
+                                    {{ seite.path }} — {{ seite.title }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                {% endif %}
+
+                <div>
+                    <label class="text-sm" for="anriss">{{ t('admin.inhalt.feld_anriss') }}</label>
+                    <textarea class="feld" id="anriss" name="anriss" rows="2">{{ eintrag.excerpt }}</textarea>
+                </div>
+            </section>
+
+            <section class="karte space-y-4 p-6">
+                <h2 class="text-base font-semibold">{{ t('admin.inhalt.abschnitt_suchmaschine') }}</h2>
+
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <div>
+                        <label class="text-sm" for="meta_titel">{{ t('admin.inhalt.feld_meta_titel') }}</label>
+                        <input class="feld" id="meta_titel" name="meta_titel" value="{{ eintrag.metaTitle }}"
+                               placeholder="{{ eintrag.title }}">
+                    </div>
+                    <div>
+                        <label class="text-sm" for="meta_beschreibung">{{ t('admin.inhalt.feld_meta_beschreibung') }}</label>
+                        <input class="feld" id="meta_beschreibung" name="meta_beschreibung" value="{{ eintrag.metaDescription }}"
+                               placeholder="{{ eintrag.excerpt }}">
+                    </div>
+                </div>
+
+                <label class="flex items-center gap-2 text-sm">
+                    <input type="checkbox" name="noindex" value="1" {{ eintrag.noindex ? 'checked' : '' }}>
+                    {{ t('admin.inhalt.feld_noindex') }}
+                </label>
+            </section>
+
+            <section class="space-y-4" id="bloecke">
+                <h2 class="text-base font-semibold">{{ t('admin.inhalt.abschnitt_bloecke') }}</h2>
+
+                {% if bloecke is empty %}
+                    <p class="karte p-4 text-sm gedaempft">{{ t('admin.inhalt.keine_bloecke') }}</p>
+                {% endif %}
+
+                {% for block in bloecke %}
+                    <article class="karte space-y-3 p-4" data-block>
+                        <div class="flex items-center justify-between gap-3">
+                            <h3 class="text-sm font-semibold">{{ loop.index }}. {{ block.type.label }}</h3>
+                            <div class="flex items-center gap-2">
+                                <button type="submit" name="aktion" value="block-hoch:{{ loop.index0 }}"
+                                        class="knopf text-xs" {{ loop.first ? 'disabled' : '' }}>
+                                    {{ t('admin.inhalt.block_hoch') }}
+                                </button>
+                                <button type="submit" name="aktion" value="block-runter:{{ loop.index0 }}"
+                                        class="knopf text-xs" {{ loop.last ? 'disabled' : '' }}>
+                                    {{ t('admin.inhalt.block_runter') }}
+                                </button>
+                                <button type="submit" name="aktion" value="block-loeschen:{{ loop.index0 }}" class="knopf text-xs">
+                                    {{ t('allgemein.loeschen') }}
+                                </button>
+                            </div>
+                        </div>
+
+                        <input type="hidden" name="block[{{ loop.index0 }}][typ]" value="{{ block.type.value }}">
+
+                        {% if block.type.value == 'text' %}
+                            <label class="text-sm" for="block-{{ loop.index0 }}-text">{{ t('admin.inhalt.block_text') }}</label>
+                            <textarea class="feld font-mono text-sm" id="block-{{ loop.index0 }}-text"
+                                      name="block[{{ loop.index0 }}][text]" rows="8"
+                                      aria-describedby="markdown-hilfe">{{ block.string('text') }}</textarea>
+                        {% elseif block.type.value == 'zitat' %}
+                            <label class="text-sm" for="block-{{ loop.index0 }}-text">{{ t('admin.inhalt.block_zitat') }}</label>
+                            <textarea class="feld" id="block-{{ loop.index0 }}-text" name="block[{{ loop.index0 }}][text]" rows="3">{{ block.string('text') }}</textarea>
+                            <label class="text-sm" for="block-{{ loop.index0 }}-quelle">{{ t('admin.inhalt.block_quelle') }}</label>
+                            <input class="feld" id="block-{{ loop.index0 }}-quelle" name="block[{{ loop.index0 }}][quelle]" value="{{ block.string('quelle') }}">
+                        {% elseif block.type.value == 'hinweis' %}
+                            <label class="text-sm" for="block-{{ loop.index0 }}-titel">{{ t('admin.inhalt.block_ueberschrift') }}</label>
+                            <input class="feld" id="block-{{ loop.index0 }}-titel" name="block[{{ loop.index0 }}][titel]" value="{{ block.string('titel') }}">
+                            <label class="text-sm" for="block-{{ loop.index0 }}-text">{{ t('admin.inhalt.block_text') }}</label>
+                            <textarea class="feld" id="block-{{ loop.index0 }}-text" name="block[{{ loop.index0 }}][text]" rows="4">{{ block.string('text') }}</textarea>
+                        {% elseif block.type.value == 'cta' %}
+                            <label class="text-sm" for="block-{{ loop.index0 }}-titel">{{ t('admin.inhalt.block_ueberschrift') }}</label>
+                            <input class="feld" id="block-{{ loop.index0 }}-titel" name="block[{{ loop.index0 }}][titel]" value="{{ block.string('titel') }}">
+                            <label class="text-sm" for="block-{{ loop.index0 }}-text">{{ t('admin.inhalt.block_text') }}</label>
+                            <textarea class="feld" id="block-{{ loop.index0 }}-text" name="block[{{ loop.index0 }}][text]" rows="3">{{ block.string('text') }}</textarea>
+                            <div class="grid gap-3 sm:grid-cols-2">
+                                <div>
+                                    <label class="text-sm" for="block-{{ loop.index0 }}-label">{{ t('admin.inhalt.block_label') }}</label>
+                                    <input class="feld" id="block-{{ loop.index0 }}-label" name="block[{{ loop.index0 }}][label]" value="{{ block.string('label') }}">
+                                </div>
+                                <div>
+                                    <label class="text-sm" for="block-{{ loop.index0 }}-ziel">{{ t('admin.inhalt.block_ziel') }}</label>
+                                    <input class="feld" id="block-{{ loop.index0 }}-ziel" name="block[{{ loop.index0 }}][ziel]" value="{{ block.string('ziel') }}">
+                                </div>
+                            </div>
+                        {% elseif block.type.value == 'bild' %}
+                            <div class="grid gap-3 sm:grid-cols-3">
+                                <div>
+                                    <label class="text-sm" for="block-{{ loop.index0 }}-media">{{ t('admin.inhalt.block_medium') }}</label>
+                                    <input class="feld" id="block-{{ loop.index0 }}-media" name="block[{{ loop.index0 }}][media_id]"
+                                           inputmode="numeric" value="{{ block.int('media_id') ?: '' }}">
+                                </div>
+                                <div class="sm:col-span-2">
+                                    {# Pflichtfeld hier und nicht beim Hochladen: Dort weiß noch
+                                       niemand, wofür das Bild steht. #}
+                                    <label class="text-sm" for="block-{{ loop.index0 }}-alt">{{ t('admin.inhalt.block_alt') }}</label>
+                                    <input class="feld" id="block-{{ loop.index0 }}-alt" name="block[{{ loop.index0 }}][alt_text]"
+                                           value="{{ block.string('alt_text') }}" required>
+                                </div>
+                            </div>
+                            <label class="text-sm" for="block-{{ loop.index0 }}-bu">{{ t('admin.inhalt.block_bildunterschrift') }}</label>
+                            <input class="feld" id="block-{{ loop.index0 }}-bu" name="block[{{ loop.index0 }}][bildunterschrift]" value="{{ block.string('bildunterschrift') }}">
+                        {% elseif block.type.value == 'galerie' %}
+                            <label class="text-sm" for="block-{{ loop.index0 }}-medien">{{ t('admin.inhalt.block_medien') }}</label>
+                            <input class="feld" id="block-{{ loop.index0 }}-medien" name="block[{{ loop.index0 }}][media_ids]"
+                                   value="{{ block.intList('media_ids')|join(',') }}" placeholder="12,13,14">
+                        {% elseif block.type.value == 'anzeigen-teaser' %}
+                            <label class="text-sm" for="block-{{ loop.index0 }}-anzeige">{{ t('admin.inhalt.block_anzeige') }}</label>
+                            <input class="feld" id="block-{{ loop.index0 }}-anzeige" name="block[{{ loop.index0 }}][listing_id]"
+                                   inputmode="numeric" value="{{ block.int('listing_id') ?: '' }}">
+                        {% elseif block.type.value == 'arten-teaser' %}
+                            <label class="text-sm" for="block-{{ loop.index0 }}-art">{{ t('admin.inhalt.block_art') }}</label>
+                            <input class="feld" id="block-{{ loop.index0 }}-art" name="block[{{ loop.index0 }}][art_slug]"
+                                   value="{{ block.string('art_slug') }}" placeholder="pogona-vitticeps">
+                        {% else %}
+                            <p class="text-sm gedaempft">{{ t('admin.inhalt.block_ohne_felder') }}</p>
+                        {% endif %}
+                    </article>
+                {% endfor %}
+
+                <p class="text-xs gedaempft" id="markdown-hilfe">{{ t('admin.inhalt.markdown_hilfe') }}</p>
+
+                <div class="karte flex flex-wrap items-end gap-3 p-4">
+                    <div>
+                        <label class="text-sm" for="neuer_block">{{ t('admin.inhalt.block_hinzufuegen') }}</label>
+                        {# Ein Knopf je Typ wäre neun Knöpfe; ein Select mit einem
+                           Knopf ist dieselbe Zahl an Klicks und weniger Fläche. #}
+                        <select class="feld" id="neuer_block" name="neuer_block">
+                            {% for typ in blocktypen %}
+                                <option value="block-hinzufuegen:{{ typ.value }}">{{ typ.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" name="aktion" value="block-hinzufuegen" class="knopf" id="block-hinzufuegen">
+                        {{ t('admin.inhalt.hinzufuegen') }}
+                    </button>
+                </div>
+            </section>
+
+            <div class="karte flex flex-wrap items-center gap-3 p-4">
+                <button type="submit" name="aktion" value="speichern" class="knopf knopf-primaer">{{ t('allgemein.speichern') }}</button>
+            </div>
+        </form>
+
+        <section class="karte space-y-4 p-6">
+            <h2 class="text-base font-semibold">{{ t('admin.inhalt.abschnitt_status') }}</h2>
+
+            <form method="post" action="/admin/inhalte/{{ eintrag.id }}/veroeffentlichen" class="flex flex-wrap items-end gap-3">
+                <input type="hidden" name="_csrf" value="{{ csrf }}">
+                <div>
+                    <label class="text-sm" for="termin">{{ t('admin.inhalt.termin') }}</label>
+                    <input class="feld" id="termin" type="datetime-local" name="termin"
+                           aria-describedby="termin-hilfe">
+                    <p class="mt-1 text-xs gedaempft" id="termin-hilfe">{{ t('admin.inhalt.termin_hilfe') }}</p>
+                </div>
+                <button type="submit" class="knopf knopf-primaer">{{ t('admin.inhalt.veroeffentlichen') }}</button>
+            </form>
+
+            <div class="flex flex-wrap gap-3">
+                {% if eintrag.status.value in ['veroeffentlicht', 'geplant'] %}
+                    <form method="post" action="/admin/inhalte/{{ eintrag.id }}/zuruecknehmen">
+                        <input type="hidden" name="_csrf" value="{{ csrf }}">
+                        <button type="submit" class="knopf">{{ t('admin.inhalt.zuruecknehmen') }}</button>
+                    </form>
+                {% endif %}
+
+                {% if eintrag.status.value != 'archiviert' %}
+                    <form method="post" action="/admin/inhalte/{{ eintrag.id }}/archivieren">
+                        <input type="hidden" name="_csrf" value="{{ csrf }}">
+                        <button type="submit" class="knopf">{{ t('admin.inhalt.archivieren') }}</button>
+                    </form>
+                {% endif %}
+
+                <form method="post" action="/admin/inhalte/{{ eintrag.id }}/loeschen">
+                    <input type="hidden" name="_csrf" value="{{ csrf }}">
+                    <button type="submit" class="knopf" data-bestaetigen="{{ t('admin.inhalt.loeschen_bestaetigen') }}">
+                        {{ t('admin.inhalt.loeschen') }}
+                    </button>
+                </form>
+            </div>
+
+            <p class="text-xs gedaempft">{{ t('admin.inhalt.zuruecknehmen_hinweis') }}</p>
+        </section>
+    </div>
+{% endblock %}
+
+{% block skripte %}
+    <script src="/assets/inhalt.js" defer></script>
+{% endblock %}

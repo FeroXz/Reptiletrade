@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Reptilienmarkt\Http\View;
 
+use Reptilienmarkt\Domain\Content\ContentPermission;
 use Reptilienmarkt\Domain\Message\ConversationRepository;
 use Reptilienmarkt\Domain\User\Role;
 use Reptilienmarkt\Domain\User\User;
@@ -26,6 +27,7 @@ final class ViewContext
     public function __construct(
         private readonly Viewer $viewer,
         private readonly ConversationRepository $conversations,
+        private readonly ContentPermission $content,
     ) {}
 
     public function user(): ?User
@@ -50,6 +52,16 @@ final class ViewContext
     public function isAdmin(): bool
     {
         return $this->viewer->get()?->role === Role::Admin;
+    }
+
+    /**
+     * Darf der Betrachter die Redaktion bedienen? Getrennt von isAdmin, weil
+     * ein Redakteur den Verweis auf /admin/inhalte braucht, den auf /admin/
+     * aber nicht — dort duerfte er ohnehin nichts.
+     */
+    public function isEditor(): bool
+    {
+        return $this->content->mayEdit($this->viewer->get());
     }
 
     public function unreadMessages(): int

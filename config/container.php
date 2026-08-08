@@ -24,8 +24,11 @@ use Reptilienmarkt\Domain\Breeding\BreedingAnnouncementService;
 use Reptilienmarkt\Domain\Contact\ContactRepository;
 use Reptilienmarkt\Domain\Contact\ContactService;
 use Reptilienmarkt\Domain\Content\ContentBlockRepository;
+use Reptilienmarkt\Domain\Content\ContentEditorRepository;
 use Reptilienmarkt\Domain\Content\ContentEntryRepository;
+use Reptilienmarkt\Domain\Content\ContentPermission;
 use Reptilienmarkt\Domain\Content\ContentRenderer;
+use Reptilienmarkt\Domain\Content\ContentService;
 use Reptilienmarkt\Domain\Content\MarkdownRenderer;
 use Reptilienmarkt\Domain\Genetics\CrossSimulation;
 use Reptilienmarkt\Domain\Genetics\GeneticsConfiguration;
@@ -78,6 +81,7 @@ use Reptilienmarkt\Domain\User\UserModerationService;
 use Reptilienmarkt\Domain\User\UserRepository;
 use Reptilienmarkt\Domain\User\VerificationRepository;
 use Reptilienmarkt\Http\Controller\AccountController;
+use Reptilienmarkt\Http\Controller\AdminContentController;
 use Reptilienmarkt\Http\Controller\AdminController;
 use Reptilienmarkt\Http\Controller\AdminListingController;
 use Reptilienmarkt\Http\Controller\AdminUserController;
@@ -134,6 +138,7 @@ use Reptilienmarkt\Infra\Persistence\PdoBreederProfileRepository;
 use Reptilienmarkt\Infra\Persistence\PdoBreedingAnnouncementRepository;
 use Reptilienmarkt\Infra\Persistence\PdoContactRepository;
 use Reptilienmarkt\Infra\Persistence\PdoContentBlockRepository;
+use Reptilienmarkt\Infra\Persistence\PdoContentEditorRepository;
 use Reptilienmarkt\Infra\Persistence\PdoContentEntryRepository;
 use Reptilienmarkt\Infra\Persistence\PdoConversationRepository;
 use Reptilienmarkt\Infra\Persistence\PdoGeneticsSimulationRepository;
@@ -337,6 +342,7 @@ $container->set(Router::class, static function () use ($root): Router {
 $container->set(ViewContext::class, static fn(Container $c): ViewContext => new ViewContext(
     $c->get(Viewer::class),
     $c->get(ConversationRepository::class),
+    $c->get(ContentPermission::class),
 ));
 
 $container->set(Environment::class, static fn(Container $c): Environment => TwigFactory::create(
@@ -405,6 +411,19 @@ $container->set(Viewer::class, static fn(Container $c): Viewer => $c->get(Curren
 // ------------------------------------------------------- Redaktionssystem
 $container->set(ContentEntryRepository::class, static fn(Container $c): ContentEntryRepository => new PdoContentEntryRepository($c->get(Database::class)));
 $container->set(ContentBlockRepository::class, static fn(Container $c): ContentBlockRepository => new PdoContentBlockRepository($c->get(Database::class)));
+
+$container->set(ContentEditorRepository::class, static fn(Container $c): ContentEditorRepository => new PdoContentEditorRepository($c->get(Database::class)));
+
+$container->set(ContentPermission::class, static fn(Container $c): ContentPermission => new ContentPermission(
+    $c->get(ContentEditorRepository::class),
+));
+
+$container->set(ContentService::class, static fn(Container $c): ContentService => new ContentService(
+    $c->get(ContentEntryRepository::class),
+    $c->get(ContentBlockRepository::class),
+    $c->get(AuditLog::class),
+    $c->get(Clock::class),
+));
 
 $container->set(MarkdownRenderer::class, static fn(): MarkdownRenderer => new MarkdownRenderer());
 
@@ -1018,6 +1037,17 @@ $container->set(AdminController::class, static fn(Container $c): AdminController
     $c->get(JobRepository::class),
     $c->get(RetentionPolicy::class),
     $c->get(UiTextService::class),
+    $c->get(Viewer::class),
+    $c->get(SessionManager::class),
+    $c->get(Translator::class),
+    $c->get(Environment::class),
+));
+
+$container->set(AdminContentController::class, static fn(Container $c): AdminContentController => new AdminContentController(
+    $c->get(ContentService::class),
+    $c->get(ContentEntryRepository::class),
+    $c->get(ContentBlockRepository::class),
+    $c->get(ContentPermission::class),
     $c->get(Viewer::class),
     $c->get(SessionManager::class),
     $c->get(Translator::class),

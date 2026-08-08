@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Reptilienmarkt\Http\Controller\AccountController;
+use Reptilienmarkt\Http\Controller\AdminContentController;
 use Reptilienmarkt\Http\Controller\AdminController;
 use Reptilienmarkt\Http\Controller\AdminListingController;
 use Reptilienmarkt\Http\Controller\AdminUserController;
@@ -141,6 +142,19 @@ $router->post('/admin/texte', AdminController::class, 'saveTexts', 'admin.texte.
 $router->get('/admin/artenstamm', AdminController::class, 'catalog', 'admin.artenstamm');
 $router->get('/admin/artenstamm/{art}/export', AdminController::class, 'exportCatalog', 'admin.artenstamm.export');
 $router->post('/admin/artenstamm/{art}/import', AdminController::class, 'importCatalog', 'admin.artenstamm.import');
+
+// Redaktion (Rolle admin oder Eintrag in content_editors — fehlt beides, gibt
+// es 404 statt 403, dieselbe Linie wie /admin/)
+$router->get('/admin/inhalte', AdminContentController::class, 'index', 'admin.inhalte');
+$router->get('/admin/inhalte/neu', AdminContentController::class, 'createForm', 'admin.inhalte.neu');
+$router->post('/admin/inhalte/neu', AdminContentController::class, 'create', 'admin.inhalte.anlegen');
+$router->get('/admin/inhalte/{id}/bearbeiten', AdminContentController::class, 'edit', 'admin.inhalte.bearbeiten');
+$router->post('/admin/inhalte/{id}/bearbeiten', AdminContentController::class, 'save', 'admin.inhalte.speichern');
+$router->post('/admin/inhalte/{id}/autosave', AdminContentController::class, 'autosave', 'admin.inhalte.autosave');
+$router->post('/admin/inhalte/{id}/veroeffentlichen', AdminContentController::class, 'publish', 'admin.inhalte.veroeffentlichen');
+$router->post('/admin/inhalte/{id}/zuruecknehmen', AdminContentController::class, 'unpublish', 'admin.inhalte.zuruecknehmen');
+$router->post('/admin/inhalte/{id}/archivieren', AdminContentController::class, 'archive', 'admin.inhalte.archivieren');
+$router->post('/admin/inhalte/{id}/loeschen', AdminContentController::class, 'delete', 'admin.inhalte.loeschen');
 
 // Moderation
 $router->get('/moderation/', ModerationController::class, 'queue', 'moderation');
