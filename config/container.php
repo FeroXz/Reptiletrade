@@ -28,8 +28,11 @@ use Reptilienmarkt\Domain\Content\ContentEditorRepository;
 use Reptilienmarkt\Domain\Content\ContentEntryRepository;
 use Reptilienmarkt\Domain\Content\ContentPermission;
 use Reptilienmarkt\Domain\Content\ContentRenderer;
+use Reptilienmarkt\Domain\Content\ContentRevisionRepository;
 use Reptilienmarkt\Domain\Content\ContentService;
 use Reptilienmarkt\Domain\Content\MarkdownRenderer;
+use Reptilienmarkt\Domain\Content\PreviewService;
+use Reptilienmarkt\Domain\Content\PreviewTokenRepository;
 use Reptilienmarkt\Domain\Genetics\CrossSimulation;
 use Reptilienmarkt\Domain\Genetics\GeneticsConfiguration;
 use Reptilienmarkt\Domain\Genetics\GeneticsSimulationRepository;
@@ -119,6 +122,7 @@ use Reptilienmarkt\Http\View\ViewContext;
 use Reptilienmarkt\Infra\Genetics\PdfReportGenerator;
 use Reptilienmarkt\Infra\Job\Handler\BanExpiryHandler;
 use Reptilienmarkt\Infra\Job\Handler\BoostExpiryHandler;
+use Reptilienmarkt\Infra\Job\Handler\ContentPublishHandler;
 use Reptilienmarkt\Infra\Job\Handler\ListingArchiveHandler;
 use Reptilienmarkt\Infra\Job\Handler\ListingExpiryNoticeHandler;
 use Reptilienmarkt\Infra\Job\Handler\LogRotationHandler;
@@ -140,6 +144,7 @@ use Reptilienmarkt\Infra\Persistence\PdoContactRepository;
 use Reptilienmarkt\Infra\Persistence\PdoContentBlockRepository;
 use Reptilienmarkt\Infra\Persistence\PdoContentEditorRepository;
 use Reptilienmarkt\Infra\Persistence\PdoContentEntryRepository;
+use Reptilienmarkt\Infra\Persistence\PdoContentRevisionRepository;
 use Reptilienmarkt\Infra\Persistence\PdoConversationRepository;
 use Reptilienmarkt\Infra\Persistence\PdoGeneticsSimulationRepository;
 use Reptilienmarkt\Infra\Persistence\PdoJobRepository;
@@ -151,6 +156,7 @@ use Reptilienmarkt\Infra\Persistence\PdoMessageRepository;
 use Reptilienmarkt\Infra\Persistence\PdoMorphRepository;
 use Reptilienmarkt\Infra\Persistence\PdoPaymentRepository;
 use Reptilienmarkt\Infra\Persistence\PdoPostalCodeRepository;
+use Reptilienmarkt\Infra\Persistence\PdoPreviewTokenRepository;
 use Reptilienmarkt\Infra\Persistence\PdoRateLimitRepository;
 use Reptilienmarkt\Infra\Persistence\PdoReportRepository;
 use Reptilienmarkt\Infra\Persistence\PdoReviewRepository;
@@ -412,6 +418,14 @@ $container->set(Viewer::class, static fn(Container $c): Viewer => $c->get(Curren
 $container->set(ContentEntryRepository::class, static fn(Container $c): ContentEntryRepository => new PdoContentEntryRepository($c->get(Database::class)));
 $container->set(ContentBlockRepository::class, static fn(Container $c): ContentBlockRepository => new PdoContentBlockRepository($c->get(Database::class)));
 
+$container->set(ContentRevisionRepository::class, static fn(Container $c): ContentRevisionRepository => new PdoContentRevisionRepository($c->get(Database::class)));
+$container->set(PreviewTokenRepository::class, static fn(Container $c): PreviewTokenRepository => new PdoPreviewTokenRepository($c->get(Database::class)));
+
+$container->set(PreviewService::class, static fn(Container $c): PreviewService => new PreviewService(
+    $c->get(PreviewTokenRepository::class),
+    $c->get(Clock::class),
+));
+
 $container->set(ContentEditorRepository::class, static fn(Container $c): ContentEditorRepository => new PdoContentEditorRepository($c->get(Database::class)));
 
 $container->set(ContentPermission::class, static fn(Container $c): ContentPermission => new ContentPermission(
@@ -421,6 +435,8 @@ $container->set(ContentPermission::class, static fn(Container $c): ContentPermis
 $container->set(ContentService::class, static fn(Container $c): ContentService => new ContentService(
     $c->get(ContentEntryRepository::class),
     $c->get(ContentBlockRepository::class),
+    $c->get(ContentRevisionRepository::class),
+    $c->get(RetentionPolicy::class),
     $c->get(AuditLog::class),
     $c->get(Clock::class),
 ));
@@ -437,6 +453,7 @@ $container->set(ContentController::class, static fn(Container $c): ContentContro
     $c->get(ContentEntryRepository::class),
     $c->get(ContentBlockRepository::class),
     $c->get(ContentRenderer::class),
+    $c->get(PreviewService::class),
     $c->get(Environment::class),
 ));
 
@@ -947,6 +964,12 @@ $container->set('jobs.handlers', static function (Container $c) use ($root): arr
             $c->get(Clock::class),
             Env::string('APP_URL', 'https://example.tld'),
         ),
+        new ContentPublishHandler(
+            $c->get(ContentService::class),
+            $c->get(PreviewService::class),
+            $c->get(Clock::class),
+            $c->get(Logger::class),
+        ),
         new MediaCleanupHandler(
             $c->get(Database::class),
             $root . '/' . ltrim(Env::string('STORAGE_PUBLIC', 'public/uploads'), '/'),
@@ -1047,6 +1070,8 @@ $container->set(AdminContentController::class, static fn(Container $c): AdminCon
     $c->get(ContentService::class),
     $c->get(ContentEntryRepository::class),
     $c->get(ContentBlockRepository::class),
+    $c->get(ContentRevisionRepository::class),
+    $c->get(PreviewService::class),
     $c->get(ContentPermission::class),
     $c->get(Viewer::class),
     $c->get(SessionManager::class),

@@ -51,6 +51,14 @@ interface JobRepository
     public function hasPending(string $type, string $queue = 'default'): bool;
 
     /**
+     * Wann zuletzt ein Auftrag dieses Typs angelegt wurde — gleich in welchem
+     * Zustand. Der Zeitplan braucht das fuer wiederkehrende Abstaende:
+     * hasPending() allein weiss nichts mehr von einem Auftrag, den der Worker
+     * bereits abgearbeitet hat.
+     */
+    public function lastEnqueuedAt(string $type): ?DateTimeImmutable;
+
+    /**
      * @return array<string, int>
      */
     public function countsByStatus(): array;

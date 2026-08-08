@@ -14,15 +14,18 @@ use Reptilienmarkt\Domain\Content\ContentRenderer;
 use Reptilienmarkt\Domain\Content\ContentStatus;
 use Reptilienmarkt\Domain\Content\ContentType;
 use Reptilienmarkt\Domain\Content\MarkdownRenderer;
+use Reptilienmarkt\Domain\Content\PreviewService;
 use Reptilienmarkt\Http\Controller\ContentController;
 use Reptilienmarkt\Http\Message\Request;
 use Reptilienmarkt\Http\View\TwigFactory;
 use Reptilienmarkt\Infra\Persistence\PdoContentBlockRepository;
 use Reptilienmarkt\Infra\Persistence\PdoContentEntryRepository;
 use Reptilienmarkt\Infra\Persistence\PdoListingRepository;
+use Reptilienmarkt\Infra\Persistence\PdoPreviewTokenRepository;
 use Reptilienmarkt\Infra\Persistence\PdoSpeciesRepository;
 use Reptilienmarkt\Support\Translator;
 use Reptilienmarkt\Tests\DatabaseTestCase;
+use Reptilienmarkt\Tests\Support\FrozenClock;
 
 /**
  * Die oeffentliche Auslieferung redaktioneller Seiten.
@@ -54,6 +57,7 @@ final class ContentPageTest extends DatabaseTestCase
                 new PdoListingRepository($this->database),
                 new PdoSpeciesRepository($this->database),
             ),
+            new PreviewService(new PdoPreviewTokenRepository($this->database), new FrozenClock(new DateTimeImmutable('2026-08-08T10:00:00+00:00'))),
             TwigFactory::create($root . '/templates', true, null, new Translator($root . '/lang')),
         );
     }

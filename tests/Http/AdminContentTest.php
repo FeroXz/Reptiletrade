@@ -10,6 +10,8 @@ use Reptilienmarkt\Domain\Content\ContentPermission;
 use Reptilienmarkt\Domain\Content\ContentService;
 use Reptilienmarkt\Domain\Content\ContentStatus;
 use Reptilienmarkt\Domain\Content\ContentType;
+use Reptilienmarkt\Domain\Content\PreviewService;
+use Reptilienmarkt\Domain\Privacy\RetentionPolicy;
 use Reptilienmarkt\Domain\User\Role;
 use Reptilienmarkt\Domain\User\User;
 use Reptilienmarkt\Domain\User\UserStatus;
@@ -23,6 +25,8 @@ use Reptilienmarkt\Infra\Persistence\PdoAuditLog;
 use Reptilienmarkt\Infra\Persistence\PdoContentBlockRepository;
 use Reptilienmarkt\Infra\Persistence\PdoContentEditorRepository;
 use Reptilienmarkt\Infra\Persistence\PdoContentEntryRepository;
+use Reptilienmarkt\Infra\Persistence\PdoContentRevisionRepository;
+use Reptilienmarkt\Infra\Persistence\PdoPreviewTokenRepository;
 use Reptilienmarkt\Infra\Persistence\PdoSessionRepository;
 use Reptilienmarkt\Support\Translator;
 use Reptilienmarkt\Tests\DatabaseTestCase;
@@ -337,6 +341,8 @@ final class AdminContentTest extends DatabaseTestCase
         return new ContentService(
             $this->entries,
             $this->blocks,
+            new PdoContentRevisionRepository($this->database),
+            new RetentionPolicy(require \dirname(__DIR__, 2) . '/config/aufbewahrung.php', $this->clock),
             new PdoAuditLog($this->database),
             $this->clock,
         );
@@ -351,6 +357,8 @@ final class AdminContentTest extends DatabaseTestCase
             $this->service(),
             $this->entries,
             $this->blocks,
+            new PdoContentRevisionRepository($this->database),
+            new PreviewService(new PdoPreviewTokenRepository($this->database), $this->clock),
             new ContentPermission($this->editors),
             new StubViewer($user),
             $this->session,

@@ -14,15 +14,20 @@ declare(strict_types=1);
  *   1. Ohne Berechtigung ist die Redaktion nicht vorhanden (404, nicht 403).
  *   2. Eine Seite anlegen, Bloecke fuellen, veroeffentlichen, oeffentlich abrufen.
  *   3. Der belegte Pfad wird mit Namen abgewiesen.
- *   4. Zuruecknehmen und Archivieren wirken wie angekuendigt (Entwurf, 410).
+ *   4. Ein geplanter Beitrag erscheint erst, wenn der Auftrag gelaufen ist.
+ *   5. Ein Vorschaulink zeigt einen Entwurf, ohne Anmeldung und ohne noindex.
+ *   6. Eine Fassung laesst sich zuruecksetzen.
+ *   7. Zuruecknehmen und Archivieren wirken wie angekuendigt (Entwurf, 410).
  *
  * Die spaeteren Arbeitspakete ergaenzen hier: Slug-Aenderung mit Weiterleitung,
- * geplanter Beitrag mit Joblauf, Sitemap und Feed, Revision zuruecksetzen.
+ * Medien, Sitemap und Feed.
  *
  * Aufruf: php tools/smoke_cms.php [--behalten]
  */
 
 use Reptilienmarkt\Domain\Auth\AuthenticationService;
+use Reptilienmarkt\Domain\Job\JobRunner;
+use Reptilienmarkt\Domain\Job\JobScheduler;
 use Reptilienmarkt\Domain\User\Role;
 use Reptilienmarkt\Domain\User\VerificationRepository;
 use Reptilienmarkt\Http\Kernel;
@@ -213,7 +218,116 @@ pruefe(
     'das Impressum ist nicht mehr erreichbar',
 );
 
-// ------------------------------------------------------ 5) Statuswechsel
+// ---------------------------------------------------------- 5) Planung
+echo "\nPlanung\n";
+
+$ziel = $redaktion->post('/admin/inhalte/neu', ['titel' => 'Nachzuchtsaison 2026', 'typ' => 'beitrag']);
+preg_match('#/admin/inhalte/(\d+)/bearbeiten#', $ziel, $treffer);
+$beitragId = (int) ($treffer[1] ?? 0);
+
+$termin = (new DateTimeImmutable('+30 minutes'))->format('Y-m-d\TH:i:s');
+$redaktion->post('/admin/inhalte/' . $beitragId . '/veroeffentlichen', ['termin' => $termin]);
+
+$beitragsPfad = (string) $container->get(Database::class)->scalar(
+    'SELECT path FROM content_entries WHERE id = :id',
+    ['id' => $beitragId],
+);
+
+pruefe(
+    $gast->get($beitragsPfad)->status === 404,
+    'Ein geplanter Beitrag ist vor dem Termin nicht erreichbar',
+    'der Beitrag war schon abrufbar',
+);
+
+// Den Termin in die Vergangenheit ruecken — kuerzer, als eine halbe Stunde zu
+// warten, und es prueft dasselbe: dass erst der Joblauf freischaltet.
+$container->get(Database::class)->execute(
+    "UPDATE content_entries SET published_at = :wann WHERE id = :id",
+    ['wann' => gmdate('Y-m-d\TH:i:s\Z', time() - 60), 'id' => $beitragId],
+);
+
+pruefe(
+    $gast->get($beitragsPfad)->status === 404,
+    'Auch nach dem Termin bleibt er liegen, solange kein Auftrag lief',
+    'der Beitrag erschien ohne Joblauf',
+);
+
+$scheduler = $container->get(JobScheduler::class);
+$eingeplant = $scheduler->schedule();
+
+pruefe(
+    in_array('content.publish', $eingeplant, true),
+    'Der Zeitplan kennt content.publish',
+    'eingeplant wurde: ' . implode(', ', $eingeplant),
+);
+
+$container->get(JobRunner::class)->run();
+
+pruefe(
+    $gast->get($beitragsPfad)->status === 200,
+    'Nach dem Joblauf ist der Beitrag online',
+    'der Beitrag blieb unsichtbar',
+);
+
+// ---------------------------------------------------------- 6) Vorschau
+echo "\nVorschau\n";
+
+$ziel = $redaktion->post('/admin/inhalte/neu', ['titel' => 'Noch nicht fertig', 'typ' => 'seite']);
+preg_match('#/admin/inhalte/(\d+)/bearbeiten#', $ziel, $treffer);
+$entwurfId = (int) ($treffer[1] ?? 0);
+
+$redaktion->get('/admin/inhalte/' . $entwurfId . '/bearbeiten');
+$redaktion->post('/admin/inhalte/' . $entwurfId . '/vorschau', []);
+
+$editor = $redaktion->get('/admin/inhalte/' . $entwurfId . '/bearbeiten');
+pruefe(
+    preg_match('#(/vorschau/[0-9a-f]{64})#', $editor->body, $treffer) === 1,
+    'Der Vorschaulink erscheint einmal als Meldung',
+    'kein Link in der Meldung',
+);
+
+$vorschau = $gast->get($treffer[1] ?? '/vorschau/x');
+pruefe($vorschau->status === 200, 'Der Vorschaulink zeigt den Entwurf ohne Anmeldung', 'Status ' . $vorschau->status);
+pruefe(
+    str_contains((string) ($vorschau->headers['x-robots-tag'] ?? ''), 'noindex'),
+    'Die Vorschau traegt noindex — sonst verraet ein Suchindex den Entwurf',
+    'kein X-Robots-Tag',
+);
+pruefe(
+    $gast->get('/noch-nicht-fertig/')->status === 404,
+    'Der Entwurf selbst bleibt unter seiner Adresse unsichtbar',
+    'der Entwurf war oeffentlich',
+);
+
+// ---------------------------------------------------------- 7) Fassungen
+echo "\nFassungen\n";
+
+$versionen = $redaktion->get('/admin/inhalte/' . $seiteId . '/versionen');
+pruefe($versionen->status === 200, 'Die Fassungsliste rendert', 'Status ' . $versionen->status);
+
+$fassungen = (int) $container->get(Database::class)->scalar(
+    'SELECT COUNT(*) FROM content_revisions WHERE entry_id = :id',
+    ['id' => $seiteId],
+);
+pruefe($fassungen >= 3, 'Jedes Speichern und jede Veroeffentlichung legt eine Fassung an', $fassungen . ' Fassungen');
+
+// Den Titel verderben und ueber die aelteste Fassung zuruecksetzen.
+$redaktion->post('/admin/inhalte/' . $seiteId . '/bearbeiten', [
+    'titel' => 'Versehentlich umbenannt',
+    'slug' => 'haltung-im-terrarium',
+    'vorlage' => 'standard',
+    'aktion' => 'speichern',
+]);
+
+$redaktion->post('/admin/inhalte/' . $seiteId . '/versionen/1/zuruecksetzen', []);
+
+$titel = (string) $container->get(Database::class)->scalar(
+    'SELECT title FROM content_entries WHERE id = :id',
+    ['id' => $seiteId],
+);
+pruefe($titel === 'Haltung im Terrarium', 'Das Zuruecksetzen stellt den Titel wieder her', 'Titel ist: ' . $titel);
+
+// ------------------------------------------------------ 8) Statuswechsel
 echo "\nStatuswechsel\n";
 
 $redaktion->post('/admin/inhalte/' . $seiteId . '/zuruecknehmen', []);
@@ -248,7 +362,14 @@ $spuren = $container->get(Database::class)->select(
 );
 $aktionen = array_map(static fn(array $zeile): string => (string) $zeile['action'], $spuren);
 
-foreach (['content.created', 'content.published', 'content.unpublished', 'content.deleted'] as $erwartet) {
+foreach ([
+    'content.created',
+    'content.published',
+    'content.scheduled',
+    'content.restored',
+    'content.unpublished',
+    'content.deleted',
+] as $erwartet) {
     pruefe(
         in_array($erwartet, $aktionen, true),
         'Der Audit-Trail traegt ' . $erwartet,

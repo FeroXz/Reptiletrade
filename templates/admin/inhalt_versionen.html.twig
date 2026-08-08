@@ -1,0 +1,62 @@
+{% extends 'layout/basis.html.twig' %}
+{% block titel %}{{ t('admin.inhalt.versionen') }} — {{ eintrag.title }}{% endblock %}
+{% block kopf %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block inhalt %}
+    <div class="mx-auto max-w-3xl space-y-6">
+        {% include 'partials/meldungen.html.twig' %}
+
+        <div class="flex flex-wrap items-baseline justify-between gap-3">
+            <div>
+                <h1 class="text-xl font-semibold">{{ t('admin.inhalt.versionen') }}</h1>
+                <p class="text-sm gedaempft">{{ eintrag.title }} · {{ eintrag.path }}</p>
+            </div>
+            <a class="text-sm underline" href="/admin/inhalte/{{ eintrag.id }}/bearbeiten">{{ t('allgemein.zurueck') }}</a>
+        </div>
+
+        <p class="text-sm gedaempft">{{ t('admin.inhalt.versionen_erklaerung') }}</p>
+
+        {% if fassungen is empty %}
+            <p class="karte p-6 text-sm gedaempft">{{ t('admin.inhalt.keine_versionen') }}</p>
+        {% else %}
+            <div class="karte overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="text-left">
+                            <th class="px-4 py-3">{{ t('admin.inhalt.spalte_fassung') }}</th>
+                            <th class="px-4 py-3">{{ t('admin.inhalt.spalte_titel') }}</th>
+                            <th class="px-4 py-3">{{ t('admin.inhalt.spalte_anlass') }}</th>
+                            <th class="px-4 py-3">{{ t('admin.inhalt.spalte_zeitpunkt') }}</th>
+                            <th class="px-4 py-3">{{ t('admin.inhalt.spalte_aktion') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for fassung in fassungen %}
+                            <tr class="border-t" style="border-color: var(--rand)">
+                                <td class="px-4 py-3">{{ fassung.revisionNo }}</td>
+                                <td class="px-4 py-3">{{ fassung.title }}</td>
+                                <td class="px-4 py-3 gedaempft">{{ fassung.comment }}</td>
+                                <td class="px-4 py-3 gedaempft">
+                                    {{ fassung.createdAt ? fassung.createdAt|date('d.m.Y H:i') : '—' }}
+                                </td>
+                                <td class="px-4 py-3">
+                                    {% if not loop.first %}
+                                        <form method="post"
+                                              action="/admin/inhalte/{{ eintrag.id }}/versionen/{{ fassung.revisionNo }}/zuruecksetzen">
+                                            <input type="hidden" name="_csrf" value="{{ csrf }}">
+                                            <button type="submit" class="knopf text-xs">{{ t('admin.inhalt.zuruecksetzen') }}</button>
+                                        </form>
+                                    {% else %}
+                                        <span class="gedaempft">{{ t('admin.inhalt.aktuelle_fassung') }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="text-xs gedaempft">{{ t('admin.inhalt.versionen_aufbewahrung', { 'anzahl': aufbewahrung }) }}</p>
+        {% endif %}
+    </div>
+{% endblock %}

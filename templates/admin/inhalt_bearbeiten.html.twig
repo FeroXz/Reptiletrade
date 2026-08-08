@@ -18,7 +18,10 @@
                     {% endif %}
                 </p>
             </div>
-            <a class="text-sm underline" href="/admin/inhalte">{{ t('admin.inhalt.titel') }}</a>
+            <div class="flex items-center gap-4">
+                <a class="text-sm underline" href="/admin/inhalte/{{ eintrag.id }}/versionen">{{ t('admin.inhalt.versionen') }}</a>
+                <a class="text-sm underline" href="/admin/inhalte">{{ t('admin.inhalt.titel') }}</a>
+            </div>
         </div>
 
         {# Ein Formular für Kopf UND Blöcke. Jeder Knopf trägt seine Aktion im
@@ -250,6 +253,16 @@
             </div>
 
             <p class="text-xs gedaempft">{{ t('admin.inhalt.zuruecknehmen_hinweis') }}</p>
+        </section>
+
+        <section class="karte space-y-3 p-6">
+            <h2 class="text-base font-semibold">{{ t('admin.inhalt.abschnitt_vorschau') }}</h2>
+            <p class="text-sm gedaempft">{{ t('admin.inhalt.vorschau_erklaerung') }}</p>
+
+            <form method="post" action="/admin/inhalte/{{ eintrag.id }}/vorschau">
+                <input type="hidden" name="_csrf" value="{{ csrf }}">
+                <button type="submit" class="knopf">{{ t('admin.inhalt.vorschau_erzeugen') }}</button>
+            </form>
         </section>
     </div>
 {% endblock %}

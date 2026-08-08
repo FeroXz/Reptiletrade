@@ -155,6 +155,9 @@ $router->post('/admin/inhalte/{id}/veroeffentlichen', AdminContentController::cl
 $router->post('/admin/inhalte/{id}/zuruecknehmen', AdminContentController::class, 'unpublish', 'admin.inhalte.zuruecknehmen');
 $router->post('/admin/inhalte/{id}/archivieren', AdminContentController::class, 'archive', 'admin.inhalte.archivieren');
 $router->post('/admin/inhalte/{id}/loeschen', AdminContentController::class, 'delete', 'admin.inhalte.loeschen');
+$router->get('/admin/inhalte/{id}/versionen', AdminContentController::class, 'revisions', 'admin.inhalte.versionen');
+$router->post('/admin/inhalte/{id}/versionen/{nr}/zuruecksetzen', AdminContentController::class, 'restore', 'admin.inhalte.zuruecksetzen');
+$router->post('/admin/inhalte/{id}/vorschau', AdminContentController::class, 'preview', 'admin.inhalte.vorschau');
 
 // Moderation
 $router->get('/moderation/', ModerationController::class, 'queue', 'moderation');
@@ -195,6 +198,10 @@ $router->get('/api/v1/listings', ApiController::class, 'listings', 'api.listings
 $router->get('/api/v1/arten', ApiController::class, 'species', 'api.arten');
 $router->get('/api/v1/arten/{slug}/morphs', ApiController::class, 'morphs', 'api.arten.morphs');
 $router->get('/api/v1/orte', ApiController::class, 'places', 'api.orte');
+
+// Signierte Vorschau eines Entwurfs — 24 Stunden gueltig, fuer jemanden, der
+// sich nicht anmelden kann.
+$router->get('/vorschau/{token}', ContentController::class, 'preview', 'inhalt.vorschau');
 
 // Redaktionelle Seiten. Diese Route steht mit Absicht als LETZTE: Sie passt auf
 // jeden Pfad, den bis hierhin niemand beansprucht hat. Damit ein Redakteur

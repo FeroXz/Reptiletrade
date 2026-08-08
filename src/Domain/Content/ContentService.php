@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Reptilienmarkt\Domain\Content;
 
 use DateTimeImmutable;
+use Reptilienmarkt\Domain\Audit\AuditActorType;
 use Reptilienmarkt\Domain\Audit\AuditEntry;
 use Reptilienmarkt\Domain\Audit\AuditLog;
+use Reptilienmarkt\Domain\Privacy\RetentionPolicy;
 use Reptilienmarkt\Support\Clock;
 use Reptilienmarkt\Support\Slugger;
 
@@ -24,6 +26,8 @@ final readonly class ContentService
     public function __construct(
         private ContentEntryRepository $entries,
         private ContentBlockRepository $blocks,
+        private ContentRevisionRepository $revisions,
+        private RetentionPolicy $retention,
         private AuditLog $audit,
         private Clock $clock,
     ) {}
@@ -74,7 +78,10 @@ final readonly class ContentService
             'titel' => $title,
         ]);
 
-        return $entry->withId($id);
+        $saved = $entry->withId($id);
+        $this->snapshot($saved, $actorId, 'Angelegt');
+
+        return $saved;
     }
 
     /**
@@ -164,12 +171,139 @@ final readonly class ContentService
     /**
      * @param list<ContentBlock> $blocks
      */
-    public function saveBlocks(int $id, array $blocks, int $actorId): void
+    public function saveBlocks(int $id, array $blocks, int $actorId, string $comment = 'Gespeichert'): void
     {
         $entry = $this->require($id);
 
         $this->blocks->replaceAll($id, $blocks);
         $this->entries->save($entry->withTouch($this->clock->now(), $actorId));
+
+        $this->snapshot($entry, $actorId, $comment);
+    }
+
+    /**
+     * Schreibt eine Fassung fort und raeumt die aeltesten ab.
+     *
+     * Kopf und Bloecke landen in einem Abbild — was zurueckgespielt wird, ist
+     * derselbe Stand, den jemand gesehen hat, und nicht ein Kopf von heute mit
+     * Bloecken von gestern.
+     */
+    public function snapshot(ContentEntry $entry, ?int $authorId, string $comment): int
+    {
+        $id = $entry->id ?? 0;
+
+        $blocks = [];
+        foreach ($this->blocks->forEntry($id) as $block) {
+            $blocks[] = ['type' => $block->type->value, 'data' => $block->data];
+        }
+
+        $no = $this->revisions->append($id, [
+            'title' => $entry->title,
+            'slug' => $entry->slug,
+            'excerpt' => $entry->excerpt,
+            'status' => $entry->status->value,
+            'template' => $entry->template->value,
+            'meta_title' => $entry->metaTitle,
+            'meta_description' => $entry->metaDescription,
+            'noindex' => $entry->noindex,
+            'blocks' => $blocks,
+        ], $authorId, $comment, $this->clock->now());
+
+        $this->revisions->prune($id, $this->retention->contentRevisions());
+
+        return $no;
+    }
+
+    /**
+     * Setzt einen Eintrag auf eine fruehere Fassung zurueck.
+     *
+     * Der aktuelle Stand wird vorher als Fassung gesichert — sonst waere das
+     * Zuruecksetzen selbst der einzige Schritt ohne Rueckweg.
+     *
+     * Pfad und Status bleiben, wie sie sind: Eine alte Fassung
+     * zurueckzuspielen ist eine Aussage ueber den Inhalt, nicht darueber, wo
+     * er liegt oder ob er online ist. Wer beides zugleich aenderte, koennte mit
+     * einem Klick eine veroeffentlichte Seite unter eine alte Adresse schieben.
+     *
+     * @throws ContentException
+     */
+    public function restore(int $id, int $revisionNo, int $actorId): ContentEntry
+    {
+        $entry = $this->require($id);
+        $revision = $this->revisions->find($id, $revisionNo);
+
+        if ($revision === null) {
+            throw new ContentException(\sprintf('Fassung %d gibt es zu diesem Inhalt nicht.', $revisionNo));
+        }
+
+        $this->snapshot($entry, $actorId, \sprintf('Vor dem Zuruecksetzen auf Fassung %d', $revisionNo));
+
+        $now = $this->clock->now();
+        $snapshot = $revision->snapshot;
+
+        $string = static function (string $key) use ($snapshot): ?string {
+            $value = $snapshot[$key] ?? null;
+
+            return \is_string($value) ? $value : null;
+        };
+
+        $restored = new ContentEntry(
+            id: $entry->id,
+            type: $entry->type,
+            slug: $entry->slug,
+            path: $entry->path,
+            title: $string('title') ?? $entry->title,
+            status: $entry->status,
+            template: ContentTemplate::tryFrom($string('template') ?? '') ?? $entry->template,
+            parentId: $entry->parentId,
+            excerpt: $string('excerpt') ?? $entry->excerpt,
+            metaTitle: $string('meta_title'),
+            metaDescription: $string('meta_description'),
+            ogImageId: $entry->ogImageId,
+            noindex: ($snapshot['noindex'] ?? false) === true,
+            locale: $entry->locale,
+            publishedAt: $entry->publishedAt,
+            createdAt: $entry->createdAt,
+            updatedAt: $now,
+            authorId: $entry->authorId,
+            updatedBy: $actorId,
+            sortOrder: $entry->sortOrder,
+        );
+
+        $this->entries->save($restored);
+
+        $blocks = [];
+        $position = 0;
+        foreach ($revision->blocks() as $raw) {
+            $type = BlockType::tryFrom(\is_string($raw['type'] ?? null) ? $raw['type'] : '');
+
+            if ($type === null) {
+                // Ein Blocktyp, den es nicht mehr gibt, wird uebergangen statt
+                // das Zuruecksetzen scheitern zu lassen: Der Rest der Fassung
+                // ist mehr wert als die Vollstaendigkeit.
+                continue;
+            }
+
+            $data = $raw['data'] ?? [];
+            $clean = [];
+            if (\is_array($data)) {
+                foreach ($data as $key => $value) {
+                    $clean[(string) $key] = $value;
+                }
+            }
+
+            $blocks[] = new ContentBlock(null, $type, $position, $clean);
+            ++$position;
+        }
+
+        $this->blocks->replaceAll($id, $blocks);
+
+        $this->record('content.restored', $id, $actorId, [
+            'fassung' => $revisionNo,
+            'pfad' => $entry->path,
+        ]);
+
+        return $restored;
     }
 
     /**
@@ -212,7 +346,43 @@ final readonly class ContentService
             'termin' => $moment->format(\DATE_ATOM),
         ]);
 
+        $this->snapshot($updated, $actorId, $scheduled ? 'Geplant' : 'Veroeffentlicht');
+
         return $updated;
+    }
+
+    /**
+     * Schaltet frei, was faellig ist — der Weg des Auftrags content.publish.
+     *
+     * Kein Aufrufer traegt hier einen Nutzer ein: Freigeschaltet hat die Uhr,
+     * nicht ein Mensch. Der Audit-Trail haelt das als Systemvorgang fest.
+     *
+     * @return list<ContentEntry> die freigeschalteten Eintraege
+     */
+    public function publishDue(DateTimeImmutable $now, int $limit = 100): array
+    {
+        $published = [];
+
+        foreach ($this->entries->due($now, $limit) as $entry) {
+            $updated = $entry
+                ->withStatus(ContentStatus::Veroeffentlicht, $entry->publishedAt)
+                ->withTouch($now, null);
+
+            $this->entries->save($updated);
+
+            $this->audit->record(new AuditEntry(
+                'content.published',
+                'content_entry',
+                $entry->id,
+                ['pfad' => $entry->path, 'geplant_fuer' => $entry->publishedAt?->format(\DATE_ATOM)],
+                null,
+                AuditActorType::System,
+            ));
+
+            $published[] = $updated;
+        }
+
+        return $published;
     }
 
     /**

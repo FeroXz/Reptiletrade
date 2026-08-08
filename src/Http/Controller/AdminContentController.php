@@ -12,10 +12,12 @@ use Reptilienmarkt\Domain\Content\ContentBlockRepository;
 use Reptilienmarkt\Domain\Content\ContentEntryRepository;
 use Reptilienmarkt\Domain\Content\ContentException;
 use Reptilienmarkt\Domain\Content\ContentPermission;
+use Reptilienmarkt\Domain\Content\ContentRevisionRepository;
 use Reptilienmarkt\Domain\Content\ContentService;
 use Reptilienmarkt\Domain\Content\ContentStatus;
 use Reptilienmarkt\Domain\Content\ContentTemplate;
 use Reptilienmarkt\Domain\Content\ContentType;
+use Reptilienmarkt\Domain\Content\PreviewService;
 use Reptilienmarkt\Domain\User\User;
 use Reptilienmarkt\Http\HttpException;
 use Reptilienmarkt\Http\Message\Request;
@@ -42,6 +44,8 @@ final readonly class AdminContentController
         private ContentService $content,
         private ContentEntryRepository $entries,
         private ContentBlockRepository $blocks,
+        private ContentRevisionRepository $revisions,
+        private PreviewService $previews,
         private ContentPermission $permission,
         private Viewer $currentUser,
         private SessionManager $session,
@@ -121,6 +125,71 @@ final readonly class AdminContentController
             'csrf' => $this->session->csrfToken(),
             'meldungen' => $this->session->takeFlashes(),
         ]));
+    }
+
+    /**
+     * GET /admin/inhalte/{id}/versionen
+     */
+    public function revisions(Request $request): Response
+    {
+        $this->requireEditor();
+        $entry = $this->entry($request);
+
+        return Response::html($this->twig->render('admin/inhalt_versionen.html.twig', [
+            'eintrag' => $entry,
+            'fassungen' => $this->revisions->forEntry($entry->id ?? 0),
+            'aufbewahrung' => $this->revisions->count($entry->id ?? 0),
+            'csrf' => $this->session->csrfToken(),
+            'meldungen' => $this->session->takeFlashes(),
+        ]));
+    }
+
+    /**
+     * POST /admin/inhalte/{id}/versionen/{nr}/zuruecksetzen
+     */
+    public function restore(Request $request): Response
+    {
+        $user = $this->requireEditor();
+        $this->session->assertCsrf($request);
+
+        $entry = $this->entry($request);
+        $id = $entry->id ?? 0;
+        $nr = $request->attribute('nr');
+
+        try {
+            $this->content->restore($id, $nr !== null && ctype_digit($nr) ? (int) $nr : 0, $user->id ?? 0);
+        } catch (ContentException $exception) {
+            $this->session->flash('fehler', $exception->getMessage());
+
+            return Response::redirect('/admin/inhalte/' . $id . '/versionen');
+        }
+
+        $this->session->flash('erfolg', $this->translator->translate('admin.inhalt.zurueckgesetzt'));
+
+        return Response::redirect('/admin/inhalte/' . $id . '/bearbeiten');
+    }
+
+    /**
+     * POST /admin/inhalte/{id}/vorschau
+     *
+     * Erzeugt einen Link, der einen Entwurf 24 Stunden lang zeigt — fuer
+     * jemanden, der sich nicht anmelden kann. Der Klartext erscheint einmal als
+     * Meldung und ist danach nirgends mehr abrufbar.
+     */
+    public function preview(Request $request): Response
+    {
+        $user = $this->requireEditor();
+        $this->session->assertCsrf($request);
+
+        $entry = $this->entry($request);
+        $token = $this->previews->create($entry->id ?? 0, $user->id ?? 0);
+
+        $this->session->flash('erfolg', $this->translator->translate('admin.inhalt.vorschau_link', [
+            'link' => $this->previews->path($token),
+            'stunden' => PreviewService::LIFETIME_HOURS,
+        ]));
+
+        return Response::redirect('/admin/inhalte/' . ($entry->id ?? 0) . '/bearbeiten');
     }
 
     /**

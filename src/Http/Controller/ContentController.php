@@ -9,6 +9,7 @@ use Reptilienmarkt\Domain\Content\ContentEntry;
 use Reptilienmarkt\Domain\Content\ContentEntryRepository;
 use Reptilienmarkt\Domain\Content\ContentPath;
 use Reptilienmarkt\Domain\Content\ContentRenderer;
+use Reptilienmarkt\Domain\Content\PreviewService;
 use Reptilienmarkt\Http\Message\Request;
 use Reptilienmarkt\Http\Message\Response;
 use Twig\Environment;
@@ -27,6 +28,7 @@ final readonly class ContentController
         private ContentEntryRepository $entries,
         private ContentBlockRepository $blocks,
         private ContentRenderer $renderer,
+        private PreviewService $previews,
         private Environment $twig,
     ) {}
 
@@ -59,6 +61,32 @@ final readonly class ContentController
         }
 
         return $this->render($entry);
+    }
+
+    /**
+     * GET /vorschau/{token}
+     *
+     * Zeigt einen Entwurf, ohne dass sich der Betrachter anmelden muss. Die
+     * Antwort traegt noindex und keinen Zwischenspeicher: Ein Vorschaulink, der
+     * in einem Suchindex landet, verraet den Entwurf allen.
+     */
+    public function preview(Request $request): Response
+    {
+        $token = $request->attribute('token');
+        $entryId = $token === null ? null : $this->previews->resolve($token);
+
+        // Unbekannt und abgelaufen ergeben dieselbe Antwort: Wer probiert, soll
+        // nicht erfahren, ob er einen echten Link erwischt hat, der nur zu spaet
+        // kam.
+        $entry = $entryId === null ? null : $this->entries->findById($entryId);
+
+        if ($entry === null) {
+            return $this->notFound();
+        }
+
+        return $this->render($entry, preview: true)
+            ->withHeader('x-robots-tag', 'noindex, nofollow')
+            ->withHeader('cache-control', 'private, no-store');
     }
 
     /**

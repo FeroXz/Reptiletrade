@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Reptilienmarkt\Domain\Job;
 
+use DateTimeImmutable;
 use DateTimeZone;
 use Reptilienmarkt\Support\Clock;
 
@@ -21,17 +22,23 @@ use Reptilienmarkt\Support\Clock;
 final readonly class JobScheduler
 {
     /**
-     * Der Zeitplan. Der Schluessel ist der Auftragstyp, der Wert die Stunde
-     * (UTC), zu der er laufen soll — oder null fuer "bei jedem Lauf".
+     * Der Zeitplan. Der Schluessel ist der Auftragstyp; der Wert ist entweder
+     * ein wiederkehrender Abstand oder die Stunde (UTC), zu der der Auftrag
+     * einmal taeglich laufen soll.
      *
-     * @var array<string, int|null>
+     * @var array<string, JobInterval|int>
      */
     private const array SCHEDULE = [
+        // Viertelstuendlich: Ein geplanter Beitrag soll nicht bis zu einer
+        // Stunde zu spaet erscheinen. Dafuer muss die Crontab oefter aufrufen —
+        // siehe docs/INSTALLATION.md.
+        'content.publish' => JobInterval::Viertelstuendlich,
+
         // Stuendlich: Was schnell wirken soll.
-        'listing.archive' => null,
-        'billing.expire' => null,
+        'listing.archive' => JobInterval::Stuendlich,
+        'billing.expire' => JobInterval::Stuendlich,
         // Eine befristete Sperre, die niemand aufhebt, ist eine unbefristete.
-        'user.ban_expiry' => null,
+        'user.ban_expiry' => JobInterval::Stuendlich,
 
         // Nachts, wenn wenig los ist.
         'listing.expiry_notice' => 6,
@@ -53,11 +60,16 @@ final readonly class JobScheduler
      */
     public function schedule(): array
     {
-        $stunde = (int) $this->clock->now()->setTimezone(new DateTimeZone('UTC'))->format('G');
+        $jetzt = $this->clock->now()->setTimezone(new DateTimeZone('UTC'));
+        $stunde = (int) $jetzt->format('G');
         $eingeplant = [];
 
-        foreach (self::SCHEDULE as $type => $hour) {
-            if ($hour !== null && $hour !== $stunde) {
+        foreach (self::SCHEDULE as $type => $takt) {
+            if ($takt instanceof JobInterval) {
+                if (!$this->intervalIsDue($type, $takt, $jetzt)) {
+                    continue;
+                }
+            } elseif ($takt !== $stunde) {
                 continue;
             }
 
@@ -73,6 +85,26 @@ final readonly class JobScheduler
         }
 
         return $eingeplant;
+    }
+
+    /**
+     * Ist der Abstand seit dem letzten Auftrag dieses Typs verstrichen?
+     *
+     * Eine Minute Nachsicht, weil eine Crontab nie auf die Sekunde laeuft: Ohne
+     * sie fiele bei einem Aufruf um 13:00:59 der naechste um 14:00:03 durch,
+     * und die Aufgabe liefe faktisch nur alle zwei Stunden.
+     */
+    private function intervalIsDue(string $type, JobInterval $interval, DateTimeImmutable $now): bool
+    {
+        $letzter = $this->jobs->lastEnqueuedAt($type);
+
+        if ($letzter === null) {
+            return true;
+        }
+
+        $vergangen = ($now->getTimestamp() - $letzter->getTimestamp()) / 60;
+
+        return $vergangen >= $interval->minutes() - 1;
     }
 
     /**
@@ -92,7 +124,7 @@ final readonly class JobScheduler
     }
 
     /**
-     * @return array<string, int|null>
+     * @return array<string, JobInterval|int>
      */
     public function plan(): array
     {

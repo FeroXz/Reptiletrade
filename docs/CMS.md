@@ -136,9 +136,45 @@ freigeschaltet, viertelstündlich über den `JobScheduler`. Ein Request-Hook wü
 Eine Seite erscheint, wenn zufällig jemand vorbeikommt — auf einer leisen Website also
 womöglich gar nicht.
 
-`JobScheduler::SCHEDULE` kennt bisher nur „stündlich" (`null`) und „zu einer festen Stunde".
-Für „viertelstündlich" bekommt der Zeitplan einen dritten Fall; die Vorgabe bleibt, dass
-niemals zwei Aufträge desselben Typs gleichzeitig ausstehen.
+`JobScheduler::SCHEDULE` kannte nur „bei jedem Lauf" (`null`) und „zu einer festen Stunde".
+Das ging, solange die Crontab genau stündlich lief — dann waren „jeder Lauf" und „stündlich"
+dasselbe. Für `content.publish` muss die Crontab öfter aufrufen (`*/15`), und ohne echten
+Abstand würden die stündlichen Aufgaben dann viermal pro Stunde eingeplant.
+
+Deshalb trägt der Zeitplan jetzt entweder ein `JobInterval` (15 oder 60 Minuten) oder eine
+Stunde, und `JobRepository::lastEnqueuedAt()` beantwortet, ob der Abstand verstrichen ist —
+`hasPending()` allein weiß nichts mehr von einem Auftrag, den der Worker bereits abgearbeitet
+hat. Eine Minute Nachsicht, weil eine Crontab nie auf die Sekunde läuft: Ohne sie fiele bei
+einem Aufruf um 13:00:59 der nächste um 14:00:03 durch, und die Aufgabe liefe faktisch nur
+alle zwei Stunden. `docs/INSTALLATION.md` ist entsprechend angepasst.
+
+### E9a — Revisionen als Abbild, nicht als zweites Schema
+
+`content_revisions.snapshot_json` trägt Kopf **und** Blöcke in einem JSON-Abbild. Eine Revision
+ist kein Arbeitsobjekt: Sie wird geschrieben, gelesen und im Ganzen zurückgespielt, nie einzeln
+abgefragt. Ein typisiertes Nebenschema wäre normalisierter, aber ein Abbild, das sich nur mit
+der heutigen Klasse entpacken lässt, wäre genau dann wertlos, wenn man es braucht.
+
+Zurücksetzen ändert Titel, Anriss, Meta-Felder und Blöcke — **nicht** Pfad und Status. Eine alte
+Fassung zurückzuspielen ist eine Aussage über den Inhalt, nicht darüber, wo er liegt oder ob er
+online ist; wer beides zugleich änderte, könnte mit einem Klick eine veröffentlichte Seite unter
+eine alte Adresse schieben. Der Stand vor dem Zurücksetzen wird vorher als Fassung gesichert,
+sonst wäre das Zurücksetzen der einzige Schritt ohne Rückweg.
+
+Aufbewahrt werden die letzten 30 Fassungen je Eintrag (`config/aufbewahrung.php`,
+`inhalt_fassungen_je_eintrag`). Anders als alles andere dort eine **Anzahl**, keine Frist — und
+deshalb eine eigene Methode auf `RetentionPolicy`: Wer „30" als Tage läse, würfe die
+Vorgeschichte eines Textes weg, an dem einen Monat lang niemand gearbeitet hat. Eine 0 wird laut
+abgewiesen; sie wäre kein Abschalten, sondern der Verlust jeder Rückkehrmöglichkeit.
+
+### E9b — Vorschaulinks: nur der Hash liegt in der Datenbank
+
+Der Link geht an jemanden, der sich nicht anmelden kann. 32 Zufallsbytes, 24 Stunden gültig,
+gespeichert wird nur `sha256` — dieselbe Regel wie bei den Einmal-Token in `user_tokens`. Die
+Antwort trägt `X-Robots-Tag: noindex, nofollow` und `no-store`: Ein Vorschaulink, der in einem
+Suchindex landet, verrät den Entwurf allen. Unbekanntes und abgelaufenes Token ergeben dieselbe
+Antwort — wer probiert, soll nicht erfahren, ob er einen echten Link erwischt hat, der nur zu
+spät kam. Abgelaufene Links räumt derselbe Auftrag ab, der veröffentlicht.
 
 ### E10 — Zurücknehmen legt keine Weiterleitung an
 
@@ -246,7 +282,7 @@ Slug-Kollision mit einer registrierten Route.
 | 10.1 | Plan, `content_entries` + `content_blocks`, Domain, PDO-Umsetzung | erledigt |
 | 10.2 | Markdown-/Blockrenderer, Templates, Reservierungsliste, Catch-all | erledigt |
 | 10.3 | Verwaltungsoberfläche, Redaktionsberechtigung, Audit | erledigt |
-| 10.4 | Revisionen, Vorschau-Token, Planung, Auftrag `content.publish` | offen |
+| 10.4 | Revisionen, Vorschau-Token, Planung, Auftrag `content.publish` | erledigt |
 | 10.5 | Medienverwaltung, `media_usages`, `srcset` | offen |
 | 10.6 | Beiträge, Kategorien, `/news/`, `/feed.xml`, FTS5 | offen |
 | 10.7 | Menüs, Weiterleitungen, SEO, `sitemap.xml`, `robots.txt` | offen |
