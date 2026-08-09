@@ -57,6 +57,90 @@
       "title": "Gewerbliche Tätigkeit – Erlaubnis nach § 11 TierSchG",
       "source_reference": "§ 11 Abs. 1 Nr. 8 TierSchG, § 5 TMG, § 312 ff. BGB",
       "body": "Wer gewerbsmäßig mit Wirbeltieren handelt oder züchtet, braucht eine Erlaubnis der zuständigen Veterinärbehörde nach § 11 TierSchG. Gewerbsmäßigkeit hängt nicht an einer festen Stückzahl, sondern an Planmäßigkeit, Dauer und Gewinnerzielungsabsicht.\n\nDein Anzeigenaufkommen legt eine gewerbliche Tätigkeit nahe. Trage deine Erlaubnisnummer und ein Impressum ein. Als gewerbliche Anbieterin oder gewerblicher Anbieter treffen dich zusätzlich Impressumspflicht und Widerrufsrecht gegenüber Verbrauchern."
+    },
+    {
+      "key": "seite.impressum.10_haftung",
+      "jurisdiction": "DE",
+      "title": "Haftung für Inhalte und Links",
+      "source_reference": "§§ 7 ff. DDG",
+      "body": "Die Anzeigen auf dieser Plattform stammen von den jeweiligen Anbietern. Wir prüfen sie stichprobenartig und nach Meldung, machen sie uns aber nicht zu eigen. Für fremde Inhalte sind wir als Diensteanbieter nach §§ 7 ff. DDG erst ab Kenntnis einer konkreten Rechtsverletzung verantwortlich; ab Kenntnis entfernen wir sie umgehend.\n\nFür Inhalte verlinkter externer Seiten ist ausschließlich deren Betreiber verantwortlich. Bei Bekanntwerden von Rechtsverletzungen entfernen wir solche Links."
+    },
+    {
+      "key": "seite.datenschutz.20_verarbeitung",
+      "jurisdiction": "DE",
+      "title": "Was wir verarbeiten und warum",
+      "source_reference": "Art. 13 DSGVO",
+      "body": "**Konto** — E-Mail-Adresse, Anzeigename, Passwort-Hash, optional Telefonnummer, Postleitzahl und Land. Zweck: Betrieb des Kontos. Grundlage: Art. 6 Abs. 1 lit. b DSGVO (Vertrag).\n\n**Anzeigen und Bilder** — Angaben zum Tier, Preis, Standort auf Postleitzahlenebene, hochgeladene Bilder. Bilder werden serverseitig neu gezeichnet; enthaltene Standortdaten (EXIF/GPS) werden dabei entfernt. Grundlage: Art. 6 Abs. 1 lit. b DSGVO.\n\n**Nachrichten** — Inhalt und Zeitpunkt der Nachrichten zwischen Kaufinteressent und Anbieter. Grundlage: Art. 6 Abs. 1 lit. b DSGVO.\n\n**Rechtsnachweise** — Hochgeladene Herkunfts- und Meldenachweise. Sie liegen außerhalb des Webservers und sind nur über einen berechtigungsgeprüften Abruf erreichbar. Grundlage: Art. 6 Abs. 1 lit. c DSGVO (rechtliche Verpflichtung) und lit. f (Missbrauchsabwehr).\n\n**Protokolle und Missbrauchsabwehr** — IP-Adresse bei Anmeldung, Registrierung, Meldungen und Kontaktanfragen sowie technische Protokolle. Zweck: Abwehr von Angriffen und Spam. Grundlage: Art. 6 Abs. 1 lit. f DSGVO.\n\n**Aufrufzahlen** — Je Anzeige und Tag wird gezählt, wie oft sie aufgerufen wurde. Gespeichert wird nur die Zahl, kein Besucherprofil. Es gibt keine Tracking-Werkzeuge und keine Weitergabe an Dritte."
+    },
+    {
+      "key": "seite.datenschutz.30_cookies",
+      "jurisdiction": "DE",
+      "title": "Cookies",
+      "source_reference": "§ 25 Abs. 2 Nr. 2 TDDDG",
+      "body": "Wir setzen ein einziges Cookie: `rm_session`. Es hält die Sitzung und schützt Formulare vor Fremdeinreichung. Es ist technisch notwendig im Sinne des § 25 Abs. 2 Nr. 2 TDDDG und braucht deshalb keine Einwilligung. Es gibt keine Analyse- oder Werbe-Cookies und folglich kein Cookie-Banner."
+    },
+    {
+      "key": "seite.datenschutz.40_empfaenger",
+      "jurisdiction": "DE",
+      "title": "Empfänger",
+      "source_reference": "Art. 28 DSGVO",
+      "body": "Die Anwendung läuft bei {hoster}{hoster_ort}. Mit dem Hoster besteht ein Vertrag zur Auftragsverarbeitung nach Art. 28 DSGVO. Darüber hinaus geben wir Daten nur weiter, wenn wir gesetzlich dazu verpflichtet sind.\n\nWas du in einer Anzeige oder Nachricht schreibst, sieht dein Gegenüber — das ist der Zweck der Plattform. Kontaktdaten blenden wir in den ersten Nachrichten aus, um automatisiertes Sammeln zu erschweren."
+    },
+    {
+      "key": "seite.datenschutz.50_speicherdauer",
+      "jurisdiction": "DE",
+      "title": "Speicherdauer",
+      "source_reference": "Art. 5 Abs. 1 lit. e DSGVO",
+      "body": "Je Datenart eine eigene Frist: Gespräche 730 Tage nach der letzten Nachricht, Identitätsnachweise 30 Tage nach der Prüfung, Rechtsnachweise 10 Jahre (sie belegen im Streitfall die Rechtmäßigkeit einer Abgabe), beendete Anzeigen 365 Tage, technische Protokolle 90 Tage.\n\nÄndert der Betrieb diese Fristen, gehört dieser Abschnitt mit geändert — die Zahlen stehen technisch in `config/aufbewahrung.php`."
+    },
+    {
+      "key": "seite.datenschutz.60_rechte",
+      "jurisdiction": "DE",
+      "title": "Deine Rechte",
+      "source_reference": "Art. 15–21, 77 DSGVO",
+      "body": "Auskunft (Art. 15), Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung (Art. 18), Datenübertragbarkeit (Art. 20) und Widerspruch (Art. 21 DSGVO).\n\nAuskunft und Löschung erledigst du selbst und sofort unter [Meine Daten](/konto/daten) — die Auskunft kommt als JSON-Datei, die Löschung braucht keine Begründung. Für alles andere: [Kontaktformular](/kontakt).\n\nBeschwerderecht bei einer Aufsichtsbehörde nach Art. 77 DSGVO: {datenschutz_aufsicht}"
+    },
+    {
+      "key": "seite.nutzungsbedingungen.10_plattform",
+      "jurisdiction": "DE",
+      "title": "Was diese Plattform ist",
+      "body": "Ein Marktplatz für Anzeigen. Verträge über Tiere kommen ausschließlich zwischen Anbieter und Interessent zustande. Wir sind nicht Partei, wickeln keine Zahlungen ab und nehmen kein Geld für Tiere entgegen — bezahlt wird zwischen euch, bei der Übergabe.",
+      "source_reference": "§ 2 Nr. 1 DDG (Diensteanbieter), §§ 145 ff. BGB (Vertragsschluss zwischen den Nutzern)"
+    },
+    {
+      "key": "seite.nutzungsbedingungen.20_konto",
+      "jurisdiction": "DE",
+      "title": "Konto",
+      "body": "Ein Konto je Person, Angaben wahrheitsgemäß, Zugangsdaten nicht weitergeben. Wer gewerblich handelt, muss das kenntlich machen und ein Impressum hinterlegen.",
+      "source_reference": "§ 241 Abs. 2 BGB, § 5 DDG (Impressumspflicht gewerblicher Anbieter)"
+    },
+    {
+      "key": "seite.nutzungsbedingungen.30_anzeigen",
+      "jurisdiction": "DE",
+      "title": "Anzeigen",
+      "body": "Angeboten werden darf nur, was rechtmäßig gehalten und abgegeben werden darf. Schutzstatus, Melde- und Dokumentationspflichten prüft die Plattform als Hinweis — die Verantwortung dafür bleibt beim Anbieter. Verlangte Nachweise sind hochzuladen. Anzeigen zu Wildfängen geschützter Arten ohne gültigen Nachweis sind unzulässig.",
+      "source_reference": "§ 44 BNatSchG, EG-VO 338/97, § 11 TierSchG"
+    },
+    {
+      "key": "seite.nutzungsbedingungen.40_umgang",
+      "jurisdiction": "DE",
+      "title": "Umgang miteinander",
+      "body": "Keine Beleidigungen, keine Vorkasse per anonymem Zahlungsweg, keine Weitergabe fremder Kontaktdaten. Verdächtiges bitte über den Melden-Knopf oder das [Kontaktformular](/kontakt) melden.",
+      "source_reference": "§ 241 Abs. 2 BGB (Rücksichtnahmepflichten)"
+    },
+    {
+      "key": "seite.nutzungsbedingungen.50_massnahmen",
+      "jurisdiction": "DE",
+      "title": "Maßnahmen",
+      "body": "Bei Verstößen können wir einzelne Anzeigen pausieren oder sperren und Konten befristet oder dauerhaft sperren. Der Grund wird genannt, und gegen jede Maßnahme kann über das Kontaktformular Widerspruch eingelegt werden. Eine befristete Sperre endet automatisch.",
+      "source_reference": "Art. 17 DSA (Begründung von Moderationsentscheidungen)"
+    },
+    {
+      "key": "seite.nutzungsbedingungen.60_haftung",
+      "jurisdiction": "DE",
+      "title": "Haftung",
+      "body": "Für Vorsatz und grobe Fahrlässigkeit sowie bei Verletzung von Leben, Körper und Gesundheit haften wir unbeschränkt. Im Übrigen haften wir nur bei Verletzung wesentlicher Vertragspflichten und begrenzt auf den vorhersehbaren, vertragstypischen Schaden.",
+      "source_reference": "§§ 276, 309 Nr. 7 BGB (Grenzen der Haftungsbegrenzung in AGB)"
     }
   ]
 }

@@ -1,0 +1,14 @@
+{# Die redaktionell gepflegten Abschnitte einer Rechtsseite.
+
+   Der Rumpf kommt aus dem MarkdownRenderer und ist dort bereits escapet
+   worden — deshalb |raw. Die Zusicherung hält
+   tests/Domain/Content/MarkdownRendererTest mit Angriffsfällen fest. #}
+{% for abschnitt in abschnitte %}
+    <section class="karte space-y-2 p-6">
+        <h2 class="font-semibold">{{ abschnitt.titel }}</h2>
+        <div class="fliesstext text-sm">{{ abschnitt.html|raw }}</div>
+        {% if abschnitt.fundstelle %}
+            <p class="text-xs gedaempft">{{ abschnitt.fundstelle }}</p>
+        {% endif %}
+    </section>
+{% endfor %}

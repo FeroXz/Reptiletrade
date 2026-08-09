@@ -1,0 +1,90 @@
+{% extends 'layout/basis.html.twig' %}
+{% block titel %}{{ t('admin.recht.titel') }} — Reptilienmarkt{% endblock %}
+{% block kopf %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block inhalt %}
+    <div class="mx-auto max-w-3xl space-y-6">
+        {% include 'partials/meldungen.html.twig' %}
+
+        <div class="flex flex-wrap items-baseline justify-between gap-3">
+            <div>
+                <h1 class="text-xl font-semibold">{{ t('admin.recht.titel') }}</h1>
+                <p class="gedaempft">{{ t('admin.recht.erklaerung') }}</p>
+            </div>
+            <div class="flex items-center gap-4">
+                <a class="text-sm underline" href="/admin/recht/abschnitte">{{ t('admin.recht.abschnitte') }}</a>
+                <a class="text-sm underline" href="/admin/">{{ t('admin.titel') }}</a>
+            </div>
+        </div>
+
+        {% if fehlend is not empty %}
+            {# Ein Impressum mit Platzhaltern sieht aus wie ein fertiges.
+               Deshalb steht hier, was noch fehlt — und auf den Seiten selbst
+               ein sichtbarer Hinweis, solange der Schalter unten gesetzt ist. #}
+            <div class="karte p-4 text-sm" role="alert">
+                <p class="font-semibold">{{ t('admin.recht.fehlende_angaben') }}</p>
+                <ul class="mt-2 list-disc space-y-1 pl-5">
+                    {% for eintrag in fehlend %}<li>{{ eintrag }}</li>{% endfor %}
+                </ul>
+            </div>
+        {% elseif vollstaendig %}
+            <p class="karte p-4 text-sm">{{ t('admin.recht.vollstaendig') }}</p>
+        {% endif %}
+
+        <form method="post" action="/admin/recht" class="space-y-6">
+            <input type="hidden" name="_csrf" value="{{ csrf }}">
+
+            {% set abschnitt_zuletzt = '' %}
+            {% for feld in felder %}
+                {% if feld.group != abschnitt_zuletzt %}
+                    {% if not loop.first %}</section>{% endif %}
+                    <section class="karte space-y-4 p-6">
+                        <h2 class="text-base font-semibold">{{ feld.group }}</h2>
+                    {% set abschnitt_zuletzt = feld.group %}
+                {% endif %}
+
+                <div>
+                    <label class="text-sm" for="feld-{{ loop.index0 }}">
+                        {{ feld.label }}{% if feld.required %} <span aria-hidden="true">*</span>{% endif %}
+                    </label>
+                    <input class="feld" id="feld-{{ loop.index0 }}" name="feld[{{ feld.key }}]"
+                           value="{{ feld.effective }}"
+                           {% if feld.hint %}aria-describedby="hinweis-{{ loop.index0 }}"{% endif %}
+                           {% if feld.required %}required{% endif %}>
+
+                    {% if feld.hint %}
+                        <p class="mt-1 text-xs gedaempft" id="hinweis-{{ loop.index0 }}">{{ feld.hint }}</p>
+                    {% endif %}
+
+                    {% if feld.overridden %}
+                        <p class="mt-1 text-xs gedaempft">
+                            {{ t('admin.recht.ausgeliefert') }}
+                            <code>{{ feld.delivered ?: '—' }}</code>
+                            <button type="submit" name="zuruecksetzen" value="{{ feld.key }}"
+                                    class="ml-2 underline">{{ t('admin.recht.zuruecksetzen') }}</button>
+                        </p>
+                    {% endif %}
+                </div>
+            {% endfor %}
+            </section>
+
+            <section class="karte space-y-3 p-6">
+                <h2 class="text-base font-semibold">{{ t('admin.recht.gruppe_schalter') }}</h2>
+
+                {% for key, schalter in schalter %}
+                    <label class="flex items-start gap-2 text-sm">
+                        <input type="checkbox" name="schalter[{{ key }}]" value="1" {{ schalter.value ? 'checked' : '' }}>
+                        <span>{{ schalter.label }}</span>
+                    </label>
+                {% endfor %}
+            </section>
+
+            <div class="karte flex flex-wrap items-center gap-3 p-4">
+                <button type="submit" class="knopf knopf-primaer">{{ t('allgemein.speichern') }}</button>
+                <span class="text-sm gedaempft">{{ tw('admin.recht.geaenderte_felder', geaendert) }}</span>
+            </div>
+        </form>
+
+        <p class="text-xs gedaempft">{{ t('admin.recht.hinweis_datei') }}</p>
+    </div>
+{% endblock %}

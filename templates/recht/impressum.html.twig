@@ -74,19 +74,7 @@
             {% endif %}
         </section>
 
-        <section class="karte space-y-2 p-6">
-            <h2 class="font-semibold">Haftung für Inhalte und Links</h2>
-            <p class="text-sm">
-                Die Anzeigen auf dieser Plattform stammen von den jeweiligen Anbietern. Wir prüfen sie
-                stichprobenartig und nach Meldung, machen sie uns aber nicht zu eigen. Für fremde Inhalte
-                sind wir als Diensteanbieter nach §§ 7 ff. DDG erst ab Kenntnis einer konkreten Rechtsverletzung
-                verantwortlich; ab Kenntnis entfernen wir sie umgehend.
-            </p>
-            <p class="text-sm">
-                Für Inhalte verlinkter externer Seiten ist ausschließlich deren Betreiber verantwortlich.
-                Bei Bekanntwerden von Rechtsverletzungen entfernen wir solche Links.
-            </p>
-        </section>
+        {% include 'recht/_abschnitte.html.twig' %}
 
         <section class="karte space-y-2 p-6">
             <h2 class="font-semibold">{{ disclaimer_titel }}</h2>

@@ -19,6 +19,49 @@ final readonly class SiteIdentity
     public function __construct(private array $config) {}
 
     /**
+     * Der ausgelieferte Stand mit den Ueberschreibungen der Verwaltung darueber.
+     *
+     * Die Schluessel der Ueberschreibungen sind Punktpfade ("anbieter.name"),
+     * weil sie so in der Tabelle stehen und dort auch einzeln zuruecksetzbar
+     * sein muessen. Hier werden sie wieder in die verschachtelte Form gebracht,
+     * die alle Aufrufer kennen — sonst muesste jeder von ihnen beide Formen
+     * beherrschen.
+     *
+     * @param array<string, mixed>  $config
+     * @param array<string, string> $overrides
+     */
+    public static function merged(array $config, array $overrides): self
+    {
+        foreach ($overrides as $pfad => $wert) {
+            $teile = explode('.', $pfad);
+            $ziel = &$config;
+
+            foreach ($teile as $tiefe => $teil) {
+                if ($tiefe === \count($teile) - 1) {
+                    // Schalter stehen als "1"/"0" in der Tabelle, in der
+                    // Konfiguration aber als echte Wahrheitswerte. Wer das
+                    // nicht zuruueckuebersetzt, bekommt ein "0", das als
+                    // nichtleere Zeichenkette wahr ist — und damit einen
+                    // Warnhinweis, den niemand mehr wegbekommt.
+                    $ziel[$teil] = \is_bool($ziel[$teil] ?? null) ? $wert === '1' : $wert;
+
+                    break;
+                }
+
+                if (!isset($ziel[$teil]) || !\is_array($ziel[$teil])) {
+                    $ziel[$teil] = [];
+                }
+
+                $ziel = &$ziel[$teil];
+            }
+
+            unset($ziel);
+        }
+
+        return new self($config);
+    }
+
+    /**
      * @return array<string, string>
      */
     public function provider(): array

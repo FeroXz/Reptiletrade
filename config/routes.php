@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Reptilienmarkt\Http\Controller\AccountController;
 use Reptilienmarkt\Http\Controller\AdminContentController;
 use Reptilienmarkt\Http\Controller\AdminController;
+use Reptilienmarkt\Http\Controller\AdminLegalController;
 use Reptilienmarkt\Http\Controller\AdminListingController;
 use Reptilienmarkt\Http\Controller\AdminMediaController;
 use Reptilienmarkt\Http\Controller\AdminStructureController;
@@ -141,6 +142,13 @@ $router->post('/admin/nutzer/{id}/entsperren', AdminUserController::class, 'unba
 $router->post('/admin/nutzer/{id}/loeschen', AdminUserController::class, 'delete', 'admin.nutzer.loeschen');
 $router->get('/admin/kontakt', AdminUserController::class, 'contactQueue', 'admin.kontakt');
 $router->post('/admin/kontakt/{id}/erledigt', AdminUserController::class, 'resolveContact', 'admin.kontakt.erledigt');
+// Rechtsseiten: Stammdaten und Abschnitte. Nur Rolle admin — wer diese Seiten
+// aendert, aendert, wofuer der Betreiber haftet.
+$router->get('/admin/recht', AdminLegalController::class, 'index', 'admin.recht');
+$router->post('/admin/recht', AdminLegalController::class, 'save', 'admin.recht.speichern');
+$router->get('/admin/recht/abschnitte', AdminLegalController::class, 'sections', 'admin.recht.abschnitte');
+$router->post('/admin/recht/abschnitte', AdminLegalController::class, 'saveSection', 'admin.recht.abschnitt.speichern');
+
 $router->get('/admin/texte', AdminController::class, 'texts', 'admin.texte');
 $router->post('/admin/texte', AdminController::class, 'saveTexts', 'admin.texte.speichern');
 $router->get('/admin/artenstamm', AdminController::class, 'catalog', 'admin.artenstamm');

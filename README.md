@@ -577,14 +577,42 @@ ein Bot soll nicht lernen, woran er gescheitert ist. Der Inhalt der Nachricht st
 Audit-Trail: Er kann alles enthalten, und der Trail wird nie gelöscht.
 
 `/impressum`, `/datenschutz` und `/nutzungsbedingungen` sind aus dem Fuß jeder Seite mit einem Klick
-erreichbar und speisen sich aus [`config/impressum.php`](config/impressum.php) — der einzigen Datei,
-die der Betreiber dafür ausfüllt (§ 5 DDG, § 18 Abs. 2 MStV, Art. 13 DSGVO, § 36 VSBG, § 27a UStG,
+erreichbar und speisen sich aus [`config/impressum.php`](config/impressum.php) — der Datei, die der
+Betreiber dafür ausfüllt (§ 5 DDG, § 18 Abs. 2 MStV, Art. 13 DSGVO, § 36 VSBG, § 27a UStG,
 durchkommentiert).
 
 Ausgeliefert wird sie mit Platzhaltern, und solange die drinstehen, zeigt jede Rechtsseite einen
 sichtbaren Warnhinweis samt Liste der fehlenden Angaben. **Ein unvollständiges Impressum, das
 aussieht wie ein vollständiges, ist gefährlicher als gar keines: Es fällt niemandem auf.**
 `php bin/doctor.php` meldet jede fehlende Pflichtangabe namentlich.
+
+### `/admin/recht` — beides im Browser pflegbar
+
+Wer beim Umzug die Adresse ändert oder den Hoster wechselt, soll dafür keine Datei bearbeiten und
+nichts ausrollen müssen. Unter `/admin/recht` stehen deshalb beide Hälften einer Rechtsseite:
+
+| Was | Wo | Liegt in |
+|---|---|---|
+| Anbieter, Anschrift, Kontakt, Register, USt-IdNr., Aufsicht, Hoster | `/admin/recht` | `site_identity_overrides` |
+| Die Fließtexte der drei Seiten, mit Fundstelle und Prüfdatum | `/admin/recht/abschnitte` | `legal_texts` |
+
+**Die Datei bleibt der ausgelieferte Stand, die Datenbank trägt die Abweichung** — dasselbe Modell
+wie bei `/admin/texte`. Das ist keine Förmlichkeit: Eine Datei geht beim Deployment mit und überlebt
+das Wiedereinspielen einer Sicherung; eine Zeile, die es nur in der Datenbank gibt, tut das nicht.
+Jede Angabe ist einzeln auf den ausgelieferten Wert zurücksetzbar, und `php bin/doctor.php` meldet
+es, wenn das Impressum **erst durch die Änderungen der Verwaltung** vollständig wird — denn dann
+brächte eine ältere Sicherung die Lücken kommentarlos zurück.
+
+Zwei Regeln schützen die Fließtexte vor dem Bearbeiten: Ein Abschnitt lässt sich nicht leeren (wer
+ihn nicht will, löscht ihn — das ist eine Entscheidung und keine Überschrift ohne Inhalt), und
+**Platzhalter müssen erhalten bleiben**. Steht im ausgelieferten Text `{hoster}`, muss er auch im
+geänderten stehen; sonst verschwindet der Auftragsverarbeiter aus der Datenschutzerklärung, und
+auffallen würde das erst der Aufsichtsbehörde. Weil die Abschnitte in derselben Tabelle liegen wie
+die übrigen Rechtstexte, bringen sie deren Fundstelle und Prüfdatum mit — samt der Warnung „seit
+über zwölf Monaten nicht geprüft“.
+
+**Nur die Rolle `admin`, nicht `redakteur`.** Wer diese Seiten ändert, ändert, wofür der Betreiber
+haftet; das ist etwas anderes, als einen Beitrag zu schreiben. Jede Änderung steht im Audit-Trail.
 
 > Die Rechtstexte und die Hinweise in der Konfiguration sind eine Orientierung und **keine
 > Rechtsberatung**. Vor der Freischaltung gehört beides anwaltlich geprüft.
@@ -621,11 +649,13 @@ seine Aktion im `name`/`value`-Paar. Hinzufügen, Verschieben und Löschen sind 
 Absendungen, bei denen kein ungespeicherter Text verlorengeht. `public/assets/inhalt.js` verbessert
 das nachträglich — ohne `eval`, ohne Inline-Handler, ohne aus Zeichenketten gebautes Markup.
 
-**Die Rechtsseiten bleiben, wo sie sind.** `/impressum`, `/datenschutz` und `/nutzungsbedingungen`
-speisen sich weiter aus `config/impressum.php` und stehen auf der Reservierungsliste — das CMS kann
-diese Pfade nicht belegen. Ein Impressum, das ein Redakteur versehentlich in den Entwurf zöge, wäre
-ein Rechtsverstoß; das gehört in eine Datei, die beim Deployment mitgeht. Damit die Liste nicht
-ausläuft, sobald jemand eine Route ergänzt, vergleicht ein Test sie gegen `config/routes.php`.
+**Die Rechtsseiten bleiben außerhalb des CMS.** `/impressum`, `/datenschutz` und
+`/nutzungsbedingungen` stehen auf der Reservierungsliste — das CMS kann diese Pfade nicht belegen,
+und ein Impressum, das ein Redakteur versehentlich in den Entwurf zöge, wäre ein Rechtsverstoß.
+Bearbeitet werden sie trotzdem im Browser, nur eben woanders: unter `/admin/recht`, für die Rolle
+`admin` allein und gegen den ausgelieferten Stand in `config/impressum.php` und
+`data/legal_texts.json`. Damit die Reservierungsliste nicht ausläuft, sobald jemand eine Route
+ergänzt, vergleicht ein Test sie gegen `config/routes.php`.
 
 **Wer darf?** Die Rolle `redakteur` liegt in der additiven Tabelle `content_editors`, nicht in
 `users.role`: Die Spalte trägt seit Migration 0001 einen `CHECK`-Constraint, und SQLite kann den nur
