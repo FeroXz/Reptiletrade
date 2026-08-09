@@ -1,0 +1,65 @@
+{% extends 'layout/basis.html.twig' %}
+{% block titel %}{{ t('suchen.titel') }} — Reptilienmarkt{% endblock %}
+{% block kopf %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block inhalt %}
+    <div class="mx-auto max-w-2xl space-y-6">
+        {% include 'partials/meldungen.html.twig' %}
+
+        <div class="flex flex-wrap items-baseline justify-between gap-3">
+            <h1 class="text-xl font-semibold">{{ t('suchen.titel') }}</h1>
+            <a class="text-sm underline" href="/konto/">{{ t('daten.zurueck') }}</a>
+        </div>
+
+        <p class="text-sm gedaempft">{{ t('suchen.grenze', {'anzahl': suchen|length, 'grenze': grenze}) }}</p>
+
+        {% if suchen is empty %}
+            <p class="karte p-6 text-sm">{{ t('suchen.leer') }}</p>
+        {% else %}
+            <ul class="space-y-4">
+                {% for suche in suchen %}
+                    <li class="karte space-y-3 p-6">
+                        <div class="flex flex-wrap items-baseline justify-between gap-3">
+                            <a class="font-medium underline" href="{{ urls[suche.id] }}">{{ suche.name }}</a>
+                            <span class="text-xs gedaempft">
+                                {{ suche.createdAt ? suche.createdAt.format('d.m.Y') : '' }}
+                            </span>
+                        </div>
+
+                        <div class="flex flex-wrap items-end gap-3">
+                            <form method="post" action="/konto/suchen/{{ suche.id }}/benachrichtigung"
+                                  class="flex items-end gap-2">
+                                <input type="hidden" name="_csrf" value="{{ csrf }}">
+                                <div>
+                                    <label class="text-xs gedaempft" for="frequenz-{{ suche.id }}">
+                                        {{ t('suchen.benachrichtigung') }}
+                                    </label>
+                                    <select class="feld" id="frequenz-{{ suche.id }}" name="frequenz">
+                                        {% for frequenz in frequenzen %}
+                                            <option value="{{ frequenz.value }}"
+                                                    {{ suche.alertFrequency == frequenz ? 'selected' : '' }}>
+                                                {{ t(frequenz.labelKey()) }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <button type="submit" class="knopf">{{ t('suchen.uebernehmen') }}</button>
+                            </form>
+
+                            <form method="post" action="/konto/suchen/{{ suche.id }}/loeschen">
+                                <input type="hidden" name="_csrf" value="{{ csrf }}">
+                                <button type="submit" class="knopf">{{ t('suchen.loeschen') }}</button>
+                            </form>
+                        </div>
+
+                        {% if suche.lastAlertAt %}
+                            <p class="text-xs gedaempft">
+                                {{ t('suchen.zuletzt_gemeldet', {'zeitpunkt': suche.lastAlertAt.format('d.m.Y H:i')}) }}
+                            </p>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    </div>
+{% endblock %}

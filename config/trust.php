@@ -122,4 +122,14 @@ return [
      * auch wenn keiner davon sperrt.
      */
     'markierung_ab_treffern' => 1,
+
+    /**
+     * Gespeicherte Suchen. Die Obergrenze ist keine Schikane: Jede gemerkte
+     * Suche laeuft im taeglichen Auftrag als echte Abfrage, und ein Konto mit
+     * hunderten davon waere ein Weg, den Server ueber die Suche zu belasten.
+     * Zwanzig sind mehr, als ein Mensch ueberblickt.
+     */
+    'gespeicherte_suchen' => [
+        'max_je_konto' => 20,
+    ],
 ];

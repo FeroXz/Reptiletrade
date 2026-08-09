@@ -31,6 +31,7 @@ use Reptilienmarkt\Http\Controller\PasswordResetController;
 use Reptilienmarkt\Http\Controller\PrivacyController;
 use Reptilienmarkt\Http\Controller\ProfileController;
 use Reptilienmarkt\Http\Controller\ReportController;
+use Reptilienmarkt\Http\Controller\SavedSearchController;
 use Reptilienmarkt\Http\Controller\SitemapController;
 use Reptilienmarkt\Http\Controller\SpeciesController;
 use Reptilienmarkt\Http\Controller\StatsController;
@@ -46,6 +47,13 @@ $router->get('/markt/', MarketController::class, 'search', 'markt');
 $router->get('/markt/{art}/', MarketController::class, 'search', 'markt.art');
 $router->get('/markt/{art}/{morphs}/', MarketController::class, 'search', 'markt.art.morphs');
 $router->get('/markt/{art}/{morphs}/{region}/', MarketController::class, 'search', 'markt.art.morphs.region');
+
+// "Suche merken" schickt an den Pfad zurueck, auf dem der Nutzer steht — so
+// entstehen die Kriterien auf demselben Weg wie beim Anzeigen.
+$router->post('/markt/', MarketController::class, 'remember', 'markt.merken');
+$router->post('/markt/{art}/', MarketController::class, 'remember', 'markt.art.merken');
+$router->post('/markt/{art}/{morphs}/', MarketController::class, 'remember', 'markt.art.morphs.merken');
+$router->post('/markt/{art}/{morphs}/{region}/', MarketController::class, 'remember', 'markt.art.morphs.region.merken');
 
 // Pflichtangaben und Kontakt — ohne Anmeldung erreichbar
 $router->get('/impressum', LegalPageController::class, 'imprint', 'impressum');
@@ -88,6 +96,11 @@ $router->post('/konto/zwei-faktor/aus', AccountController::class, 'disableTwoFac
 $router->get('/konto/benachrichtigungen', AccountController::class, 'notifications', 'konto.benachrichtigungen');
 $router->post('/konto/benachrichtigungen', AccountController::class, 'saveNotifications', 'konto.benachrichtigungen.speichern');
 $router->get('/abmelden/{token}', AccountController::class, 'unsubscribe', 'abmelden.kanal');
+
+// Gemerkte Suchen
+$router->get('/konto/suchen', SavedSearchController::class, 'index', 'suchen');
+$router->post('/konto/suchen/{id}/loeschen', SavedSearchController::class, 'delete', 'suchen.loeschen');
+$router->post('/konto/suchen/{id}/benachrichtigung', SavedSearchController::class, 'setAlert', 'suchen.benachrichtigung');
 
 // Statistik der eigenen Anzeigen
 $router->get('/konto/statistik', StatsController::class, 'show', 'statistik');

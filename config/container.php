@@ -75,6 +75,8 @@ use Reptilienmarkt\Domain\Privacy\RetentionPolicy;
 use Reptilienmarkt\Domain\Review\ReviewRepository;
 use Reptilienmarkt\Domain\Review\ReviewService;
 use Reptilienmarkt\Domain\Search\ListingSearchRepository;
+use Reptilienmarkt\Domain\Search\SavedSearchRepository;
+use Reptilienmarkt\Domain\Search\SavedSearchService;
 use Reptilienmarkt\Domain\Search\SearchIndex;
 use Reptilienmarkt\Domain\Setting\Settings;
 use Reptilienmarkt\Domain\Site\SiteIdentity;
@@ -126,6 +128,7 @@ use Reptilienmarkt\Http\Controller\PasswordResetController;
 use Reptilienmarkt\Http\Controller\PrivacyController;
 use Reptilienmarkt\Http\Controller\ProfileController;
 use Reptilienmarkt\Http\Controller\ReportController;
+use Reptilienmarkt\Http\Controller\SavedSearchController;
 use Reptilienmarkt\Http\Controller\SitemapController;
 use Reptilienmarkt\Http\Controller\SpeciesController;
 use Reptilienmarkt\Http\Controller\StatsController;
@@ -190,6 +193,7 @@ use Reptilienmarkt\Infra\Persistence\PdoRateLimitRepository;
 use Reptilienmarkt\Infra\Persistence\PdoRedirectRepository;
 use Reptilienmarkt\Infra\Persistence\PdoReportRepository;
 use Reptilienmarkt\Infra\Persistence\PdoReviewRepository;
+use Reptilienmarkt\Infra\Persistence\PdoSavedSearchRepository;
 use Reptilienmarkt\Infra\Persistence\PdoSessionRepository;
 use Reptilienmarkt\Infra\Persistence\PdoSettings;
 use Reptilienmarkt\Infra\Persistence\PdoSiteIdentityOverrideRepository;
@@ -407,6 +411,19 @@ $container->set(SearchRequestParser::class, static fn(Container $c): SearchReque
 $container->set(MarketController::class, static fn(Container $c): MarketController => new MarketController(
     $c->get(ListingSearchRepository::class),
     $c->get(SearchRequestParser::class),
+    $c->get(SavedSearchService::class),
+    $c->get(Viewer::class),
+    $c->get(SessionManager::class),
+    $c->get(Translator::class),
+    $c->get(Environment::class),
+));
+
+$container->set(SavedSearchController::class, static fn(Container $c): SavedSearchController => new SavedSearchController(
+    $c->get(SavedSearchService::class),
+    $c->get(SpeciesRepository::class),
+    $c->get(Viewer::class),
+    $c->get(SessionManager::class),
+    $c->get(Translator::class),
     $c->get(Environment::class),
 ));
 
@@ -779,6 +796,15 @@ $container->set(RateLimiter::class, static fn(Container $c): RateLimiter => new 
     $c->get(RateLimitRepository::class),
     $c->get(Clock::class),
     $c->get(TrustConfiguration::class)->rateLimits(),
+));
+
+$container->set(SavedSearchRepository::class, static fn(Container $c): SavedSearchRepository => new PdoSavedSearchRepository($c->get(Database::class)));
+
+$container->set(SavedSearchService::class, static fn(Container $c): SavedSearchService => new SavedSearchService(
+    $c->get(SavedSearchRepository::class),
+    $c->get(AuditLog::class),
+    $c->get(Clock::class),
+    $c->get(TrustConfiguration::class)->savedSearchLimit(),
 ));
 
 $container->set(FraudKeywordFilter::class, static fn(Container $c): FraudKeywordFilter => $c->get(TrustConfiguration::class)->keywordFilter());
@@ -1156,7 +1182,9 @@ $container->set('jobs.handlers', static function (Container $c) use ($root): arr
         ),
         new ListingArchiveHandler($c->get(Database::class), $c->get(ListingIndexer::class), $c->get(Clock::class)),
         new SavedSearchAlertHandler(
-            $c->get(Database::class),
+            $c->get(SavedSearchRepository::class),
+            $c->get(ListingSearchRepository::class),
+            $c->get(UserRepository::class),
             $c->get(Mailer::class),
             $c->get(Translator::class),
             $c->get(Clock::class),

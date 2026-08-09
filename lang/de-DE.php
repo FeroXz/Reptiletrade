@@ -333,6 +333,30 @@ return [
         . 'ein Export aus einer neueren Fassung bleibt also einlesbar. '
         . 'Geschrieben wird über den wissenschaftlichen Namen: Vorhandenes wird aktualisiert, Neues angelegt.',
 
+    // ------------------------------------------------------ Gemerkte Suchen
+    'suchen.titel' => 'Gemerkte Suchen',
+    'suchen.merken' => 'Suche merken',
+    'suchen.merken_knopf' => 'Diese Suche merken',
+    'suchen.name' => 'Name der Suche',
+    'suchen.nur_angemeldet' => 'Zum Merken einer Suche brauchst du ein Konto. '
+        . 'Nach der Anmeldung landest du wieder bei diesen Treffern.',
+    'suchen.anmelden' => 'Anmelden und merken',
+    'suchen.gemerkt' => 'Die Suche ist gemerkt. Du findest sie unter „Gemerkte Suchen".',
+    'suchen.geloescht' => 'Die gespeicherte Suche ist gelöscht.',
+    'suchen.gespeichert' => 'Die Benachrichtigung ist geändert.',
+    'suchen.frequenz_unbekannt' => 'Diesen Takt gibt es nicht.',
+    'suchen.leer' => 'Du hast noch keine Suche gemerkt. Stelle im Markt deine Filter ein '
+        . 'und merke dir die Suche — dann meldet sie sich, wenn etwas Passendes dazukommt.',
+    'suchen.grenze' => '{anzahl} von {grenze} gemerkten Suchen.',
+    'suchen.benachrichtigung' => 'Benachrichtigung',
+    'suchen.uebernehmen' => 'Übernehmen',
+    'suchen.loeschen' => 'Löschen',
+    'suchen.zuletzt_gemeldet' => 'Zuletzt gemeldet am {zeitpunkt}.',
+    'suchen.frequenz.aus' => 'Keine',
+    'suchen.frequenz.sofort' => 'Sofort',
+    'suchen.frequenz.taeglich' => 'Täglich',
+    'suchen.frequenz.woechentlich' => 'Wöchentlich',
+
     // ------------------------------------------------------ Benachrichtigungen
     'benachrichtigung.titel' => 'Benachrichtigungen',
     'benachrichtigung.erklaerung' => 'Hier stellst du ein, worüber dich der Reptilienmarkt per E-Mail '

@@ -35,6 +35,34 @@
             <div id="facetten-inhalt" class="mt-3 space-y-5 hidden lg:block" data-facetten-inhalt>
                 {% if kriterien.isFiltered %}
                     <a href="/markt/" class="knopf w-full justify-center">Alle Filter zurücksetzen</a>
+
+                    {# Suche merken. Das Formular schickt an die eigene Adresse
+                       zurück — damit entstehen die Kriterien beim Speichern
+                       genauso wie beim Anzeigen. #}
+                    <div class="space-y-2">
+                        <h3 class="text-xs font-semibold uppercase tracking-wide gedaempft">
+                            {{ t('suchen.merken') }}
+                        </h3>
+
+                        {% if angemeldet %}
+                            <form method="post" action="{{ markt_url(kriterien.withPage(1), url_kontext) }}"
+                                  class="space-y-2">
+                                <input type="hidden" name="_csrf" value="{{ csrf }}">
+                                <label class="sr-only" for="suche-name">{{ t('suchen.name') }}</label>
+                                <input class="feld" id="suche-name" type="text" name="name" maxlength="80"
+                                       placeholder="{{ t('suchen.name') }}" required>
+                                <button type="submit" class="knopf w-full justify-center">
+                                    {{ t('suchen.merken_knopf') }}
+                                </button>
+                            </form>
+                        {% else %}
+                            <p class="text-xs gedaempft">{{ t('suchen.nur_angemeldet') }}</p>
+                            <a class="knopf w-full justify-center"
+                               href="/anmelden?weiter={{ markt_url(kriterien.withPage(1), url_kontext)|url_encode }}">
+                                {{ t('suchen.anmelden') }}
+                            </a>
+                        {% endif %}
+                    </div>
                 {% endif %}
 
                 {# Umkreis #}

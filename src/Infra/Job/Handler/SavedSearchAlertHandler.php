@@ -9,9 +9,13 @@ use Reptilienmarkt\Domain\Job\JobHandler;
 use Reptilienmarkt\Domain\Mail\Mailer;
 use Reptilienmarkt\Domain\Mail\MailMessage;
 use Reptilienmarkt\Domain\Notification\NotificationChannel;
-use Reptilienmarkt\Infra\Persistence\Database;
+use Reptilienmarkt\Domain\Search\AlertFrequency;
+use Reptilienmarkt\Domain\Search\ListingSearchRepository;
+use Reptilienmarkt\Domain\Search\SavedSearch;
+use Reptilienmarkt\Domain\Search\SavedSearchRepository;
+use Reptilienmarkt\Domain\Search\SortOrder;
+use Reptilienmarkt\Domain\User\UserRepository;
 use Reptilienmarkt\Support\Clock;
-use Reptilienmarkt\Support\Timestamp;
 use Reptilienmarkt\Support\Translator;
 
 /**
@@ -21,13 +25,25 @@ use Reptilienmarkt\Support\Translator;
  * Kennungen sind lueckenlos aufsteigend, Zeitstempel koennen bei
  * Sommerzeitwechsel oder ungenauer Uhr springen. Mit der Kennung kann keine
  * Anzeige uebersprungen und keine doppelt gemeldet werden.
+ *
+ * Gesucht wird ueber den echten Suchdienst mit den gespeicherten Kriterien.
+ * Vorher stand hier "die neuen aktiven Anzeigen seit dem letzten Lauf", ohne
+ * Filter — was niemandem auffiel, weil die Tabelle leer war. Mit echten Zeilen
+ * waere daraus eine taegliche Rundmail ueber den gesamten Neuzugang geworden.
+ *
+ * Ob die Mail den Empfaenger erreicht, entscheidet der Kanal suche.treffer:
+ * Der Zweck steht an der Nachricht, den Rest erledigt der Umschlag um den
+ * Mailer. Der Fortschritt wird trotzdem vermerkt — sonst sammelte sich ein
+ * Rueckstand an, der beim Wiedereinschalten auf einen Schlag herauskaeme.
  */
 final readonly class SavedSearchAlertHandler implements JobHandler
 {
     private const int MAX_HITS_PER_MAIL = 10;
 
     public function __construct(
-        private Database $database,
+        private SavedSearchRepository $searches,
+        private ListingSearchRepository $listings,
+        private UserRepository $users,
         private Mailer $mailer,
         private Translator $translator,
         private Clock $clock,
@@ -41,80 +57,77 @@ final readonly class SavedSearchAlertHandler implements JobHandler
 
     public function handle(Job $job): string
     {
-        $frequenz = $job->string('frequenz', 'taeglich');
-        $now = $this->clock->now();
-
-        $suchen = $this->database->select(
-            <<<'SQL'
-                SELECT s.id, s.user_id, s.name, s.filter_json, s.last_seen_listing_id,
-                       u.email, u.display_name
-                  FROM saved_searches s
-                  JOIN users u ON u.id = s.user_id
-                 WHERE s.alert_frequency = :frequenz AND u.status = 'aktiv'
-                 LIMIT 500
-                SQL,
-            ['frequenz' => $frequenz],
-        );
-
+        $frequenz = AlertFrequency::tryFrom($job->string('frequenz', 'taeglich')) ?? AlertFrequency::Taeglich;
         $benachrichtigt = 0;
 
-        foreach ($suchen as $suche) {
-            $seit = (int) ($suche['last_seen_listing_id'] ?? 0);
-
-            // Bewusst schlicht: die neuen aktiven Anzeigen seit dem letzten
-            // Lauf. Die Filter der gespeicherten Suche vollstaendig
-            // nachzubilden gehoert in den Suchdienst, nicht in einen Job —
-            // hier steht die Zustellung, nicht die Suchlogik.
-            $treffer = $this->database->select(
-                "SELECT id, title FROM listings
-                  WHERE status = 'aktiv' AND id > :seit
-                  ORDER BY id DESC LIMIT :limit",
-                ['seit' => $seit, 'limit' => self::MAX_HITS_PER_MAIL],
-            );
-
-            if ($treffer === []) {
-                continue;
+        foreach ($this->searches->due($frequenz) as $suche) {
+            if ($this->alert($suche)) {
+                ++$benachrichtigt;
             }
-
-            $zeilen = array_map(
-                fn(array $zeile): string => \sprintf(
-                    '- %s: %s/anzeige/%d/',
-                    (string) $zeile['title'],
-                    $this->appUrl,
-                    (int) $zeile['id'],
-                ),
-                $treffer,
-            );
-
-            $platzhalter = [
-                'name' => (string) $suche['display_name'],
-                'suche' => (string) $suche['name'],
-                'treffer' => implode("\n", $zeilen),
-                'link' => $this->appUrl . '/konto/',
-            ];
-
-            $this->mailer->send(new MailMessage(
-                (string) $suche['email'],
-                $this->translator->translate('mail.suchtreffer.betreff', $platzhalter),
-                $this->translator->translate('mail.suchtreffer.text', $platzhalter),
-                (string) $suche['display_name'],
-                NotificationChannel::SucheTreffer->value,
-                (int) $suche['user_id'],
-            ));
-
-            $this->database->execute(
-                'UPDATE saved_searches SET last_seen_listing_id = :id, last_alert_at = :now, updated_at = :now
-                  WHERE id = :suche',
-                [
-                    'id' => (int) $treffer[0]['id'],
-                    'now' => Timestamp::utc($now),
-                    'suche' => (int) $suche['id'],
-                ],
-            );
-
-            ++$benachrichtigt;
         }
 
-        return \sprintf('%d Benachrichtigungen (%s)', $benachrichtigt, $frequenz);
+        return \sprintf('%d Benachrichtigungen (%s)', $benachrichtigt, $frequenz->value);
+    }
+
+    private function alert(SavedSearch $search): bool
+    {
+        $seit = $search->lastSeenListingId ?? 0;
+
+        // Nach Neuigkeit sortiert, unabhaengig davon, wie der Nutzer die Liste
+        // sortiert hatte: Hier geht es um das, was seit dem letzten Lauf
+        // dazugekommen ist, nicht um den guenstigsten Treffer.
+        $kriterien = $search->criteria
+            ->withSort(SortOrder::Neueste)
+            ->with(perPage: self::MAX_HITS_PER_MAIL);
+
+        $treffer = [];
+
+        foreach ($this->listings->search($kriterien)->listings as $anzeige) {
+            if ($anzeige->id > $seit) {
+                $treffer[] = $anzeige;
+            }
+        }
+
+        if ($treffer === []) {
+            return false;
+        }
+
+        $empfaenger = $this->users->findById($search->userId);
+
+        if ($empfaenger === null || $empfaenger->email === '') {
+            return false;
+        }
+
+        $zeilen = array_map(
+            fn($anzeige): string => \sprintf(
+                '- %s: %s/anzeige/%d/',
+                $anzeige->title,
+                rtrim($this->appUrl, '/'),
+                $anzeige->id,
+            ),
+            $treffer,
+        );
+
+        $platzhalter = [
+            'name' => $empfaenger->displayName,
+            'suche' => $search->name,
+            'treffer' => implode("\n", $zeilen),
+            'link' => rtrim($this->appUrl, '/') . '/konto/suchen',
+        ];
+
+        $this->mailer->send(new MailMessage(
+            $empfaenger->email,
+            $this->translator->translate('mail.suchtreffer.betreff', $platzhalter),
+            $this->translator->translate('mail.suchtreffer.text', $platzhalter),
+            $empfaenger->displayName,
+            NotificationChannel::SucheTreffer->value,
+            $search->userId,
+        ));
+
+        // Die Treffer stehen nach Neuigkeit — der erste traegt die hoechste
+        // Kennung und ist damit der neue Stand.
+        $this->searches->markAlerted($search->id ?? 0, $treffer[0]->id, $this->clock->now());
+
+        return true;
     }
 }

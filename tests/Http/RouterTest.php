@@ -82,8 +82,10 @@ final class RouterTest extends TestCase
     {
         $router = $this->router();
 
-        self::assertNull($router->match($this->request('/markt/', 'POST')));
-        self::assertTrue($router->pathExists('/markt/'), 'Der Pfad existiert — die Antwort muss 405 sein, nicht 404.');
+        // /postfach/ gibt es nur als GET. (Frueher stand hier /markt/ — seit
+        // "Suche merken" nimmt der Marktpfad auch POST entgegen.)
+        self::assertNull($router->match($this->request('/postfach/', 'POST')));
+        self::assertTrue($router->pathExists('/postfach/'), 'Der Pfad existiert — die Antwort muss 405 sein, nicht 404.');
     }
 
     public function testPlatzhalterEndetAmSchraegstrich(): void
