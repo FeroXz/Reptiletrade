@@ -7,6 +7,7 @@ namespace Reptilienmarkt\Tests\Domain\Message;
 use DateTimeImmutable;
 use PHPUnit\Framework\Attributes\CoversClass;
 use Reptilienmarkt\Domain\Message\Conversation;
+use Reptilienmarkt\Domain\Message\MessageNotifier;
 use Reptilienmarkt\Domain\Message\MessagingException;
 use Reptilienmarkt\Domain\Message\MessagingService;
 use Reptilienmarkt\Domain\Trust\RateLimit;
@@ -20,15 +21,21 @@ use Reptilienmarkt\Infra\Persistence\PdoConversationRepository;
 use Reptilienmarkt\Infra\Persistence\PdoListingRepository;
 use Reptilienmarkt\Infra\Persistence\PdoMessageRepository;
 use Reptilienmarkt\Infra\Persistence\PdoRateLimitRepository;
+use Reptilienmarkt\Infra\Persistence\PdoUserRepository;
+use Reptilienmarkt\Support\Translator;
 use Reptilienmarkt\Tests\DatabaseTestCase;
+use Reptilienmarkt\Tests\Support\CollectingMailer;
 use Reptilienmarkt\Tests\Support\FrozenClock;
 
 #[CoversClass(MessagingService::class)]
+#[CoversClass(MessageNotifier::class)]
 #[CoversClass(PdoConversationRepository::class)]
 #[CoversClass(PdoMessageRepository::class)]
 final class MessagingServiceTest extends DatabaseTestCase
 {
     private MessagingService $messaging;
+
+    private CollectingMailer $mailer;
 
     private PdoConversationRepository $conversations;
 
@@ -57,6 +64,8 @@ final class MessagingServiceTest extends DatabaseTestCase
         $config = require \dirname(__DIR__, 3) . '/config/trust.php';
         $trust = new TrustConfiguration($config);
 
+        $this->mailer = new CollectingMailer();
+
         $this->messaging = new MessagingService(
             $this->conversations,
             new PdoMessageRepository($this->database),
@@ -64,8 +73,23 @@ final class MessagingServiceTest extends DatabaseTestCase
             new RateLimiter(new PdoRateLimitRepository($this->database), $this->clock, $trust->rateLimits()),
             $trust->keywordFilter(),
             $trust->contactMasker(),
+            $this->notifier(),
             new PdoAuditLog($this->database),
             $this->clock,
+        );
+    }
+
+    private function notifier(): MessageNotifier
+    {
+        return new MessageNotifier(
+            $this->conversations,
+            new PdoMessageRepository($this->database),
+            new PdoListingRepository($this->database),
+            new PdoUserRepository($this->database),
+            $this->mailer,
+            new Translator(\dirname(__DIR__, 3) . '/lang'),
+            $this->clock,
+            'https://test.example',
         );
     }
 
@@ -208,6 +232,7 @@ final class MessagingServiceTest extends DatabaseTestCase
             ),
             $trust->keywordFilter(),
             $trust->contactMasker(),
+            $this->notifier(),
             new PdoAuditLog($this->database),
             $this->clock,
         );
@@ -290,5 +315,134 @@ final class MessagingServiceTest extends DatabaseTestCase
         $zweimal = $this->messaging->confirmDeal($einmal, $this->buyerId);
 
         self::assertEquals($einmal->dealConfirmedBuyerAt, $zweimal->dealConfirmedBuyerAt);
+    }
+
+    // ------------------------------------------------- Benachrichtigungen
+
+    public function testDasGeoeffneteGespraechMeldetSichBeimAnbieter(): void
+    {
+        $this->openConversation();
+
+        self::assertCount(1, $this->mailer->messages());
+
+        $mail = $this->mailer->messages()[0];
+
+        self::assertSame('zuechter@example.tld', $mail->to);
+        self::assertSame('nachricht.neu', $mail->purpose);
+        self::assertSame($this->sellerId, $mail->userId);
+        self::assertStringContainsString('Käufer', $mail->body);
+        self::assertStringContainsString('Testanzeige', $mail->body);
+        self::assertStringContainsString('https://test.example/postfach/', $mail->body);
+    }
+
+    /**
+     * Der uebliche Ablauf: Der Interessent oeffnet das Gespraech und schreibt
+     * sofort. Das sind zwei Anlaesse und trotzdem eine Mail.
+     */
+    public function testOeffnenUndSofortSchreibenErgibtEineEinzigeMail(): void
+    {
+        $gespraech = $this->openConversation();
+        $this->messaging->send($this->frisch($gespraech), $this->buyer(), 'Ist das Tier noch da?');
+
+        self::assertCount(1, $this->mailer->messages());
+    }
+
+    public function testZweiNachrichtenInEinerStundeErgebenEineMail(): void
+    {
+        $gespraech = $this->openConversation();
+
+        // Die Meldung zum Gespraechsbeginn liegt zurueck; geprueft wird der
+        // Weg ueber die Nachrichten.
+        $this->reifenLassen();
+
+        $this->messaging->send($this->frisch($gespraech), $this->buyer(), 'Erste Frage');
+        $this->messaging->send($this->frisch($gespraech), $this->buyer(), 'Zweite Frage');
+
+        // Ein Gespraech ist ein Hin und Her — jede Nachricht einzeln zu melden
+        // wuerde das Postfach der Gegenseite fluten.
+        self::assertCount(1, $this->mailer->messages());
+    }
+
+    public function testOhneGelesenZuHabenKommtKeineZweiteMail(): void
+    {
+        $gespraech = $this->openConversation();
+        $this->reifenLassen();
+
+        $this->messaging->send($this->frisch($gespraech), $this->buyer(), 'Erste Frage');
+        $this->reifenLassen();
+
+        $this->messaging->send($this->frisch($gespraech), $this->buyer(), 'Bist du noch da?');
+
+        // Die Zeitgrenze allein wuerde jetzt greifen. Der Anbieter hat die
+        // erste Nachricht aber nie geoeffnet: Er weiss laengst, dass etwas
+        // liegt — eine zweite Mail traegt keine neue Information.
+        self::assertSame([], $this->mailer->messages());
+    }
+
+    public function testNachDemLesenMeldetSichDieNaechsteNachrichtWieder(): void
+    {
+        $gespraech = $this->openConversation();
+        $this->reifenLassen();
+
+        $this->messaging->send($this->frisch($gespraech), $this->buyer(), 'Erste Frage');
+
+        // Der Anbieter oeffnet das Gespraech — damit ist alles gelesen.
+        $this->messaging->thread($this->frisch($gespraech), $this->sellerId);
+        $this->reifenLassen();
+
+        $this->messaging->send($this->frisch($gespraech), $this->buyer(), 'Nachfrage');
+
+        self::assertCount(1, $this->mailer->messages());
+    }
+
+    public function testDieMailTraegtKeinenNachrichtentext(): void
+    {
+        $gespraech = $this->openConversation();
+        $this->reifenLassen();
+
+        $geheim = 'Ruf mich an unter 0170 1234567';
+        $this->messaging->send($this->frisch($gespraech), $this->buyer(), $geheim);
+
+        $mail = $this->mailer->messages()[0];
+
+        // Die Kontaktmaskierung greift beim Anzeigen, nicht beim Speichern —
+        // der Text in einer Mail wuerde sie umgehen.
+        self::assertStringNotContainsString($geheim, $mail->body);
+        self::assertStringNotContainsString('0170', $mail->body);
+        self::assertStringContainsString('Testanzeige', $mail->body);
+    }
+
+    public function testDerUngelesenZaehlerFaelltNachDemOeffnenAufNull(): void
+    {
+        $gespraech = $this->openConversation();
+        $this->messaging->send($this->frisch($gespraech), $this->buyer(), 'Erste Frage');
+        $this->messaging->send($this->frisch($gespraech), $this->buyer(), 'Zweite Frage');
+
+        self::assertSame(2, $this->conversations->unreadCount($this->sellerId));
+        // Der Schreiber selbst hat nichts Ungelesenes.
+        self::assertSame(0, $this->conversations->unreadCount($this->buyerId));
+
+        $this->messaging->thread($this->frisch($gespraech), $this->sellerId);
+
+        self::assertSame(0, $this->conversations->unreadCount($this->sellerId));
+    }
+
+    /**
+     * Der Zustand des Gespraechs aendert sich beim Benachrichtigen. Ein
+     * Controller laedt es je Anfrage neu — der Test muss das nachstellen.
+     */
+    private function frisch(Conversation $conversation): Conversation
+    {
+        return $this->conversations->findById($conversation->id ?? 0) ?? $conversation;
+    }
+
+    /**
+     * Laesst die Zeitgrenze verstreichen und raeumt die bis dahin gesammelten
+     * Mails weg — damit der folgende Teil des Tests fuer sich steht.
+     */
+    private function reifenLassen(): void
+    {
+        $this->clock->travelTo($this->clock->now()->modify('+2 hours'));
+        $this->mailer->clear();
     }
 }

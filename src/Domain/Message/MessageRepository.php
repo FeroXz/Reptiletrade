@@ -25,6 +25,15 @@ interface MessageRepository
     public function markRead(int $conversationId, int $readerId, DateTimeImmutable $at): int;
 
     /**
+     * Wie viele Nachrichten dieses Gespraechs der Leser noch nicht gesehen hat.
+     *
+     * $exceptId blendet eine Nachricht aus — beim Benachrichtigen die gerade
+     * geschriebene, denn die Frage lautet "wusste er schon von etwas?" und
+     * nicht "gibt es etwas?".
+     */
+    public function unreadCountInConversation(int $conversationId, int $readerId, ?int $exceptId = null): int;
+
+    /**
      * Markierte Nachrichten fuer die Moderationsliste, neueste zuerst.
      *
      * @return list<Message>

@@ -24,11 +24,21 @@ final readonly class Conversation
         public int $messageCount = 0,
         public ?DateTimeImmutable $createdAt = null,
         public ?DateTimeImmutable $lastMessageAt = null,
+        public ?DateTimeImmutable $notifiedBuyerAt = null,
+        public ?DateTimeImmutable $notifiedSellerAt = null,
     ) {}
 
     public function involves(int $userId): bool
     {
         return $this->buyerId === $userId || $this->sellerId === $userId;
+    }
+
+    /**
+     * Wann diese Seite zuletzt eine Mail zu diesem Gespraech bekommen hat.
+     */
+    public function notifiedAtFor(int $userId): ?DateTimeImmutable
+    {
+        return $this->isBuyer($userId) ? $this->notifiedBuyerAt : $this->notifiedSellerAt;
     }
 
     public function counterpartOf(int $userId): int

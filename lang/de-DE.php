@@ -401,9 +401,16 @@ return [
         . "über diesen Link vergibst du ein neues Passwort:\n\n{link}\n\n"
         . "Der Link gilt {minuten} Minuten und lässt sich nur einmal verwenden.\n\n"
         . 'Wenn du das nicht angefordert hast, passiert nichts — ignoriere die Nachricht.',
+    // Bewusst ohne Nachrichtentext: Die Kontaktmaskierung greift beim Anzeigen,
+    // nicht beim Speichern — eine Mail mit dem Text würde sie umgehen.
     'mail.nachricht.betreff' => 'Neue Nachricht zu deiner Anzeige',
     'mail.nachricht.text' => "Hallo {name},\n\n"
-        . "zu \"{anzeige}\" ist eine neue Nachricht eingegangen.\n\n{link}",
+        . "{absender} hat dir zu \"{anzeige}\" geschrieben.\n\n"
+        . "Die Nachricht steht in deinem Postfach:\n{link}",
+    'mail.gespraech.betreff' => 'Neue Anfrage zu deiner Anzeige',
+    'mail.gespraech.text' => "Hallo {name},\n\n"
+        . "{absender} hat ein Gespräch zu \"{anzeige}\" begonnen.\n\n"
+        . "Hier geht es weiter:\n{link}",
     'mail.ablauf.betreff.eins' => 'Deine Anzeige läuft morgen ab',
     'mail.ablauf.betreff.viele' => 'Deine Anzeige läuft in {anzahl} Tagen ab',
     'mail.ablauf.text.eins' => "Hallo {name},\n\n"

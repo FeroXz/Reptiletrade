@@ -62,6 +62,7 @@ use Reptilienmarkt\Domain\Listing\SellerStatsService;
 use Reptilienmarkt\Domain\Mail\Mailer;
 use Reptilienmarkt\Domain\Mail\MailOutboxRepository;
 use Reptilienmarkt\Domain\Message\ConversationRepository;
+use Reptilienmarkt\Domain\Message\MessageNotifier;
 use Reptilienmarkt\Domain\Message\MessageRepository;
 use Reptilienmarkt\Domain\Message\MessagingService;
 use Reptilienmarkt\Domain\Moderation\ReportRepository;
@@ -881,6 +882,17 @@ $container->set(MessageRepository::class, static fn(Container $c): MessageReposi
 $container->set(ReviewRepository::class, static fn(Container $c): ReviewRepository => new PdoReviewRepository($c->get(Database::class)));
 $container->set(ReportRepository::class, static fn(Container $c): ReportRepository => new PdoReportRepository($c->get(Database::class)));
 
+$container->set(MessageNotifier::class, static fn(Container $c): MessageNotifier => new MessageNotifier(
+    $c->get(ConversationRepository::class),
+    $c->get(MessageRepository::class),
+    $c->get(ListingRepository::class),
+    $c->get(UserRepository::class),
+    $c->get(Mailer::class),
+    $c->get(Translator::class),
+    $c->get(Clock::class),
+    Env::string('APP_URL', 'https://example.tld'),
+));
+
 $container->set(MessagingService::class, static fn(Container $c): MessagingService => new MessagingService(
     $c->get(ConversationRepository::class),
     $c->get(MessageRepository::class),
@@ -888,6 +900,7 @@ $container->set(MessagingService::class, static fn(Container $c): MessagingServi
     $c->get(RateLimiter::class),
     $c->get(FraudKeywordFilter::class),
     $c->get(ContactMasker::class),
+    $c->get(MessageNotifier::class),
     $c->get(AuditLog::class),
     $c->get(Clock::class),
 ));

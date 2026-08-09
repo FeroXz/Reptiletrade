@@ -31,4 +31,9 @@ interface ConversationRepository
      * Zaehlt die Nachricht mit und setzt last_message_at.
      */
     public function registerMessage(int $conversationId, DateTimeImmutable $at): void;
+
+    /**
+     * Haelt fest, dass eine Seite ueber dieses Gespraech benachrichtigt wurde.
+     */
+    public function markNotified(int $conversationId, bool $forBuyer, DateTimeImmutable $at): void;
 }

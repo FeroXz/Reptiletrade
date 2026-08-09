@@ -14,7 +14,8 @@ use Reptilienmarkt\Support\Timestamp;
 final readonly class PdoConversationRepository implements ConversationRepository
 {
     private const string COLUMNS = 'id, listing_id, buyer_id, seller_id, status, deal_confirmed_buyer_at, '
-        . 'deal_confirmed_seller_at, message_count, created_at, last_message_at';
+        . 'deal_confirmed_seller_at, message_count, created_at, last_message_at, '
+        . 'notified_buyer_at, notified_seller_at';
 
     public function __construct(private Database $database) {}
 
@@ -164,6 +165,19 @@ final readonly class PdoConversationRepository implements ConversationRepository
         );
     }
 
+    public function markNotified(int $conversationId, bool $forBuyer, DateTimeImmutable $at): void
+    {
+        // Der Spaltenname kommt aus einem Schalter, nicht aus einem Parameter:
+        // Bezeichner lassen sich nicht binden, und dies ist die einzige Stelle,
+        // an der beide Faelle zusammenkommen.
+        $spalte = $forBuyer ? 'notified_buyer_at' : 'notified_seller_at';
+
+        $this->database->execute(
+            \sprintf('UPDATE conversations SET %s = :at WHERE id = :id', $spalte),
+            ['at' => Timestamp::utc($at), 'id' => $conversationId],
+        );
+    }
+
     /**
      * @param array<string, mixed> $row
      */
@@ -180,6 +194,8 @@ final readonly class PdoConversationRepository implements ConversationRepository
             (int) $row['message_count'],
             Timestamp::parse(\is_string($row['created_at']) ? $row['created_at'] : null),
             Timestamp::parse(\is_string($row['last_message_at']) ? $row['last_message_at'] : null),
+            Timestamp::parse(\is_string($row['notified_buyer_at']) ? $row['notified_buyer_at'] : null),
+            Timestamp::parse(\is_string($row['notified_seller_at']) ? $row['notified_seller_at'] : null),
         );
     }
 }
