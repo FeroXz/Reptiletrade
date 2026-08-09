@@ -18,14 +18,15 @@ Vorgabe steht hier mit Begründung.
 | Aufträge | `JobScheduler`, `JobRunner` | Auftrag `content.publish` |
 | Volltext | `SearchIndex`-Muster aus Phase 3 | FTS5-Tabelle `content_search`, `bin/reindex.php --modul=inhalte` |
 | Übersetzer | `Translator`, `lang/de-DE.php` | Schlüssel unter `inhalt.*` und `admin.inhalt.*` |
-| Rechtsseiten | `config/impressum.php` | **unverändert** — siehe Abgrenzung |
+| Rechtsseiten | `config/impressum.php`, `legal_texts` | eigene Pflege unter `/admin/recht` — siehe E17 |
 
 ## Abgrenzung
 
-- `/impressum`, `/datenschutz`, `/nutzungsbedingungen` bleiben in `config/impressum.php` und
-  `src/Legal/`. Sie stehen auf der Reservierungsliste; das CMS kann diese Pfade nicht belegen.
-  Ein Impressum, das jemand versehentlich in den Entwurf zieht, ist ein Rechtsverstoß — das
-  gehört in eine Datei, die beim Deployment mitgeht.
+- `/impressum`, `/datenschutz`, `/nutzungsbedingungen` bleiben außerhalb des CMS: in
+  `config/impressum.php`, `data/legal_texts.json` und `src/Legal/`. Sie stehen auf der
+  Reservierungsliste; das CMS kann diese Pfade nicht belegen. Ein Impressum, das jemand
+  versehentlich in den Entwurf zieht, ist ein Rechtsverstoß. Bearbeitbar sind sie trotzdem —
+  über eine eigene Oberfläche mit eigenen Regeln, siehe E17.
 - Kein Theme- oder Template-Editor im Browser. Vorlagen sind Code, die Auswahl ist eine
   Allowlist (`ContentTemplate`).
 - Kein Roh-HTML-Block in v1. Begründung unter „Editor".
@@ -310,6 +311,60 @@ irgendetwas anderes zeigen lässt, stünde dem im Weg. `archiviert` liefert dage
 wenn keine Weiterleitung existiert — ein bewusst entfernter Inhalt ist etwas anderes als ein
 Tippfehler in der URL.
 
+### E17 — Rechtsseiten: bearbeitbar, aber nicht im CMS
+
+Nachgereicht nach Paket 10.7. Die ursprüngliche Abgrenzung ließ die Rechtsseiten unangetastet;
+gefordert war danach, sie aus der Verwaltung heraus pflegen zu können. Beides zugleich geht —
+nur nicht über den Inhaltsbereich.
+
+**Warum nicht als CMS-Seite?** Eine Rechtsseite ist kein Inhalt mit Blöcken. Sie hat
+Pflichtfelder (§ 5 DDG), eine Fundstelle je Abschnitt und ein Prüfdatum; sie darf nicht in den
+Entwurfsstatus rutschen, nicht archiviert werden und nicht von der Redaktion angefasst werden.
+Wer sie in `content_entries` legte, müsste jede dieser Eigenschaften nachträglich verbieten —
+und die Reservierungsliste gleich mit aufgeben.
+
+**Zwei Hälften, zwei Tabellen.** Die Stammdaten sind Felder, die Abschnitte sind Fließtext:
+
+| Hälfte | Ausgelieferter Stand | Abweichung | Oberfläche |
+|---|---|---|---|
+| Anbieter, Anschrift, Kontakt, Register, USt-IdNr., Aufsicht, Hoster, Schalter | `config/impressum.php` | `site_identity_overrides` (0029) | `/admin/recht` |
+| Fließtext je Abschnitt, mit Fundstelle und Prüfdatum | `data/legal_texts.json` | `legal_texts` | `/admin/recht/abschnitte` |
+
+**Die Datei bleibt der Ursprung, die Datenbank trägt die Abweichung** — dasselbe Modell wie bei
+`ui_texts`, und aus demselben Grund: Eine Datei geht beim Deployment mit und überlebt das
+Wiedereinspielen einer Sicherung. Wer die Angaben nur in die Datenbank schriebe, hätte nach dem
+Rückspielen ein Impressum von vorgestern, und niemandem fiele es auf, weil die Seite aussieht wie
+immer. `SiteIdentity::merged()` legt beide Stände übereinander; alle Aufrufer — Rechtsseiten,
+Mailer, `bin/doctor.php` — sehen dieselbe zusammengeführte Sicht. Jede Angabe ist einzeln
+zurücksetzbar. `bin/doctor.php` meldet den gefährlichen Fall: Das Impressum wird **erst durch die
+Überschreibungen** vollständig.
+
+Die Abschnitte liegen bewusst in `legal_texts`, derselben Tabelle wie die Rechtshinweise der
+`LegalGuard`. Sie bringt genau mit, was ein Rechtstext braucht — `source_reference` und
+`last_reviewed_at`, aus dem die Warnung „seit über zwölf Monaten nicht geprüft" schon existiert.
+Eine zweite Tabelle mit denselben Spalten wäre eine Kopie, die auseinanderläuft. Sortiert wird
+über den Schlüssel (`seite.datenschutz.20_verarbeitung` vor `…30_cookies`) statt über eine
+Reihenfolgespalte, die mit ihm auseinanderlaufen kann.
+
+**Zwei Regeln beim Speichern**, beide laut statt still:
+
+1. **Platzhalter müssen erhalten bleiben.** Steht im ausgelieferten Text `{hoster}`, muss er auch
+   im geänderten stehen. Sonst verschwindet der Auftragsverarbeiter aus der
+   Datenschutzerklärung — und auffallen würde das erst der Aufsichtsbehörde.
+2. **Ein Abschnitt kann nicht geleert werden.** Wer ihn nicht will, löscht ihn; dann ist es eine
+   Entscheidung und keine Überschrift ohne Inhalt.
+
+**Nur `admin`, nicht `redakteur`.** Wer diese Seiten ändert, ändert, wofür der Betreiber haftet.
+Fehlende Rolle ergibt 404 wie überall im Verwaltungsbereich. Jeder Schreibvorgang steht im
+Audit-Trail (`legal.identity_updated`, `legal.identity_reset`, `legal.section_updated`,
+`legal.section_reset`, `legal.section_reviewed`). Wer einen Abschnitt ändert, hat ihn damit auch
+geprüft — das Prüfdatum wird mitgesetzt; „geprüft" ohne Änderung geht als eigener Knopf.
+
+Ohne JavaScript: Der Zurücksetzen-Knopf trägt seinen Schlüssel im `value`, deshalb kommt die ganze
+Seite mit einer Absendung aus. Die Liste der Schalter steht im Controller und nicht im Formular —
+ein nicht angehaktes Kontrollkästchen schickt der Browser gar nicht mit, und ein abgewählter
+Schalter bliebe sonst für immer gesetzt.
+
 ## Datenmodell
 
 | Migration | Paket | Tabellen |
@@ -320,6 +375,7 @@ Tippfehler in der URL.
 | `0026_create_media` | 10.5 | `media`, `media_usages`, `content_entries.og_image_id` |
 | `0027_create_content_terms` | 10.6 | `content_terms`, `content_entry_terms`, `content_search` (FTS5) |
 | `0028_create_menus_and_redirects` | 10.7 | `menus`, `menu_items`, `content_redirects` |
+| `0029_create_site_identity_overrides` | E17 | `site_identity_overrides` |
 
 Jede Migration hat einen `down`-Pfad, der genau das zurücknimmt, was sie angelegt hat.
 
@@ -343,6 +399,9 @@ Jede Migration hat einen `down`-Pfad, der genau das zurücknimmt, was sie angele
 `/admin/inhalte`, `/admin/inhalte/neu`, `/admin/inhalte/{id}/bearbeiten`,
 `/admin/inhalte/{id}/versionen`, `/admin/inhalte/{id}/versionen/{nr}/zuruecksetzen`,
 `/admin/medien`, `/admin/menues`, `/admin/weiterleitungen`.
+
+Getrennt davon, nur für die Rolle `admin`: `/admin/recht` (Stammdaten des Impressums) und
+`/admin/recht/abschnitte` (Fließtext der Rechtsseiten) — siehe E17.
 
 Fehlende Berechtigung ergibt **404, nicht 403** — dieselbe Linie wie `/admin/`: Wer nicht
 hingehört, soll nicht erfahren, dass es die Seite gibt.
@@ -420,7 +479,13 @@ Cookie, CSRF-Token und Weiterleitungen. In dieser Reihenfolge:
 
 `bin/doctor.php` prüft auf einer laufenden Installation: Schreibrechte auf `public/media/`, dort
 gesperrte PHP-Ausführung, vorhandene Menüs, Menüeinträge ins Leere, Weiterleitungsschleifen,
-Slug-Kollisionen mit registrierten Routen, erzeugbare Sitemap.
+Slug-Kollisionen mit registrierten Routen, erzeugbare Sitemap — und für E17, ob jede Rechtsseite
+Fließtext hat und ob das Impressum erst durch die Überschreibungen vollständig wird.
+
+`tests/Http/AdminLegalTest.php` deckt E17 ab: Zugang nur für `admin`, Speichern und Zurücksetzen
+je Feld, Schalter aus- und wieder anhaken, Pflichtangaben, Längengrenze, abgewiesene
+Platzhalterlöschung, leerer Abschnitt, „geprüft" ohne Änderung, Audit-Einträge — und dass die
+öffentlichen Seiten anschließend den geänderten Text zeigen.
 
 ## Stand
 
@@ -433,3 +498,4 @@ Slug-Kollisionen mit registrierten Routen, erzeugbare Sitemap.
 | 10.5 | Medienverwaltung, `media_usages`, `srcset` | erledigt |
 | 10.6 | Beiträge, Kategorien, `/news/`, `/feed.xml`, FTS5 | erledigt |
 | 10.7 | Menüs, Weiterleitungen, SEO, `sitemap.xml`, `robots.txt` | erledigt |
+| E17 | Rechtsseiten unter `/admin/recht` pflegbar (nachgereicht) | erledigt |

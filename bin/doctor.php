@@ -25,9 +25,11 @@ use Reptilienmarkt\Domain\Content\MenuRepository;
 use Reptilienmarkt\Domain\Content\RedirectService;
 use Reptilienmarkt\Domain\Content\ReservedPaths;
 use Reptilienmarkt\Domain\Site\SiteIdentity;
+use Reptilienmarkt\Domain\Site\SiteIdentityService;
 use Reptilienmarkt\Http\Controller\SitemapController;
 use Reptilienmarkt\Http\Message\Request;
 use Reptilienmarkt\Infra\Persistence\Database;
+use Reptilienmarkt\Legal\LegalPageService;
 use Reptilienmarkt\Support\Container;
 use Reptilienmarkt\Support\Env;
 
@@ -317,15 +319,16 @@ if (!is_file($root . '/config/impressum.php')) {
         if ($fehlt !== []) {
             $befund->problem(
                 'Im Impressum fehlen ' . count($fehlt) . ' Pflichtangaben',
-                'config/impressum.php ausfuellen: ' . implode('; ', $fehlt),
+                'Nachtragen unter /admin/recht oder in config/impressum.php: ' . implode('; ', $fehlt),
             );
         } elseif (!$identity->isComplete()) {
             // Angaben stehen, der Schalter nicht: Dann zeigt jede Rechtsseite
             // weiter den Warnhinweis — und der gehoert nicht auf eine
             // oeffentliche Seite.
             $befund->problem(
-                "In config/impressum.php steht noch 'unvollstaendig' => true",
-                'Die Angaben sind vollstaendig. Auf false setzen, damit der Warnhinweis verschwindet.',
+                "Der Schalter 'unvollstaendig' steht noch",
+                'Die Angaben sind vollstaendig. Unter /admin/recht den Haken entfernen '
+                . "(oder in config/impressum.php auf false setzen), damit der Warnhinweis verschwindet.",
             );
         } else {
             $befund->ok('Impressum vollstaendig: ' . implode(', ', $identity->addressLines()));
@@ -344,12 +347,63 @@ if (!is_file($root . '/config/impressum.php')) {
             ? $befund->ok('Auftragsverarbeitungsvertrag mit dem Hoster vermerkt')
             : $befund->warnung(
                 'Kein Auftragsverarbeitungsvertrag vermerkt',
-                'Art. 28 DSGVO verlangt ihn mit jedem Hoster. Nach Abschluss in '
-                . "config/impressum.php 'avv_geschlossen' => true setzen.",
+                'Art. 28 DSGVO verlangt ihn mit jedem Hoster. Nach Abschluss unter '
+                . '/admin/recht anhaken.',
             );
     } catch (Throwable $exception) {
         $befund->problem('config/impressum.php ist nicht lesbar', $exception->getMessage());
     }
+}
+
+// Woher die Angaben stammen, ist im Betrieb die wichtigere Frage als ob sie
+// stehen. Gemeldet wird nur der Fall, in dem es weh tut: Die Datei allein
+// ergaebe kein vollstaendiges Impressum, erst die Aenderungen der Verwaltung
+// machen es vollstaendig. Nach dem Wiedereinspielen einer Sicherung ohne diese
+// Tabelle stuende die Seite wieder mit Luecken im Netz — und niemand merkt es,
+// weil sie ja aussieht wie immer.
+try {
+    $geaendert = $container->get(SiteIdentityService::class)->changedCount();
+
+    /** @var array<string, mixed> $ausgeliefert */
+    $ausgeliefert = $container->get('impressum.config');
+    $nurInDerDatenbank = (new SiteIdentity($ausgeliefert))->missing();
+
+    if ($geaendert === 0) {
+        $befund->ok('Die Impressumsangaben stehen so in config/impressum.php');
+    } elseif ($nurInDerDatenbank === []) {
+        $befund->ok($geaendert . ' Impressumsangaben stammen aus der Verwaltung');
+    } else {
+        $befund->warnung(
+            'Das Impressum ist nur mit den Angaben aus der Verwaltung vollstaendig',
+            'In config/impressum.php fehlen: ' . implode('; ', $nurInDerDatenbank) . '. Eine '
+            . 'Sicherung ohne die Tabelle site_identity_overrides brachte die Luecken zurueck — '
+            . 'die Angaben deshalb auch in die Datei uebernehmen.',
+        );
+    }
+} catch (Throwable $exception) {
+    $befund->problem('Die Impressumsueberschreibungen sind nicht lesbar', $exception->getMessage());
+}
+
+// Eine Rechtsseite ohne Abschnitte ist eine leere Seite mit Ueberschrift.
+try {
+    $seiten = $container->get(LegalPageService::class);
+    $leer = [];
+
+    foreach (array_keys(LegalPageService::PAGES) as $seite) {
+        if ($seiten->sections($seite) === []) {
+            $leer[] = $seite;
+        }
+    }
+
+    $leer === []
+        ? $befund->ok('Alle Rechtsseiten haben Fliesstext')
+        : $befund->problem(
+            'Ohne Fliesstext: ' . implode(', ', $leer),
+            'Die Abschnitte kommen aus data/legal_texts.json und werden von '
+            . '"php bin/seed.php" eingespielt.',
+        );
+} catch (Throwable $exception) {
+    $befund->problem('Die Rechtsseiten sind nicht lesbar', $exception->getMessage());
 }
 
 // ---------------------------------------------------------------- Betrieb

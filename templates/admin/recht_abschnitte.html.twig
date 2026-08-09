@@ -1,0 +1,76 @@
+{% extends 'layout/basis.html.twig' %}
+{% block titel %}{{ t('admin.recht.abschnitte') }} — Reptilienmarkt{% endblock %}
+{% block kopf %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block inhalt %}
+    <div class="mx-auto max-w-3xl space-y-6">
+        {% include 'partials/meldungen.html.twig' %}
+
+        <div class="flex flex-wrap items-baseline justify-between gap-3">
+            <div>
+                <h1 class="text-xl font-semibold">{{ t('admin.recht.abschnitte') }}</h1>
+                <p class="gedaempft">{{ t('admin.recht.abschnitte_erklaerung') }}</p>
+            </div>
+            <a class="text-sm underline" href="/admin/recht">{{ t('admin.recht.titel') }}</a>
+        </div>
+
+        <nav class="flex flex-wrap gap-3 text-sm" aria-label="{{ t('admin.recht.abschnitte') }}">
+            {% for schluessel, name in seiten %}
+                <a class="{{ schluessel == seite ? 'font-semibold' : 'underline' }}"
+                   href="/admin/recht/abschnitte?seite={{ schluessel }}">{{ name }}</a>
+            {% endfor %}
+        </nav>
+
+        <p class="text-sm gedaempft">
+            {{ t('admin.recht.platzhalter_hilfe') }}
+        </p>
+
+        {% if abschnitte is empty %}
+            <p class="karte p-6 text-sm gedaempft">{{ t('admin.recht.keine_abschnitte') }}</p>
+        {% endif %}
+
+        {% for abschnitt in abschnitte %}
+            <form method="post" action="/admin/recht/abschnitte" class="karte space-y-3 p-6">
+                <input type="hidden" name="_csrf" value="{{ csrf }}">
+                <input type="hidden" name="seite" value="{{ seite }}">
+                <input type="hidden" name="schluessel" value="{{ abschnitt.key }}">
+
+                <div class="flex flex-wrap items-baseline justify-between gap-2">
+                    <h2 class="text-sm font-semibold">{{ abschnitt.title }}</h2>
+                    <span class="text-xs gedaempft">
+                        {% if abschnitt.lastReviewedAt %}
+                            {{ t('admin.recht.geprueft_am', { 'datum': abschnitt.lastReviewedAt|date('d.m.Y') }) }}
+                        {% else %}
+                            {{ t('admin.recht.nie_geprueft') }}
+                        {% endif %}
+                        {% if geaendert[abschnitt.key] %} · {{ t('admin.recht.geaendert') }}{% endif %}
+                    </span>
+                </div>
+
+                <div>
+                    <label class="text-sm" for="titel-{{ loop.index0 }}">{{ t('admin.recht.feld_ueberschrift') }}</label>
+                    <input class="feld" id="titel-{{ loop.index0 }}" name="titel" value="{{ abschnitt.title }}" required>
+                </div>
+
+                <div>
+                    <label class="text-sm" for="text-{{ loop.index0 }}">{{ t('admin.recht.feld_text') }}</label>
+                    <textarea class="feld font-mono text-sm" id="text-{{ loop.index0 }}" name="text" rows="10"
+                              required>{{ abschnitt.body }}</textarea>
+                </div>
+
+                <div>
+                    <label class="text-sm" for="fundstelle-{{ loop.index0 }}">{{ t('admin.recht.feld_fundstelle') }}</label>
+                    <input class="feld" id="fundstelle-{{ loop.index0 }}" name="fundstelle" value="{{ abschnitt.sourceReference }}">
+                </div>
+
+                <div class="flex flex-wrap items-center gap-3">
+                    <button type="submit" name="aktion" value="speichern" class="knopf knopf-primaer">{{ t('allgemein.speichern') }}</button>
+                    <button type="submit" name="aktion" value="geprueft" class="knopf">{{ t('admin.recht.als_geprueft') }}</button>
+                    {% if geaendert[abschnitt.key] %}
+                        <button type="submit" name="aktion" value="zuruecksetzen" class="knopf">{{ t('admin.recht.zuruecksetzen') }}</button>
+                    {% endif %}
+                </div>
+            </form>
+        {% endfor %}
+    </div>
+{% endblock %}

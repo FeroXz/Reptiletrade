@@ -74,6 +74,8 @@ use Reptilienmarkt\Domain\Search\ListingSearchRepository;
 use Reptilienmarkt\Domain\Search\SearchIndex;
 use Reptilienmarkt\Domain\Setting\Settings;
 use Reptilienmarkt\Domain\Site\SiteIdentity;
+use Reptilienmarkt\Domain\Site\SiteIdentityOverrideRepository;
+use Reptilienmarkt\Domain\Site\SiteIdentityService;
 use Reptilienmarkt\Domain\Site\TextOverrideRepository;
 use Reptilienmarkt\Domain\Site\UiTextService;
 use Reptilienmarkt\Domain\Species\MorphRepository;
@@ -94,6 +96,7 @@ use Reptilienmarkt\Domain\User\VerificationRepository;
 use Reptilienmarkt\Http\Controller\AccountController;
 use Reptilienmarkt\Http\Controller\AdminContentController;
 use Reptilienmarkt\Http\Controller\AdminController;
+use Reptilienmarkt\Http\Controller\AdminLegalController;
 use Reptilienmarkt\Http\Controller\AdminListingController;
 use Reptilienmarkt\Http\Controller\AdminMediaController;
 use Reptilienmarkt\Http\Controller\AdminStructureController;
@@ -179,6 +182,7 @@ use Reptilienmarkt\Infra\Persistence\PdoReportRepository;
 use Reptilienmarkt\Infra\Persistence\PdoReviewRepository;
 use Reptilienmarkt\Infra\Persistence\PdoSessionRepository;
 use Reptilienmarkt\Infra\Persistence\PdoSettings;
+use Reptilienmarkt\Infra\Persistence\PdoSiteIdentityOverrideRepository;
 use Reptilienmarkt\Infra\Persistence\PdoSpeciesRepository;
 use Reptilienmarkt\Infra\Persistence\PdoSubscriptionRepository;
 use Reptilienmarkt\Infra\Persistence\PdoTextOverrideRepository;
@@ -198,6 +202,7 @@ use Reptilienmarkt\Infra\Storage\MediaStorage;
 use Reptilienmarkt\Infra\Storage\PrivateStorage;
 use Reptilienmarkt\Infra\Storage\PublicImageStorage;
 use Reptilienmarkt\Legal\LegalGuard;
+use Reptilienmarkt\Legal\LegalPageService;
 use Reptilienmarkt\Legal\LegalRuleFactory;
 use Reptilienmarkt\Legal\LegalTextRepository;
 use Reptilienmarkt\Legal\LegalTextResolver;
@@ -600,12 +605,54 @@ $container->set(StatsController::class, static fn(Container $c): StatsController
 ));
 
 // ------------------------------------- Impressum, Kontakt, Kontosperren
-$container->set(SiteIdentity::class, static function () use ($root): SiteIdentity {
+$container->set('impressum.config', static function () use ($root): array {
     /** @var array<string, mixed> $config */
     $config = require $root . '/config/impressum.php';
 
-    return new SiteIdentity($config);
+    return $config;
 });
+
+$container->set(SiteIdentityOverrideRepository::class, static fn(Container $c): SiteIdentityOverrideRepository => new PdoSiteIdentityOverrideRepository($c->get(Database::class)));
+
+// Der geltende Stand: ausgelieferte Datei plus die Aenderungen der Verwaltung.
+// Alle Aufrufer — Rechtsseiten, Mailer, bin/doctor.php — bekommen dieselbe
+// zusammengefuehrte Sicht; sonst zeigte die eine Stelle etwas anderes als die
+// andere.
+$container->set(SiteIdentity::class, static function (Container $c): SiteIdentity {
+    /** @var array<string, mixed> $config */
+    $config = $c->get('impressum.config');
+
+    return SiteIdentity::merged($config, $c->get(SiteIdentityOverrideRepository::class)->all());
+});
+
+$container->set(SiteIdentityService::class, static function (Container $c): SiteIdentityService {
+    /** @var array<string, mixed> $config */
+    $config = $c->get('impressum.config');
+
+    return new SiteIdentityService(
+        $config,
+        $c->get(SiteIdentityOverrideRepository::class),
+        $c->get(AuditLog::class),
+        $c->get(Clock::class),
+    );
+});
+
+$container->set(LegalPageService::class, static fn(Container $c): LegalPageService => new LegalPageService(
+    $c->get(LegalTextRepository::class),
+    $c->get(MarkdownRenderer::class),
+    $c->get(AuditLog::class),
+    $c->get(Clock::class),
+    $root . '/data/legal_texts.json',
+));
+
+$container->set(AdminLegalController::class, static fn(Container $c): AdminLegalController => new AdminLegalController(
+    $c->get(SiteIdentityService::class),
+    $c->get(LegalPageService::class),
+    $c->get(Viewer::class),
+    $c->get(SessionManager::class),
+    $c->get(Translator::class),
+    $c->get(Environment::class),
+));
 
 $container->set(ContactRepository::class, static fn(Container $c): ContactRepository => new PdoContactRepository($c->get(Database::class)));
 
@@ -631,6 +678,7 @@ $container->set(UserModerationService::class, static fn(Container $c): UserModer
 
 $container->set(LegalPageController::class, static fn(Container $c): LegalPageController => new LegalPageController(
     $c->get(SiteIdentity::class),
+    $c->get(LegalPageService::class),
     $c->get(Environment::class),
     Env::string('APP_URL', 'https://example.tld'),
 ));
