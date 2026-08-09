@@ -14,7 +14,7 @@ use Reptilienmarkt\Support\Timestamp;
 final readonly class PdoMailOutboxRepository implements MailOutboxRepository
 {
     private const string COLUMNS = 'id, recipient, recipient_name, subject, body, purpose, user_id, '
-        . 'status, attempts, last_error, created_at, sent_at';
+        . 'status, attempts, last_error, created_at, sent_at, headers_json';
 
     public function __construct(private Database $database) {}
 
@@ -23,8 +23,8 @@ final readonly class PdoMailOutboxRepository implements MailOutboxRepository
         $stamp = Timestamp::utc($now);
 
         $this->database->execute(
-            'INSERT INTO mail_outbox (recipient, recipient_name, subject, body, purpose, user_id, created_at, updated_at)
-             VALUES (:recipient, :name, :subject, :body, :purpose, :user_id, :now, :now)',
+            'INSERT INTO mail_outbox (recipient, recipient_name, subject, body, purpose, user_id, headers_json, created_at, updated_at)
+             VALUES (:recipient, :name, :subject, :body, :purpose, :user_id, :headers, :now, :now)',
             [
                 'recipient' => $message->to,
                 'name' => $message->toName,
@@ -32,6 +32,13 @@ final readonly class PdoMailOutboxRepository implements MailOutboxRepository
                 'body' => $message->body,
                 'purpose' => $message->purpose,
                 'user_id' => $message->userId,
+                // FORCE_OBJECT, damit die leere Menge als {} und nicht als []
+                // in der Spalte steht — sonst haette dieselbe Bedeutung zwei
+                // Schreibweisen, je nachdem ob Kopfzeilen dabei waren.
+                'headers' => json_encode(
+                    $message->headers,
+                    \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_UNICODE | \JSON_FORCE_OBJECT,
+                ),
                 'now' => $stamp,
             ],
         );
@@ -116,6 +123,7 @@ final readonly class PdoMailOutboxRepository implements MailOutboxRepository
                 \is_string($name) ? $name : null,
                 (string) $row['purpose'],
                 $row['user_id'] === null ? null : (int) $row['user_id'],
+                self::headers($row['headers_json'] ?? null),
             ),
             MailStatus::from((string) $row['status']),
             (int) $row['attempts'],
@@ -123,6 +131,35 @@ final readonly class PdoMailOutboxRepository implements MailOutboxRepository
             Timestamp::parse((string) $row['created_at']) ?? new DateTimeImmutable('@0'),
             Timestamp::parse(\is_string($row['sent_at']) ? $row['sent_at'] : null),
         );
+    }
+
+    /**
+     * Kaputtes JSON kostet die Kopfzeilen, nicht die Mail: Ein fehlender
+     * List-Unsubscribe ist aergerlich, eine nicht zugestellte Mail schlimmer.
+     *
+     * @return array<string, string>
+     */
+    private static function headers(mixed $json): array
+    {
+        if (!\is_string($json) || $json === '') {
+            return [];
+        }
+
+        $entschluesselt = json_decode($json, true);
+
+        if (!\is_array($entschluesselt)) {
+            return [];
+        }
+
+        $kopf = [];
+
+        foreach ($entschluesselt as $name => $value) {
+            if (\is_string($name) && \is_string($value)) {
+                $kopf[$name] = $value;
+            }
+        }
+
+        return $kopf;
     }
 
     /**

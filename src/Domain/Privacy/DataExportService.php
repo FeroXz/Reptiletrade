@@ -92,6 +92,14 @@ final readonly class DataExportService
                    FROM reports WHERE reporter_id = :id ORDER BY id',
                 ['id' => $userId],
             ),
+            // Nur die Abweichungen — mehr steht nicht in der Tabelle. Wer nie
+            // etwas eingestellt hat, hat hier eine leere Liste und laeuft auf
+            // den Voreinstellungen.
+            'benachrichtigungen' => $this->rows(
+                'SELECT channel_key, enabled, updated_at
+                   FROM notification_preferences WHERE user_id = :id ORDER BY channel_key',
+                ['id' => $userId],
+            ),
             'gespeicherte_suchen' => $this->rows(
                 'SELECT id, name, filter_json, alert_frequency, last_alert_at, created_at
                    FROM saved_searches WHERE user_id = :id ORDER BY id',

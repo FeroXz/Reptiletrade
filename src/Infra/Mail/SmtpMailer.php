@@ -209,6 +209,10 @@ final readonly class SmtpMailer implements Mailer
             'Content-Transfer-Encoding: 8bit',
         ];
 
+        foreach (MailHeaders::additional($message) as $name => $value) {
+            $kopf[] = $name . ': ' . $value;
+        }
+
         return implode("\r\n", $kopf) . "\r\n\r\n" . self::stuff($message->body);
     }
 

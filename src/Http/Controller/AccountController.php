@@ -7,6 +7,9 @@ namespace Reptilienmarkt\Http\Controller;
 use Reptilienmarkt\Domain\Auth\TokenException;
 use Reptilienmarkt\Domain\Auth\TokenType;
 use Reptilienmarkt\Domain\Auth\TotpAuthenticator;
+use Reptilienmarkt\Domain\Notification\NotificationChannel;
+use Reptilienmarkt\Domain\Notification\NotificationException;
+use Reptilienmarkt\Domain\Notification\NotificationPreferenceService;
 use Reptilienmarkt\Domain\Trust\RateLimiter;
 use Reptilienmarkt\Domain\Trust\RateLimitExceededException;
 use Reptilienmarkt\Domain\User\AccountException;
@@ -33,6 +36,7 @@ final readonly class AccountController
         private UserDocumentRepository $documents,
         private PrivateStorage $storage,
         private TotpAuthenticator $totp,
+        private NotificationPreferenceService $notifications,
         private RateLimiter $rateLimiter,
         private Viewer $currentUser,
         private SessionManager $session,
@@ -247,6 +251,94 @@ final readonly class AccountController
         }
 
         return Response::redirect('/konto/');
+    }
+
+    // ------------------------------------------------- Benachrichtigungen
+
+    public function notifications(Request $request): Response
+    {
+        $user = $this->currentUser->require();
+
+        return Response::html($this->twig->render('konto/benachrichtigungen.html.twig', [
+            'waehlbare_kanaele' => NotificationChannel::selectable(),
+            'pflicht_kanal' => NotificationChannel::SystemWichtig,
+            'zustand' => $this->notifications->all($user->id ?? 0),
+            'csrf' => $this->session->csrfToken(),
+            'meldungen' => $this->session->takeFlashes(),
+        ]));
+    }
+
+    public function saveNotifications(Request $request): Response
+    {
+        $user = $this->currentUser->require();
+        $this->guardCsrf($request);
+
+        $this->notifications->save($user->id ?? 0, $this->checkedChannels($request));
+        $this->session->flash('erfolg', $this->translator->translate('benachrichtigung.gespeichert'));
+
+        return Response::redirect('/konto/benachrichtigungen');
+    }
+
+    /**
+     * Der Abmeldelink aus einer Mail.
+     *
+     * Ohne Anmeldung, wie der Bestaetigungslink: Wer die Mail hat, hat den
+     * Nachweis erbracht. Und ohne jede Wirkung auf die Sitzung — dieser Weg
+     * schaltet genau einen Kanal ab und meldet niemanden von irgendetwas
+     * anderem ab, obwohl der Pfad so heisst.
+     */
+    public function unsubscribe(Request $request): Response
+    {
+        $kanal = NotificationChannel::tryFrom($request->queryString('kanal') ?? '');
+
+        if ($kanal === null) {
+            return $this->unsubscribeResult(null, $this->translator->translate('benachrichtigung.abmelden.unbekannt'));
+        }
+
+        try {
+            $this->notifications->unsubscribe($request->attribute('token') ?? '', $kanal);
+        } catch (NotificationException $exception) {
+            return $this->unsubscribeResult(null, $exception->getMessage());
+        }
+
+        return $this->unsubscribeResult($kanal, null);
+    }
+
+    private function unsubscribeResult(?NotificationChannel $channel, ?string $error): Response
+    {
+        return Response::html(
+            $this->twig->render('konto/abgemeldet.html.twig', [
+                'erfolg' => $channel !== null,
+                'kanal' => $channel,
+                'fehler' => $error,
+            ]),
+            $channel === null ? 404 : 200,
+        );
+    }
+
+    /**
+     * Die angehakten Kaestchen. Ein Browser schickt nicht angehakte Kaestchen
+     * gar nicht mit — was fehlt, ist also abgewaehlt und nicht unveraendert.
+     *
+     * @return list<string>
+     */
+    private function checkedChannels(Request $request): array
+    {
+        $roh = $request->body['kanaele'] ?? [];
+
+        if (!\is_array($roh)) {
+            return [];
+        }
+
+        $schluessel = [];
+
+        foreach ($roh as $wert) {
+            if (\is_string($wert) && NotificationChannel::tryFrom($wert) !== null) {
+                $schluessel[] = $wert;
+            }
+        }
+
+        return $schluessel;
     }
 
     /**

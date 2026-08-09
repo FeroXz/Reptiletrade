@@ -82,6 +82,13 @@ $router->post('/konto/zwei-faktor', AccountController::class, 'setupTwoFactor', 
 $router->post('/konto/zwei-faktor/bestaetigen', AccountController::class, 'confirmTwoFactor', 'konto.zweifaktor.bestaetigen');
 $router->post('/konto/zwei-faktor/aus', AccountController::class, 'disableTwoFactor', 'konto.zweifaktor.aus');
 
+// Benachrichtigungen. Der Abmeldelink liegt bewusst ausserhalb von /konto/ —
+// er muss ohne Anmeldung funktionieren. Mit dem POST /abmelden (Sitzungsende)
+// hat er nichts zu tun ausser dem Wortstamm; er beendet keine Sitzung.
+$router->get('/konto/benachrichtigungen', AccountController::class, 'notifications', 'konto.benachrichtigungen');
+$router->post('/konto/benachrichtigungen', AccountController::class, 'saveNotifications', 'konto.benachrichtigungen.speichern');
+$router->get('/abmelden/{token}', AccountController::class, 'unsubscribe', 'abmelden.kanal');
+
 // Statistik der eigenen Anzeigen
 $router->get('/konto/statistik', StatsController::class, 'show', 'statistik');
 

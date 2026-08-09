@@ -333,6 +333,39 @@ return [
         . 'ein Export aus einer neueren Fassung bleibt also einlesbar. '
         . 'Geschrieben wird über den wissenschaftlichen Namen: Vorhandenes wird aktualisiert, Neues angelegt.',
 
+    // ------------------------------------------------------ Benachrichtigungen
+    'benachrichtigung.titel' => 'Benachrichtigungen',
+    'benachrichtigung.erklaerung' => 'Hier stellst du ein, worüber dich der Reptilienmarkt per E-Mail '
+        . 'informiert. Was du abschaltest, bekommst du nicht mehr — im Postfach auf der Seite steht es weiterhin.',
+    'benachrichtigung.speichern' => 'Einstellungen speichern',
+    'benachrichtigung.gespeichert' => 'Deine Benachrichtigungen sind gespeichert.',
+    'benachrichtigung.immer_an' => 'Lässt sich nicht abschalten.',
+
+    'benachrichtigung.kanal.nachricht.neu' => 'Neue Nachrichten',
+    'benachrichtigung.kanal.nachricht.neu.beschreibung' => 'Wenn dir jemand zu einer Anzeige schreibt.',
+    'benachrichtigung.kanal.suche.treffer' => 'Treffer zu gespeicherten Suchen',
+    'benachrichtigung.kanal.suche.treffer.beschreibung' => 'Einmal täglich, wenn es zu einer gespeicherten '
+        . 'Suche neue Anzeigen gibt. Standardmäßig aus.',
+    'benachrichtigung.kanal.anzeige.ablauf' => 'Ablaufende Anzeigen',
+    'benachrichtigung.kanal.anzeige.ablauf.beschreibung' => 'Erinnerung, bevor eine deiner Anzeigen ausläuft.',
+    'benachrichtigung.kanal.handel.bestaetigung' => 'Handelsbestätigungen',
+    'benachrichtigung.kanal.handel.bestaetigung.beschreibung' => 'Wenn ein Handel bestätigt wurde und eine '
+        . 'Bewertung möglich ist.',
+    'benachrichtigung.kanal.system.wichtig' => 'Wichtige Hinweise zum Konto',
+    'benachrichtigung.kanal.system.wichtig.beschreibung' => 'Kontosperren, Sicherheitshinweise und Änderungen '
+        . 'an den Rechtstexten. Ohne diese Nachrichten könntest du auf nichts davon reagieren.',
+
+    'benachrichtigung.abmelden.titel' => 'Benachrichtigung abbestellt',
+    'benachrichtigung.abmelden.erfolg' => 'Du bekommst keine E-Mails mehr zu: {kanal}.',
+    'benachrichtigung.abmelden.rest_laeuft_weiter' => 'Alle anderen Benachrichtigungen bleiben unverändert, '
+        . 'und deine Sitzung ist weiterhin angemeldet.',
+    'benachrichtigung.abmelden.unbekannt' => 'Dieser Abmeldelink nennt keine Benachrichtigungsart, '
+        . 'die es gibt.',
+    'benachrichtigung.abmelden.einstellungen' => 'Alle Benachrichtigungen einstellen',
+
+    'mail.abmelden.hinweis' => "Diese E-Mail bekommst du, weil die passende Benachrichtigung "
+        . "in deinem Konto eingeschaltet ist.\nHier abbestellen: {link}",
+
     // ------------------------------------------------------------ Meine Daten
     'daten.titel' => 'Meine Daten',
     'daten.zurueck' => 'Zurück zum Konto',

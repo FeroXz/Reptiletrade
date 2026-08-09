@@ -8,6 +8,7 @@ use Reptilienmarkt\Domain\Job\Job;
 use Reptilienmarkt\Domain\Job\JobHandler;
 use Reptilienmarkt\Domain\Mail\Mailer;
 use Reptilienmarkt\Domain\Mail\MailMessage;
+use Reptilienmarkt\Domain\Notification\NotificationChannel;
 use Reptilienmarkt\Domain\Privacy\RetentionPolicy;
 use Reptilienmarkt\Infra\Persistence\Database;
 use Reptilienmarkt\Support\Clock;
@@ -58,7 +59,7 @@ final readonly class ListingExpiryNoticeHandler implements JobHandler
 
         $anzeigen = $this->database->select(
             <<<'SQL'
-                SELECT l.id, l.title, l.expires_at, u.email, u.display_name
+                SELECT l.id, l.user_id, l.title, l.expires_at, u.email, u.display_name
                   FROM listings l
                   JOIN users u ON u.id = l.user_id
                  WHERE l.status = 'aktiv'
@@ -89,6 +90,8 @@ final readonly class ListingExpiryNoticeHandler implements JobHandler
                 $this->translator->choose('mail.ablauf.betreff', $tage, $platzhalter),
                 $this->translator->choose('mail.ablauf.text', $tage, $platzhalter),
                 (string) $anzeige['display_name'],
+                NotificationChannel::AnzeigeAblauf->value,
+                (int) $anzeige['user_id'],
             ));
 
             // Der Vermerk ist die Idempotenzmarke — deshalb direkt hier und

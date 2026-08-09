@@ -120,6 +120,34 @@ final class RouterTest extends TestCase
         self::assertSame('vorgabe', $request->queryString('fehlt', 'vorgabe'));
     }
 
+    /**
+     * Der Abmeldelink und das Sitzungsende teilen sich den Wortstamm. Sie
+     * duerfen sich nicht in die Quere kommen: /abmelden beendet die Sitzung,
+     * /abmelden/{token} schaltet eine Benachrichtigung ab.
+     */
+    public function testAbmeldelinkUndSitzungsendeStoerenSichNicht(): void
+    {
+        $abmelden = $this->router()->match($this->request('/abmelden', 'POST'));
+
+        self::assertNotNull($abmelden);
+        self::assertSame('abmelden', $abmelden->route->name);
+        self::assertSame('logout', $abmelden->route->action);
+
+        $kanal = $this->router()->match($this->request('/abmelden/aabbccdd'));
+
+        self::assertNotNull($kanal);
+        self::assertSame('abmelden.kanal', $kanal->route->name);
+        self::assertSame('unsubscribe', $kanal->route->action);
+        self::assertSame(['token' => 'aabbccdd'], $kanal->attributes);
+
+        // Und ein GET auf /abmelden ist kein Ausloggen: Es faellt auf die
+        // CMS-Auffangroute, wo es hoechstens eine Seite findet.
+        $get = $this->router()->match($this->request('/abmelden'));
+
+        self::assertNotNull($get);
+        self::assertTrue($get->route->fallback);
+    }
+
     public function testApiPfadeWollenJson(): void
     {
         self::assertTrue((new Request('GET', '/api/v1/listings'))->wantsJson());

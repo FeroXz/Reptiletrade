@@ -53,6 +53,10 @@ final readonly class AccountService
                 'stunden' => (int) (TokenType::EmailVerify->lifetimeMinutes() / 60),
             ]),
             $user->displayName,
+            // Kein eigener Kanal, also Systempost: Ein Bestaetigungslink laesst
+            // sich nicht abbestellen, sonst haengt das Konto auf halber Strecke.
+            'konto.verify',
+            $user->id,
         ));
     }
 
@@ -102,6 +106,8 @@ final readonly class AccountService
                 'minuten' => TokenType::PhoneVerify->lifetimeMinutes(),
             ]),
             $user->displayName,
+            'konto.telefon',
+            $user->id,
         ));
 
         return $normalized;
@@ -150,6 +156,8 @@ final readonly class AccountService
                 'minuten' => TokenType::PasswordReset->lifetimeMinutes(),
             ]),
             $user->displayName,
+            'konto.passwort',
+            $user->id,
         ));
 
         $this->audit->record(new AuditEntry('user.password_reset_requested', 'user', $user->id, [], $user->id));

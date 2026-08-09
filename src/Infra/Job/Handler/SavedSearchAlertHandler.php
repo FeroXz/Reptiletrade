@@ -8,6 +8,7 @@ use Reptilienmarkt\Domain\Job\Job;
 use Reptilienmarkt\Domain\Job\JobHandler;
 use Reptilienmarkt\Domain\Mail\Mailer;
 use Reptilienmarkt\Domain\Mail\MailMessage;
+use Reptilienmarkt\Domain\Notification\NotificationChannel;
 use Reptilienmarkt\Infra\Persistence\Database;
 use Reptilienmarkt\Support\Clock;
 use Reptilienmarkt\Support\Timestamp;
@@ -97,6 +98,8 @@ final readonly class SavedSearchAlertHandler implements JobHandler
                 $this->translator->translate('mail.suchtreffer.betreff', $platzhalter),
                 $this->translator->translate('mail.suchtreffer.text', $platzhalter),
                 (string) $suche['display_name'],
+                NotificationChannel::SucheTreffer->value,
+                (int) $suche['user_id'],
             ));
 
             $this->database->execute(

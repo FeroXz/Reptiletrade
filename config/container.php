@@ -66,6 +66,8 @@ use Reptilienmarkt\Domain\Message\MessageRepository;
 use Reptilienmarkt\Domain\Message\MessagingService;
 use Reptilienmarkt\Domain\Moderation\ReportRepository;
 use Reptilienmarkt\Domain\Moderation\ReportService;
+use Reptilienmarkt\Domain\Notification\NotificationPreferenceRepository;
+use Reptilienmarkt\Domain\Notification\NotificationPreferenceService;
 use Reptilienmarkt\Domain\Privacy\AccountDeletionService;
 use Reptilienmarkt\Domain\Privacy\DataExportService;
 use Reptilienmarkt\Domain\Privacy\RetentionPolicy;
@@ -148,6 +150,7 @@ use Reptilienmarkt\Infra\Job\Handler\RetentionHandler;
 use Reptilienmarkt\Infra\Job\Handler\SavedSearchAlertHandler;
 use Reptilienmarkt\Infra\Job\Handler\SearchReindexHandler;
 use Reptilienmarkt\Infra\Mail\FileMailer;
+use Reptilienmarkt\Infra\Mail\PreferenceAwareMailer;
 use Reptilienmarkt\Infra\Mail\QueueingMailer;
 use Reptilienmarkt\Infra\Mail\SendmailMailer;
 use Reptilienmarkt\Infra\Mail\SmtpMailer;
@@ -178,6 +181,7 @@ use Reptilienmarkt\Infra\Persistence\PdoMediaUsageRepository;
 use Reptilienmarkt\Infra\Persistence\PdoMenuRepository;
 use Reptilienmarkt\Infra\Persistence\PdoMessageRepository;
 use Reptilienmarkt\Infra\Persistence\PdoMorphRepository;
+use Reptilienmarkt\Infra\Persistence\PdoNotificationPreferenceRepository;
 use Reptilienmarkt\Infra\Persistence\PdoPaymentRepository;
 use Reptilienmarkt\Infra\Persistence\PdoPostalCodeRepository;
 use Reptilienmarkt\Infra\Persistence\PdoPreviewTokenRepository;
@@ -812,16 +816,32 @@ $container->set('mail.transport', static function (Container $c) use ($root): Ma
 });
 
 /**
- * Wer Mailer verlangt, bekommt den Postausgang.
+ * Wer Mailer verlangt, bekommt den Postausgang — und davor die Einwilligung.
  *
  * Kein Aufrufer soll sich entscheiden muessen, ob er sofort oder spaeter
  * versendet — die Antwort ist immer "spaeter". Der Transport haengt an einem
- * fremden Dienst, und der darf keinen Vorgang aufhalten.
+ * fremden Dienst, und der darf keinen Vorgang aufhalten. Und keiner soll sich
+ * merken muessen, ob der Empfaenger diese Art Mail ueberhaupt will: Das
+ * entscheidet der Umschlag, nicht der Aufrufer.
  */
-$container->set(Mailer::class, static fn(Container $c): Mailer => new QueueingMailer(
-    $c->get(MailOutboxRepository::class),
+$container->set(Mailer::class, static fn(Container $c): Mailer => new PreferenceAwareMailer(
+    new QueueingMailer(
+        $c->get(MailOutboxRepository::class),
+        $c->get(Clock::class),
+        $c->get(Logger::class),
+    ),
+    $c->get(NotificationPreferenceService::class),
+    $c->get(Translator::class),
+    Env::string('APP_URL', 'https://example.tld'),
+));
+
+// -------------------------------------------------- Benachrichtigungen
+$container->set(NotificationPreferenceRepository::class, static fn(Container $c): NotificationPreferenceRepository => new PdoNotificationPreferenceRepository($c->get(Database::class)));
+
+$container->set(NotificationPreferenceService::class, static fn(Container $c): NotificationPreferenceService => new NotificationPreferenceService(
+    $c->get(NotificationPreferenceRepository::class),
+    $c->get(AuditLog::class),
     $c->get(Clock::class),
-    $c->get(Logger::class),
 ));
 
 // -------------------------------------------- Konto, Verifizierung, Token
@@ -890,6 +910,7 @@ $container->set(AccountController::class, static fn(Container $c): AccountContro
     $c->get(UserDocumentRepository::class),
     $c->get(PrivateStorage::class),
     $c->get(TotpAuthenticator::class),
+    $c->get(NotificationPreferenceService::class),
     $c->get(RateLimiter::class),
     $c->get(Viewer::class),
     $c->get(SessionManager::class),

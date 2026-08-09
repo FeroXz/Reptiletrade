@@ -87,6 +87,10 @@ final readonly class AccountDeletionService
             $database->execute('DELETE FROM user_tokens WHERE user_id = :id', ['id' => $userId]);
             $database->execute('DELETE FROM user_documents WHERE user_id = :id', ['id' => $userId]);
             $database->execute('DELETE FROM saved_searches WHERE user_id = :id', ['id' => $userId]);
+            // Auch beim anonymisierten Konto: Eine Einstellung darueber, welche
+            // Mails jemand bekommen will, ist eine Aussage ueber diese Person
+            // und haelt keine Bewertung der Gegenseite zusammen.
+            $database->execute('DELETE FROM notification_preferences WHERE user_id = :id', ['id' => $userId]);
             $database->execute('DELETE FROM breeder_profiles WHERE user_id = :id', ['id' => $userId]);
             $database->execute('DELETE FROM breeding_announcements WHERE user_id = :id', ['id' => $userId]);
             // Genetik-Berichte sind Angaben zum eigenen Zuchtbestand. Sie
@@ -130,6 +134,8 @@ final readonly class AccountDeletionService
                            lng = NULL,
                            totp_secret = NULL,
                            totp_confirmed_at = NULL,
+                           unsubscribe_token = NULL,
+                           unsubscribe_token_at = NULL,
                            status = 'geloescht',
                            anonymized_at = :now,
                            updated_at = :now
