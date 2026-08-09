@@ -1,0 +1,47 @@
+{% extends 'layout/basis.html.twig' %}
+{% block titel %}{{ t('benachrichtigung.titel') }} — Reptilienmarkt{% endblock %}
+{% block kopf %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block inhalt %}
+    <div class="mx-auto max-w-2xl space-y-6">
+        {% include 'partials/meldungen.html.twig' %}
+
+        <div class="flex flex-wrap items-baseline justify-between gap-3">
+            <h1 class="text-xl font-semibold">{{ t('benachrichtigung.titel') }}</h1>
+            <a class="text-sm underline" href="/konto/">{{ t('daten.zurueck') }}</a>
+        </div>
+
+        <section class="karte space-y-4 p-6">
+            <p class="text-sm">{{ t('benachrichtigung.erklaerung') }}</p>
+
+            <form method="post" action="/konto/benachrichtigungen" class="space-y-4">
+                <input type="hidden" name="_csrf" value="{{ csrf }}">
+
+                <ul class="space-y-3">
+                    {% for kanal in waehlbare_kanaele %}
+                        <li class="border-t pt-3" style="border-color: var(--rand)">
+                            <label class="flex items-start gap-3">
+                                <input type="checkbox" name="kanaele[]" value="{{ kanal.value }}"
+                                       {{ zustand[kanal.value] ? 'checked' : '' }}>
+                                <span>
+                                    <span class="block text-sm font-medium">{{ t(kanal.labelKey()) }}</span>
+                                    <span class="block text-sm gedaempft">{{ t(kanal.descriptionKey()) }}</span>
+                                </span>
+                            </label>
+                        </li>
+                    {% endfor %}
+
+                    {# Ohne Kaestchen, weil es hier nichts zu entscheiden gibt —
+                       ein abgehaktes, aber nicht bedienbares Feld wäre eine Lüge. #}
+                    <li class="border-t pt-3" style="border-color: var(--rand)">
+                        <span class="block text-sm font-medium">{{ t(pflicht_kanal.labelKey()) }}</span>
+                        <span class="block text-sm gedaempft">{{ t(pflicht_kanal.descriptionKey()) }}</span>
+                        <span class="mt-1 block text-xs gedaempft">{{ t('benachrichtigung.immer_an') }}</span>
+                    </li>
+                </ul>
+
+                <button type="submit" class="knopf knopf-primaer">{{ t('benachrichtigung.speichern') }}</button>
+            </form>
+        </section>
+    </div>
+{% endblock %}

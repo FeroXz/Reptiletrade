@@ -71,6 +71,22 @@ final readonly class PdoMessageRepository implements MessageRepository
         );
     }
 
+    public function unreadCountInConversation(int $conversationId, int $readerId, ?int $exceptId = null): int
+    {
+        $sql = 'SELECT COUNT(*) FROM messages
+                 WHERE conversation_id = :id AND sender_id <> :reader AND read_at IS NULL';
+        $parameter = ['id' => $conversationId, 'reader' => $readerId];
+
+        if ($exceptId !== null) {
+            $sql .= ' AND id <> :ausser';
+            $parameter['ausser'] = $exceptId;
+        }
+
+        $value = $this->database->scalar($sql, $parameter);
+
+        return (int) (is_numeric($value) ? $value : 0);
+    }
+
     public function flagged(int $limit = 50): array
     {
         $rows = $this->database->select(

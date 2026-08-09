@@ -1,5 +1,11 @@
 {% extends 'layout/basis.html.twig' %}
 {% block titel %}{{ inhaber.displayName }} — Züchterprofil{% endblock %}
+
+{% block kopf %}
+    <link rel="canonical" href="{{ kanonisch }}">
+    {% include 'partials/strukturierte_daten.html.twig' %}
+{% endblock %}
+
 {% block beschreibung %}{{ profil.headline|default('Züchterprofil von ' ~ inhaber.displayName) }}{% endblock %}
 
 {% block inhalt %}

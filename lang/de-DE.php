@@ -307,6 +307,10 @@ return [
     'admin.betrieb' => 'Betrieb',
     'admin.jobs_wartend' => '{anzahl} Aufträge warten',
     'admin.jobs_fehlgeschlagen' => '{anzahl} fehlgeschlagen',
+    'admin.mails_aufgegeben' => 'Nicht zugestellte Mails',
+    'admin.mails_aufgegeben_hinweis' => 'Diese Mails wurden nach mehreren Versuchen aufgegeben. '
+        . 'Sie bleiben im Postausgang stehen, damit nachvollziehbar bleibt, wer seine Nachricht nicht bekommen hat.',
+    'admin.mail_versuche' => '{anzahl} Versuche',
     'admin.fristen' => 'Aufbewahrungsfristen',
     'admin.frist_aus' => 'keine Löschung',
     'admin.artenstamm_warnung' => 'Der Artenstamm ist die Grundlage der Rechtsprüfung: '
@@ -328,6 +332,92 @@ return [
     'admin.spalten_erklaerung' => 'Zugeordnet wird über die Kopfzeile. Unbekannte Spalten werden übergangen, '
         . 'ein Export aus einer neueren Fassung bleibt also einlesbar. '
         . 'Geschrieben wird über den wissenschaftlichen Namen: Vorhandenes wird aktualisiert, Neues angelegt.',
+
+    // ------------------------------------------------------------ Sitzungen
+    'sitzungen.titel' => 'Angemeldete Geräte',
+    'sitzungen.erklaerung' => 'Hier siehst du, wo dein Konto gerade angemeldet ist. '
+        . 'Von der Herkunft wird nur das Netz gespeichert, von der Browserkennung nur der Anfang — '
+        . 'zum Wiedererkennen reicht das, für mehr gibt es keinen Grund.',
+    'sitzungen.diese' => 'Dieses Gerät',
+    'sitzungen.zuletzt' => 'Zuletzt aktiv: {zeitpunkt}',
+    'sitzungen.angemeldet_seit' => 'Angemeldet seit {zeitpunkt}',
+    'sitzungen.beenden' => 'Beenden',
+    'sitzungen.beendet' => 'Die Sitzung ist beendet.',
+    'sitzungen.eigene_nicht' => 'Das ist deine aktuelle Sitzung — dafür gibt es den Abmeldeknopf.',
+    'sitzungen.alle_titel' => 'Alle anderen Geräte abmelden',
+    'sitzungen.alle_erklaerung' => 'Wenn du den Verdacht hast, dass jemand anderes Zugriff auf dein Konto hat: '
+        . 'Das beendet alle Sitzungen außer dieser. Danach solltest du auch dein Passwort ändern.',
+    'sitzungen.passwort' => 'Zur Bestätigung dein Passwort',
+    'sitzungen.alle_beenden' => 'Alle anderen beenden',
+    'sitzungen.alle_beendet' => '{anzahl} Sitzungen wurden beendet.',
+    'sitzungen.passwort_falsch' => 'Das Passwort stimmt nicht.',
+
+    // ------------------------------------------------------------ Merkliste
+    'merkliste.titel' => 'Merkliste',
+    'merkliste.merken' => 'Merken',
+    'merkliste.entmerken' => 'Nicht mehr merken',
+    'merkliste.gemerkt' => 'Die Anzeige liegt auf deiner Merkliste.',
+    'merkliste.entfernt' => 'Die Anzeige ist von deiner Merkliste entfernt.',
+    'merkliste.leer' => 'Deine Merkliste ist leer. Auf jeder Anzeige findest du den Knopf „Merken".',
+    'merkliste.zustand' => 'Derzeit nicht öffentlich: {zustand}',
+    'statistik.merkungen' => 'Merkungen',
+
+    // ------------------------------------------------------ Gemerkte Suchen
+    'suchen.titel' => 'Gemerkte Suchen',
+    'suchen.merken' => 'Suche merken',
+    'suchen.merken_knopf' => 'Diese Suche merken',
+    'suchen.name' => 'Name der Suche',
+    'suchen.nur_angemeldet' => 'Zum Merken einer Suche brauchst du ein Konto. '
+        . 'Nach der Anmeldung landest du wieder bei diesen Treffern.',
+    'suchen.anmelden' => 'Anmelden und merken',
+    'suchen.gemerkt' => 'Die Suche ist gemerkt. Du findest sie unter „Gemerkte Suchen".',
+    'suchen.geloescht' => 'Die gespeicherte Suche ist gelöscht.',
+    'suchen.gespeichert' => 'Die Benachrichtigung ist geändert.',
+    'suchen.frequenz_unbekannt' => 'Diesen Takt gibt es nicht.',
+    'suchen.leer' => 'Du hast noch keine Suche gemerkt. Stelle im Markt deine Filter ein '
+        . 'und merke dir die Suche — dann meldet sie sich, wenn etwas Passendes dazukommt.',
+    'suchen.grenze' => '{anzahl} von {grenze} gemerkten Suchen.',
+    'suchen.benachrichtigung' => 'Benachrichtigung',
+    'suchen.uebernehmen' => 'Übernehmen',
+    'suchen.loeschen' => 'Löschen',
+    'suchen.zuletzt_gemeldet' => 'Zuletzt gemeldet am {zeitpunkt}.',
+    'suchen.frequenz.aus' => 'Keine',
+    'suchen.frequenz.sofort' => 'Sofort',
+    'suchen.frequenz.taeglich' => 'Täglich',
+    'suchen.frequenz.woechentlich' => 'Wöchentlich',
+
+    // ------------------------------------------------------ Benachrichtigungen
+    'benachrichtigung.titel' => 'Benachrichtigungen',
+    'benachrichtigung.erklaerung' => 'Hier stellst du ein, worüber dich der Reptilienmarkt per E-Mail '
+        . 'informiert. Was du abschaltest, bekommst du nicht mehr — im Postfach auf der Seite steht es weiterhin.',
+    'benachrichtigung.speichern' => 'Einstellungen speichern',
+    'benachrichtigung.gespeichert' => 'Deine Benachrichtigungen sind gespeichert.',
+    'benachrichtigung.immer_an' => 'Lässt sich nicht abschalten.',
+
+    'benachrichtigung.kanal.nachricht.neu' => 'Neue Nachrichten',
+    'benachrichtigung.kanal.nachricht.neu.beschreibung' => 'Wenn dir jemand zu einer Anzeige schreibt.',
+    'benachrichtigung.kanal.suche.treffer' => 'Treffer zu gespeicherten Suchen',
+    'benachrichtigung.kanal.suche.treffer.beschreibung' => 'Einmal täglich, wenn es zu einer gespeicherten '
+        . 'Suche neue Anzeigen gibt. Standardmäßig aus.',
+    'benachrichtigung.kanal.anzeige.ablauf' => 'Ablaufende Anzeigen',
+    'benachrichtigung.kanal.anzeige.ablauf.beschreibung' => 'Erinnerung, bevor eine deiner Anzeigen ausläuft.',
+    'benachrichtigung.kanal.handel.bestaetigung' => 'Handelsbestätigungen',
+    'benachrichtigung.kanal.handel.bestaetigung.beschreibung' => 'Wenn ein Handel bestätigt wurde und eine '
+        . 'Bewertung möglich ist.',
+    'benachrichtigung.kanal.system.wichtig' => 'Wichtige Hinweise zum Konto',
+    'benachrichtigung.kanal.system.wichtig.beschreibung' => 'Kontosperren, Sicherheitshinweise und Änderungen '
+        . 'an den Rechtstexten. Ohne diese Nachrichten könntest du auf nichts davon reagieren.',
+
+    'benachrichtigung.abmelden.titel' => 'Benachrichtigung abbestellt',
+    'benachrichtigung.abmelden.erfolg' => 'Du bekommst keine E-Mails mehr zu: {kanal}.',
+    'benachrichtigung.abmelden.rest_laeuft_weiter' => 'Alle anderen Benachrichtigungen bleiben unverändert, '
+        . 'und deine Sitzung ist weiterhin angemeldet.',
+    'benachrichtigung.abmelden.unbekannt' => 'Dieser Abmeldelink nennt keine Benachrichtigungsart, '
+        . 'die es gibt.',
+    'benachrichtigung.abmelden.einstellungen' => 'Alle Benachrichtigungen einstellen',
+
+    'mail.abmelden.hinweis' => "Diese E-Mail bekommst du, weil die passende Benachrichtigung "
+        . "in deinem Konto eingeschaltet ist.\nHier abbestellen: {link}",
 
     // ------------------------------------------------------------ Meine Daten
     'daten.titel' => 'Meine Daten',
@@ -364,9 +454,16 @@ return [
         . "über diesen Link vergibst du ein neues Passwort:\n\n{link}\n\n"
         . "Der Link gilt {minuten} Minuten und lässt sich nur einmal verwenden.\n\n"
         . 'Wenn du das nicht angefordert hast, passiert nichts — ignoriere die Nachricht.',
+    // Bewusst ohne Nachrichtentext: Die Kontaktmaskierung greift beim Anzeigen,
+    // nicht beim Speichern — eine Mail mit dem Text würde sie umgehen.
     'mail.nachricht.betreff' => 'Neue Nachricht zu deiner Anzeige',
     'mail.nachricht.text' => "Hallo {name},\n\n"
-        . "zu \"{anzeige}\" ist eine neue Nachricht eingegangen.\n\n{link}",
+        . "{absender} hat dir zu \"{anzeige}\" geschrieben.\n\n"
+        . "Die Nachricht steht in deinem Postfach:\n{link}",
+    'mail.gespraech.betreff' => 'Neue Anfrage zu deiner Anzeige',
+    'mail.gespraech.text' => "Hallo {name},\n\n"
+        . "{absender} hat ein Gespräch zu \"{anzeige}\" begonnen.\n\n"
+        . "Hier geht es weiter:\n{link}",
     'mail.ablauf.betreff.eins' => 'Deine Anzeige läuft morgen ab',
     'mail.ablauf.betreff.viele' => 'Deine Anzeige läuft in {anzahl} Tagen ab',
     'mail.ablauf.text.eins' => "Hallo {name},\n\n"

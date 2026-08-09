@@ -7,6 +7,7 @@ namespace Reptilienmarkt\Domain\User;
 use Reptilienmarkt\Domain\Audit\AuditEntry;
 use Reptilienmarkt\Domain\Audit\AuditLog;
 use Reptilienmarkt\Domain\Auth\PasswordHasher;
+use Reptilienmarkt\Domain\Auth\SessionRepository;
 use Reptilienmarkt\Domain\Auth\TokenException;
 use Reptilienmarkt\Domain\Auth\TokenService;
 use Reptilienmarkt\Domain\Auth\TokenType;
@@ -31,6 +32,7 @@ final readonly class AccountService
         private TokenService $tokens,
         private PasswordHasher $hasher,
         private TotpAuthenticator $totp,
+        private SessionRepository $sessions,
         private Mailer $mailer,
         private AuditLog $audit,
         private Clock $clock,
@@ -53,6 +55,10 @@ final readonly class AccountService
                 'stunden' => (int) (TokenType::EmailVerify->lifetimeMinutes() / 60),
             ]),
             $user->displayName,
+            // Kein eigener Kanal, also Systempost: Ein Bestaetigungslink laesst
+            // sich nicht abbestellen, sonst haengt das Konto auf halber Strecke.
+            'konto.verify',
+            $user->id,
         ));
     }
 
@@ -102,6 +108,8 @@ final readonly class AccountService
                 'minuten' => TokenType::PhoneVerify->lifetimeMinutes(),
             ]),
             $user->displayName,
+            'konto.telefon',
+            $user->id,
         ));
 
         return $normalized;
@@ -150,6 +158,8 @@ final readonly class AccountService
                 'minuten' => TokenType::PasswordReset->lifetimeMinutes(),
             ]),
             $user->displayName,
+            'konto.passwort',
+            $user->id,
         ));
 
         $this->audit->record(new AuditEntry('user.password_reset_requested', 'user', $user->id, [], $user->id));
@@ -181,9 +191,17 @@ final readonly class AccountService
     }
 
     /**
+     * Wechselt das Passwort und beendet dabei alle uebrigen Sitzungen.
+     *
+     * $keepSessionId ist die Sitzung, in der der Wechsel stattfindet — sie
+     * bleibt bestehen, damit der Nutzer nicht seine eigene Handlung
+     * ausgesperrt. Fehlt sie, gehen **alle** Sitzungen: Der Passwortwechsel ist
+     * die Massnahme gegen eine uebernommene Sitzung, und wenn unklar ist,
+     * welche die eigene war, ist "zu viel beendet" das richtige Ergebnis.
+     *
      * @throws AccountException
      */
-    public function changePassword(User $user, string $current, string $new): void
+    public function changePassword(User $user, string $current, string $new, ?string $keepSessionId = null): void
     {
         $hash = $this->users->passwordHashFor($user->id ?? 0);
 
@@ -199,7 +217,55 @@ final readonly class AccountService
         }
 
         $this->users->updatePasswordHash($user->id ?? 0, $this->hasher->hash($new));
-        $this->audit->record(new AuditEntry('user.password_changed', 'user', $user->id, [], $user->id));
+
+        if ($keepSessionId === null) {
+            $this->sessions->deleteForUser($user->id ?? 0);
+            $beendet = null;
+        } else {
+            $beendet = $this->sessions->deleteForUserExcept($user->id ?? 0, $keepSessionId);
+        }
+
+        $this->audit->record(new AuditEntry(
+            'user.password_changed',
+            'user',
+            $user->id,
+            ['sitzungen_beendet' => $beendet],
+            $user->id,
+        ));
+    }
+
+    /**
+     * Beendet alle Sitzungen des Kontos, ausser der angegebenen.
+     *
+     * Die Massnahme gegen eine uebernommene Sitzung — deshalb verlangt der
+     * Aufrufer vorher das Passwort.
+     *
+     * @return int Anzahl beendeter Sitzungen
+     */
+    public function endAllSessions(User $user, string $keepSessionId): int
+    {
+        $beendet = $this->sessions->deleteForUserExcept($user->id ?? 0, $keepSessionId);
+
+        $this->audit->record(new AuditEntry(
+            'user.sessions_ended',
+            'user',
+            $user->id,
+            ['anzahl' => $beendet],
+            $user->id,
+        ));
+
+        return $beendet;
+    }
+
+    /**
+     * Prueft das Passwort, ohne etwas zu aendern — fuer Massnahmen, die ohne
+     * erneute Bestaetigung zu gefaehrlich waeren.
+     */
+    public function verifyPassword(User $user, string $password): bool
+    {
+        $hash = $this->users->passwordHashFor($user->id ?? 0);
+
+        return $hash !== null && $this->hasher->verify($password, $hash);
     }
 
     // ------------------------------------------------------ Zwei-Faktor

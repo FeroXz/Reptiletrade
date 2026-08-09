@@ -31,11 +31,18 @@ final readonly class FileMailer implements Mailer
             substr(hash('sha256', $message->to . $message->subject . microtime()), 0, 8),
         );
 
+        $kopf = '';
+
+        foreach (MailHeaders::additional($message) as $name => $value) {
+            $kopf .= $name . ': ' . $value . "\n";
+        }
+
         $content = \sprintf(
-            "An: %s\nBetreff: %s\nZeitpunkt: %s\n\n%s\n",
+            "An: %s\nBetreff: %s\nZeitpunkt: %s\n%s\n%s\n",
             $message->recipient(),
             $message->subject,
             gmdate('c'),
+            $kopf,
             $message->body,
         );
 

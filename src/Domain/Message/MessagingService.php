@@ -34,6 +34,7 @@ final readonly class MessagingService
         private RateLimiter $rateLimiter,
         private FraudKeywordFilter $keywords,
         private ContactMasker $masker,
+        private MessageNotifier $notifier,
         private AuditLog $audit,
         private Clock $clock,
     ) {}
@@ -86,7 +87,13 @@ final readonly class MessagingService
             ipAddress: $ipAddress,
         ));
 
-        return $this->conversations->findById($id) ?? $conversation;
+        $angelegt = $this->conversations->findById($id) ?? $conversation;
+
+        // Nur beim Anlegen: Ein bestehendes Gespraech wird oben schon
+        // zurueckgegeben, und ein zweiter Aufruf des Knopfes ist kein Ereignis.
+        $this->notifier->conversationOpened($angelegt, $buyer);
+
+        return $angelegt;
     }
 
     /**
@@ -156,6 +163,10 @@ final readonly class MessagingService
                 ipAddress: $ipAddress,
             ));
         }
+
+        // Erst schreiben, dann benachrichtigen: Eine Mail ueber eine Nachricht,
+        // die nicht in der Ablage steht, waere schlimmer als gar keine.
+        $this->notifier->newMessage($conversation, $sender, $messageId);
 
         return new SendResult(true, $messageId, $verdict, 'Nachricht gesendet.');
     }

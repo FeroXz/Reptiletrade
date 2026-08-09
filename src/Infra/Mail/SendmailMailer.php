@@ -38,6 +38,10 @@ final readonly class SendmailMailer implements Mailer
             'MIME-Version: 1.0',
         ];
 
+        foreach (MailHeaders::additional($message) as $name => $value) {
+            $headers[] = $name . ': ' . $value;
+        }
+
         return @mail($to, $subject, $message->body, implode("\r\n", $headers));
     }
 

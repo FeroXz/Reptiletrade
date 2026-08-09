@@ -82,8 +82,10 @@ final class RouterTest extends TestCase
     {
         $router = $this->router();
 
-        self::assertNull($router->match($this->request('/markt/', 'POST')));
-        self::assertTrue($router->pathExists('/markt/'), 'Der Pfad existiert — die Antwort muss 405 sein, nicht 404.');
+        // /postfach/ gibt es nur als GET. (Frueher stand hier /markt/ — seit
+        // "Suche merken" nimmt der Marktpfad auch POST entgegen.)
+        self::assertNull($router->match($this->request('/postfach/', 'POST')));
+        self::assertTrue($router->pathExists('/postfach/'), 'Der Pfad existiert — die Antwort muss 405 sein, nicht 404.');
     }
 
     public function testPlatzhalterEndetAmSchraegstrich(): void
@@ -118,6 +120,34 @@ final class RouterTest extends TestCase
         self::assertTrue($request->queryBool('mit_bild'));
         self::assertNull($request->queryString('leer'));
         self::assertSame('vorgabe', $request->queryString('fehlt', 'vorgabe'));
+    }
+
+    /**
+     * Der Abmeldelink und das Sitzungsende teilen sich den Wortstamm. Sie
+     * duerfen sich nicht in die Quere kommen: /abmelden beendet die Sitzung,
+     * /abmelden/{token} schaltet eine Benachrichtigung ab.
+     */
+    public function testAbmeldelinkUndSitzungsendeStoerenSichNicht(): void
+    {
+        $abmelden = $this->router()->match($this->request('/abmelden', 'POST'));
+
+        self::assertNotNull($abmelden);
+        self::assertSame('abmelden', $abmelden->route->name);
+        self::assertSame('logout', $abmelden->route->action);
+
+        $kanal = $this->router()->match($this->request('/abmelden/aabbccdd'));
+
+        self::assertNotNull($kanal);
+        self::assertSame('abmelden.kanal', $kanal->route->name);
+        self::assertSame('unsubscribe', $kanal->route->action);
+        self::assertSame(['token' => 'aabbccdd'], $kanal->attributes);
+
+        // Und ein GET auf /abmelden ist kein Ausloggen: Es faellt auf die
+        // CMS-Auffangroute, wo es hoechstens eine Seite findet.
+        $get = $this->router()->match($this->request('/abmelden'));
+
+        self::assertNotNull($get);
+        self::assertTrue($get->route->fallback);
     }
 
     public function testApiPfadeWollenJson(): void

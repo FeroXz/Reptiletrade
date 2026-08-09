@@ -40,6 +40,8 @@ final readonly class ListingSummary
         public ?float $distanceKm,
         public bool $isFeatured,
         public ?DateTimeImmutable $bumpedAt,
+        public ?int $imageWidth = null,
+        public ?int $imageHeight = null,
     ) {}
 
     public function hasPrice(): bool

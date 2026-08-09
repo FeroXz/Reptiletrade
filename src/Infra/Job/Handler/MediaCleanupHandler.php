@@ -53,6 +53,13 @@ final readonly class MediaCleanupHandler implements JobHandler
             $pfad = (string) $zeile['path'];
             $bekannt[$pfad] = true;
             $bekannt[PublicImageStorage::thumbnailFor($pfad)] = true;
+
+            // Die kleineren Fassungen stehen in keiner Zeile — sie haengen am
+            // Pfad. Ohne diese Schleife hielte die Aufraeumung sie fuer
+            // verwaist und loeschte bei jedem Lauf das halbe srcset.
+            foreach (PublicImageStorage::variantsFor($pfad) as $variante) {
+                $bekannt[$variante] = true;
+            }
         }
 
         $verzeichnis = $this->publicPath . '/anzeigen';

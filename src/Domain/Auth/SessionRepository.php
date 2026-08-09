@@ -18,6 +18,21 @@ interface SessionRepository
     public function deleteForUser(int $userId): void;
 
     /**
+     * Beendet alle Sitzungen eines Nutzers ausser einer — die, in der die
+     * Massnahme ausgeloest wurde.
+     *
+     * @return int Anzahl beendeter Sitzungen
+     */
+    public function deleteForUserExcept(int $userId, string $keepId): int;
+
+    /**
+     * Die offenen Sitzungen eines Nutzers, zuletzt gesehene zuerst.
+     *
+     * @return list<Session>
+     */
+    public function forUser(int $userId): array;
+
+    /**
      * @return int Anzahl geloeschter Sitzungen
      */
     public function deleteExpired(): int;

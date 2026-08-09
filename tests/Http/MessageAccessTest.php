@@ -6,6 +6,7 @@ namespace Reptilienmarkt\Tests\Http;
 
 use DateTimeImmutable;
 use PHPUnit\Framework\Attributes\CoversClass;
+use Reptilienmarkt\Domain\Message\MessageNotifier;
 use Reptilienmarkt\Domain\Message\MessagingService;
 use Reptilienmarkt\Domain\Review\ReviewService;
 use Reptilienmarkt\Domain\Trust\RateLimiter;
@@ -29,6 +30,7 @@ use Reptilienmarkt\Infra\Persistence\PdoSpeciesRepository;
 use Reptilienmarkt\Infra\Persistence\PdoUserRepository;
 use Reptilienmarkt\Support\Translator;
 use Reptilienmarkt\Tests\DatabaseTestCase;
+use Reptilienmarkt\Tests\Support\CollectingMailer;
 use Reptilienmarkt\Tests\Support\FrozenClock;
 use Reptilienmarkt\Tests\Support\StubViewer;
 
@@ -73,6 +75,15 @@ final class MessageAccessTest extends DatabaseTestCase
             new RateLimiter(new PdoRateLimitRepository($this->database), $this->clock, $trust->rateLimits()),
             $trust->keywordFilter(),
             $trust->contactMasker(),
+            new MessageNotifier(
+                $this->conversations,
+                new PdoMessageRepository($this->database),
+                new PdoListingRepository($this->database),
+                new PdoUserRepository($this->database),
+                new CollectingMailer(),
+                new Translator(\dirname(__DIR__, 2) . '/lang'),
+                $this->clock,
+            ),
             new PdoAuditLog($this->database),
             $this->clock,
         );

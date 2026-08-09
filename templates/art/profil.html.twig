@@ -7,7 +7,8 @@
 {% endblock %}
 
 {% block kopf %}
-    <link rel="canonical" href="/art/{{ art.slug }}/">
+    <link rel="canonical" href="{{ kanonisch }}">
+    {% include 'partials/strukturierte_daten.html.twig' %}
 {% endblock %}
 
 {% block inhalt %}
@@ -84,7 +85,7 @@
             {% else %}
                 <div class="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
                     {% for anzeige in ergebnis.listings %}
-                        {% include 'partials/kachel.html.twig' with { anzeige: anzeige } only %}
+                        {% include 'partials/kachel.html.twig' with { anzeige: anzeige, zuerst: loop.first } only %}
                     {% endfor %}
                 </div>
             {% endif %}

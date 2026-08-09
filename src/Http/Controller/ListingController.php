@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace Reptilienmarkt\Http\Controller;
 
+use Reptilienmarkt\Domain\Listing\FavoriteRepository;
+use Reptilienmarkt\Domain\Listing\ListingMediaItem;
 use Reptilienmarkt\Domain\Listing\ListingMediaRepository;
 use Reptilienmarkt\Domain\Listing\ListingRepository;
 use Reptilienmarkt\Domain\Listing\ListingWizard;
+use Reptilienmarkt\Domain\Seo\StructuredData;
 use Reptilienmarkt\Domain\Species\SpeciesRepository;
 use Reptilienmarkt\Domain\User\BreederProfileRepository;
 use Reptilienmarkt\Domain\User\UserRepository;
@@ -33,9 +36,11 @@ final readonly class ListingController
         private ListingWizard $wizard,
         private UserRepository $users,
         private BreederProfileRepository $profiles,
+        private FavoriteRepository $favorites,
         private SessionManager $session,
         private Viewer $currentUser,
         private Environment $twig,
+        private string $appUrl = 'https://example.tld',
     ) {}
 
     public function show(Request $request): Response
@@ -65,14 +70,34 @@ final readonly class ListingController
 
         $this->countView($listing->id ?? 0, $istEigene);
 
+        $medien = $this->media->forListing($listing->id ?? 0);
+        $anbieter = $this->users->findById($listing->userId);
+        $adresse = \sprintf('%s/anzeige/%d/', rtrim($this->appUrl, '/'), $listing->id ?? 0);
+
         return Response::html($this->twig->render('anzeige/detail.html.twig', [
             'listing' => $listing,
             'art' => $species,
-            'medien' => $this->media->forListing($listing->id ?? 0),
+            'medien' => $medien,
+            'kanonisch' => $adresse,
+            // Nur fuer oeffentlich sichtbare Anzeigen: Eine Auszeichnung fuer
+            // eine Seite, die ein Roboter nicht sehen darf, waere sinnlos.
+            'jsonld' => $listing->status->isPubliclyVisible()
+                ? StructuredData::encode(StructuredData::product(
+                    $listing,
+                    $species,
+                    array_map(
+                        fn(ListingMediaItem $bild): string => rtrim($this->appUrl, '/') . '/uploads/' . $bild->path,
+                        array_values(array_filter($medien, static fn(ListingMediaItem $bild): bool => $bild->isImage())),
+                    ),
+                    $adresse,
+                    $anbieter?->displayName,
+                ))
+                : null,
             'morph_string' => $this->wizard->morphString($listing->id ?? 0),
             'genotyp' => $this->wizard->genotype($listing->id ?? 0),
             'ist_eigene' => $istEigene,
-            'anbieter' => $this->users->findById($listing->userId),
+            'gemerkt' => $viewer !== null && $this->favorites->has($viewer->id ?? 0, $listing->id ?? 0),
+            'anbieter' => $anbieter,
             'anbieter_profil' => $this->profiles->findByUser($listing->userId),
             'csrf' => $this->session->csrfToken(),
             'meldungen' => $this->session->takeFlashes(),

@@ -1,0 +1,24 @@
+{% extends 'layout/basis.html.twig' %}
+{% block titel %}{{ t('benachrichtigung.abmelden.titel') }} — Reptilienmarkt{% endblock %}
+{% block kopf %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block inhalt %}
+    <div class="mx-auto max-w-xl space-y-6">
+        <h1 class="text-xl font-semibold">{{ t('benachrichtigung.abmelden.titel') }}</h1>
+
+        <section class="karte space-y-3 p-6">
+            {% if erfolg %}
+                <p class="text-sm">{{ t('benachrichtigung.abmelden.erfolg', {'kanal': t(kanal.labelKey())}) }}</p>
+                <p class="text-sm gedaempft">{{ t('benachrichtigung.abmelden.rest_laeuft_weiter') }}</p>
+            {% else %}
+                <p class="text-sm">{{ fehler }}</p>
+            {% endif %}
+
+            {# Der Weg zurück steht auch im Fehlerfall da: Wer hier landet und
+               nichts vorfindet, soll nicht suchen müssen. #}
+            <a class="text-sm underline" href="/konto/benachrichtigungen">
+                {{ t('benachrichtigung.abmelden.einstellungen') }}
+            </a>
+        </section>
+    </div>
+{% endblock %}

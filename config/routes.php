@@ -16,6 +16,7 @@ use Reptilienmarkt\Http\Controller\AuthController;
 use Reptilienmarkt\Http\Controller\BillingController;
 use Reptilienmarkt\Http\Controller\ContactController;
 use Reptilienmarkt\Http\Controller\ContentController;
+use Reptilienmarkt\Http\Controller\FavoriteController;
 use Reptilienmarkt\Http\Controller\GeneticsController;
 use Reptilienmarkt\Http\Controller\LegalDocumentController;
 use Reptilienmarkt\Http\Controller\LegalPageController;
@@ -31,6 +32,7 @@ use Reptilienmarkt\Http\Controller\PasswordResetController;
 use Reptilienmarkt\Http\Controller\PrivacyController;
 use Reptilienmarkt\Http\Controller\ProfileController;
 use Reptilienmarkt\Http\Controller\ReportController;
+use Reptilienmarkt\Http\Controller\SavedSearchController;
 use Reptilienmarkt\Http\Controller\SitemapController;
 use Reptilienmarkt\Http\Controller\SpeciesController;
 use Reptilienmarkt\Http\Controller\StatsController;
@@ -46,6 +48,13 @@ $router->get('/markt/', MarketController::class, 'search', 'markt');
 $router->get('/markt/{art}/', MarketController::class, 'search', 'markt.art');
 $router->get('/markt/{art}/{morphs}/', MarketController::class, 'search', 'markt.art.morphs');
 $router->get('/markt/{art}/{morphs}/{region}/', MarketController::class, 'search', 'markt.art.morphs.region');
+
+// "Suche merken" schickt an den Pfad zurueck, auf dem der Nutzer steht — so
+// entstehen die Kriterien auf demselben Weg wie beim Anzeigen.
+$router->post('/markt/', MarketController::class, 'remember', 'markt.merken');
+$router->post('/markt/{art}/', MarketController::class, 'remember', 'markt.art.merken');
+$router->post('/markt/{art}/{morphs}/', MarketController::class, 'remember', 'markt.art.morphs.merken');
+$router->post('/markt/{art}/{morphs}/{region}/', MarketController::class, 'remember', 'markt.art.morphs.region.merken');
 
 // Pflichtangaben und Kontakt — ohne Anmeldung erreichbar
 $router->get('/impressum', LegalPageController::class, 'imprint', 'impressum');
@@ -82,6 +91,23 @@ $router->post('/konto/zwei-faktor', AccountController::class, 'setupTwoFactor', 
 $router->post('/konto/zwei-faktor/bestaetigen', AccountController::class, 'confirmTwoFactor', 'konto.zweifaktor.bestaetigen');
 $router->post('/konto/zwei-faktor/aus', AccountController::class, 'disableTwoFactor', 'konto.zweifaktor.aus');
 
+// Sitzungen
+$router->get('/konto/sitzungen', AccountController::class, 'sessions', 'sitzungen');
+$router->post('/konto/sitzungen/alle-beenden', AccountController::class, 'endAllSessions', 'sitzungen.alle');
+$router->post('/konto/sitzungen/{id}/beenden', AccountController::class, 'endSession', 'sitzungen.beenden');
+
+// Benachrichtigungen. Der Abmeldelink liegt bewusst ausserhalb von /konto/ —
+// er muss ohne Anmeldung funktionieren. Mit dem POST /abmelden (Sitzungsende)
+// hat er nichts zu tun ausser dem Wortstamm; er beendet keine Sitzung.
+$router->get('/konto/benachrichtigungen', AccountController::class, 'notifications', 'konto.benachrichtigungen');
+$router->post('/konto/benachrichtigungen', AccountController::class, 'saveNotifications', 'konto.benachrichtigungen.speichern');
+$router->get('/abmelden/{token}', AccountController::class, 'unsubscribe', 'abmelden.kanal');
+
+// Gemerkte Suchen
+$router->get('/konto/suchen', SavedSearchController::class, 'index', 'suchen');
+$router->post('/konto/suchen/{id}/loeschen', SavedSearchController::class, 'delete', 'suchen.loeschen');
+$router->post('/konto/suchen/{id}/benachrichtigung', SavedSearchController::class, 'setAlert', 'suchen.benachrichtigung');
+
 // Statistik der eigenen Anzeigen
 $router->get('/konto/statistik', StatsController::class, 'show', 'statistik');
 
@@ -93,6 +119,11 @@ $router->get('/zuechter/{slug}/', ProfileController::class, 'show', 'profil');
 // Postfach
 $router->get('/postfach/', MessageController::class, 'inbox', 'postfach');
 $router->post('/anzeige/{id}/nachricht', MessageController::class, 'start', 'postfach.starten');
+
+// Merkliste
+$router->get('/konto/merkliste', FavoriteController::class, 'index', 'merkliste');
+$router->post('/anzeige/{id}/merken', FavoriteController::class, 'add', 'merkliste.merken');
+$router->post('/anzeige/{id}/entmerken', FavoriteController::class, 'remove', 'merkliste.entmerken');
 $router->get('/postfach/{id}/', MessageController::class, 'show', 'postfach.gespraech');
 $router->post('/postfach/{id}/senden', MessageController::class, 'send', 'postfach.senden');
 $router->post('/postfach/{id}/handel', MessageController::class, 'confirmDeal', 'postfach.handel');

@@ -3,8 +3,21 @@
     <a href="/anzeige/{{ anzeige.id }}/" class="block">
         <div class="aspect-4/3 w-full overflow-hidden" style="background: var(--flaeche-gedaempft)">
             {% if anzeige.imagePath %}
-                <img src="/uploads/{{ anzeige.imagePath }}" alt="{{ anzeige.title }}"
-                     loading="lazy" class="h-full w-full object-cover">
+                {# srcset statt einer Größe für alle: Auf dem Telefon lädt sonst
+                   jede Kachel das Bild in voller Breite. sizes beschreibt die
+                   Spaltenbreite der Trefferliste, nicht die des Fensters.
+                   loading="lazy" überall außer beim ersten Treffer — der steht
+                   im sichtbaren Bereich, und ein verzögert geladenes Bild dort
+                   kostet nur Zeit. #}
+                <img src="/uploads/{{ anzeige.imagePath }}"
+                     {% set srcset = bild_srcset(anzeige.imagePath) %}
+                     {% if srcset %}srcset="{{ srcset }}" sizes="(min-width: 1024px) 20rem, (min-width: 640px) 45vw, 92vw"{% endif %}
+                     alt="{{ anzeige.title }}"
+                     {% if anzeige.imageWidth and anzeige.imageHeight %}
+                         width="{{ anzeige.imageWidth }}" height="{{ anzeige.imageHeight }}"
+                     {% endif %}
+                     {% if not zuerst|default(false) %}loading="lazy"{% endif %}
+                     class="h-full w-full object-cover">
             {% else %}
                 <div class="flex h-full items-center justify-center text-xs gedaempft">Kein Bild</div>
             {% endif %}

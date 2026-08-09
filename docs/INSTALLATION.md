@@ -396,17 +396,18 @@ sudo crontab -u www-data -e
 ```
 
 ```cron
-*/15 * * * * cd /var/www/reptilienmarkt && php bin/cron.php   >> storage/logs/cron.out 2>&1
-*/5 * * * *  cd /var/www/reptilienmarkt && php bin/worker.php --einmal >> storage/logs/cron.out 2>&1
-30  2 * * *  cd /var/www/reptilienmarkt && php bin/backup.php >> storage/logs/cron.out 2>&1
+*/5 * * * * cd /var/www/reptilienmarkt && php bin/cron.php   >> storage/logs/cron.out 2>&1
+*/5 * * * * cd /var/www/reptilienmarkt && php bin/worker.php --einmal >> storage/logs/cron.out 2>&1
+30  2 * * * cd /var/www/reptilienmarkt && php bin/backup.php >> storage/logs/cron.out 2>&1
 ```
 
 `cron.php` plant ein, was fällig ist; `worker.php` arbeitet ab. Der Zeitplan
 selbst steht im Code (`Reptilienmarkt\Domain\Job\JobScheduler`), nicht in der
 Crontab — `php bin/cron.php plan` zeigt ihn.
 
-Der Aufruf ist viertelstündlich, nicht stündlich: Ein geplanter Beitrag soll
-nicht bis zu einer Stunde zu spät erscheinen. Die stündlichen und täglichen
+Der Aufruf ist fünfminütig, nicht stündlich: Der Postausgang trägt
+Bestätigungslinks und Passwortmails, und wer sich gerade registriert hat,
+wartet vor seinem Postfach. Die viertelstündlichen, stündlichen und täglichen
 Aufgaben laufen deswegen nicht öfter — `JobScheduler` kennt zu jedem Auftrag
 seinen Abstand und plant ihn erst wieder ein, wenn er verstrichen ist.
 
@@ -433,7 +434,7 @@ Danach von Hand:
 ```bash
 php bin/migrate.php status        # alles angewandt
 php bin/admin.php liste           # mindestens ein Admin
-php bin/cron.php plan             # neun Aufgaben
+php bin/cron.php plan             # zehn Aufgaben
 php bin/worker.php --einmal       # läuft ohne Fehler durch
 php bin/backup.php                # schreibt eine Sicherung
 ```

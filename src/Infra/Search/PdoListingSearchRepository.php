@@ -166,7 +166,7 @@ final readonly class PdoListingSearchRepository implements ListingSearchReposito
         $sql = 'SELECT l.id, l.title, l.type, l.species_id, l.price_cents, l.currency, l.negotiable,
                        l.sex, l.cb_status, l.postal_code, l.country, l.is_featured, l.bumped_at, l.created_at,
                        s.common_name_de, s.slug AS species_slug, s.common_slug,
-                       pm.path AS image_path'
+                       pm.path AS image_path, pm.width AS image_width, pm.height AS image_height'
             . $distanceColumn . '
                   FROM listings l
                   JOIN species s ON s.id = l.species_id
@@ -373,6 +373,10 @@ final readonly class PdoListingSearchRepository implements ListingSearchReposito
             $row['distance_km'] === null ? null : (float) $row['distance_km'],
             (bool) $row['is_featured'],
             \is_string($bumped) && $bumped !== '' ? new DateTimeImmutable($bumped) : null,
+            // Fuer width/height am img-Tag: Ohne sie springt das Layout, sobald
+            // das Bild ankommt.
+            ($row['image_width'] ?? null) === null ? null : (int) $row['image_width'],
+            ($row['image_height'] ?? null) === null ? null : (int) $row['image_height'],
         );
     }
 }

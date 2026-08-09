@@ -7,6 +7,7 @@ namespace Reptilienmarkt\Http\Controller;
 use Reptilienmarkt\Domain\Listing\ListingRepository;
 use Reptilienmarkt\Domain\Review\Review;
 use Reptilienmarkt\Domain\Review\ReviewService;
+use Reptilienmarkt\Domain\Seo\StructuredData;
 use Reptilienmarkt\Domain\Species\SpeciesRepository;
 use Reptilienmarkt\Domain\User\AccountException;
 use Reptilienmarkt\Domain\User\BreederProfileRepository;
@@ -37,6 +38,7 @@ final readonly class ProfileController
         private SessionManager $session,
         private Translator $translator,
         private Environment $twig,
+        private string $appUrl = 'https://example.tld',
     ) {}
 
     public function show(Request $request): Response
@@ -69,13 +71,28 @@ final readonly class ProfileController
             }
         }
 
+        $bewertungen = $this->reviews->summaryFor($profile->userId);
+        $adresse = rtrim($this->appUrl, '/') . '/zuechter/' . $profile->slug . '/';
+
         return Response::html($this->twig->render('profil/anzeigen.html.twig', [
             'profil' => $profile,
             'inhaber' => $owner,
+            'kanonisch' => $adresse,
+            // Ein nicht oeffentliches Profil sieht nur sein Inhaber — dafuer
+            // braucht es keine Auszeichnung fuer Suchmaschinen.
+            'jsonld' => $profile->isPublic
+                ? StructuredData::encode(StructuredData::breeder(
+                    $owner,
+                    $adresse,
+                    $profile->description,
+                    $profile->website,
+                    $bewertungen,
+                ))
+                : null,
             'ist_inhaber' => $isOwner,
             'schwerpunkt' => $focus,
             'statistik' => $this->service->statistics($profile->userId),
-            'bewertungen' => $this->reviews->summaryFor($profile->userId),
+            'bewertungen' => $bewertungen,
             'letzte_bewertungen' => $this->reviewsFor($profile->userId),
             'anzeigen' => $this->listings->activeForUser($profile->userId),
             'meldungen' => $this->session->takeFlashes(),

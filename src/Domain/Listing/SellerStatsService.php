@@ -80,7 +80,11 @@ final readonly class SellerStatsService
                     (SELECT COALESCE(SUM(v.views), 0) FROM listing_views v
                       WHERE v.listing_id = l.id AND v.day >= :seit) AS aufrufe,
                     (SELECT COUNT(*) FROM conversations c
-                      WHERE c.listing_id = l.id AND c.created_at >= :seit) AS anfragen
+                      WHERE c.listing_id = l.id AND c.created_at >= :seit) AS anfragen,
+                    -- Ohne Zeitfenster: Eine Merkung gilt, bis sie
+                    -- zurueckgenommen wird, und nicht nur im Berichtszeitraum.
+                    (SELECT COUNT(*) FROM listing_favorites f
+                      WHERE f.listing_id = l.id) AS merkungen
                FROM listings l
               WHERE l.user_id = :user AND l.status <> \'entwurf\'
               ORDER BY aufrufe DESC, l.id DESC
@@ -95,6 +99,7 @@ final readonly class SellerStatsService
                 ListingStatus::from((string) $row['status']),
                 (int) $row['aufrufe'],
                 (int) $row['anfragen'],
+                (int) $row['merkungen'],
             ),
             $rows,
         );

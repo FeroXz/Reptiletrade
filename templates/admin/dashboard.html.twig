@@ -136,6 +136,24 @@
                 </ul>
             {% endif %}
 
+            {% if fehlgeschlagene_mails is not empty %}
+                <div class="border-t pt-3" style="border-color: var(--rand)">
+                    <h3 class="text-sm font-medium">{{ t('admin.mails_aufgegeben') }}</h3>
+                    <p class="mt-1 text-xs gedaempft">{{ t('admin.mails_aufgegeben_hinweis') }}</p>
+                    <ul class="mt-2 space-y-1 text-sm">
+                        {% for mail in fehlgeschlagene_mails %}
+                            <li class="border-t pt-1" style="border-color: var(--rand)">
+                                <span class="font-medium">{{ mail.message.purpose }}</span>
+                                <span class="gedaempft">
+                                    — {{ mail.message.to }}, {{ t('admin.mail_versuche', {'anzahl': mail.attempts}) }}
+                                </span>
+                                <span class="block text-xs gedaempft">{{ mail.lastError }}</span>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endif %}
+
             <div class="border-t pt-3" style="border-color: var(--rand)">
                 <h3 class="text-sm font-medium">{{ t('admin.fristen') }}</h3>
                 <ul class="mt-1 grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">

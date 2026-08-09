@@ -6,6 +6,7 @@ namespace Reptilienmarkt\Http\Controller;
 
 use Reptilienmarkt\Domain\Search\ListingSearchRepository;
 use Reptilienmarkt\Domain\Search\SearchCriteria;
+use Reptilienmarkt\Domain\Seo\StructuredData;
 use Reptilienmarkt\Domain\Species\MorphRepository;
 use Reptilienmarkt\Domain\Species\SpeciesRepository;
 use Reptilienmarkt\Http\Message\Request;
@@ -24,6 +25,7 @@ final readonly class SpeciesController
         private MorphRepository $morphs,
         private ListingSearchRepository $listings,
         private Environment $twig,
+        private string $appUrl = 'https://example.tld',
     ) {}
 
     public function show(Request $request): Response
@@ -66,6 +68,10 @@ final readonly class SpeciesController
             'ergebnis' => $result,
             'kriterien' => $criteria,
             'url_kontext' => new SearchUrlContext($species, $morphSlugs),
+            'kanonisch' => rtrim($this->appUrl, '/') . '/art/' . $species->slug . '/',
+            'jsonld' => StructuredData::encode(
+                StructuredData::speciesPage($species, $this->appUrl, $result->total),
+            ),
         ]));
     }
 }

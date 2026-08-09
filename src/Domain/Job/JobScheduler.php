@@ -29,6 +29,11 @@ final readonly class JobScheduler
      * @var array<string, JobInterval|int>
      */
     private const array SCHEDULE = [
+        // Alle fuenf Minuten: Der Postausgang traegt Bestaetigungslinks und
+        // Passwortmails. Wer sich gerade registriert hat, wartet vor dem
+        // Postfach — laenger als ein paar Minuten wirkt das wie ein Defekt.
+        'mail.dispatch' => JobInterval::Fuenfminuetig,
+
         // Viertelstuendlich: Ein geplanter Beitrag soll nicht bis zu einer
         // Stunde zu spaet erscheinen. Dafuer muss die Crontab oefter aufrufen —
         // siehe docs/INSTALLATION.md.

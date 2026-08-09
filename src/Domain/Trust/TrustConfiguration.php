@@ -110,6 +110,14 @@ final readonly class TrustConfiguration
     }
 
     /**
+     * Wie viele Suchen ein Konto merken darf.
+     */
+    public function savedSearchLimit(): int
+    {
+        return $this->positiveInt($this->section('gespeicherte_suchen'), 'max_je_konto', 'gespeicherte_suchen');
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function section(string $name): array

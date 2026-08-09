@@ -28,6 +28,10 @@ return [
         'nachricht.konto' => ['limit' => 20, 'fenster' => 3600],
         'nachricht.ip' => ['limit' => 40, 'fenster' => 3600],
         'konversation.konto' => ['limit' => 10, 'fenster' => 3600],
+        // Die oeffentliche API ist anonym und liefert fuer alle dasselbe.
+        // Zwei Anfragen je Sekunde reichen jedem Vorschlagsfeld; wer mehr
+        // braucht, laedt den Bestand ab, und dafuer ist sie nicht da.
+        'api.ip' => ['limit' => 120, 'fenster' => 60],
         'anzeige.konto' => ['limit' => 20, 'fenster' => 86400],
         'meldung.konto' => ['limit' => 10, 'fenster' => 3600],
         'meldung.ip' => ['limit' => 20, 'fenster' => 3600],
@@ -122,4 +126,14 @@ return [
      * auch wenn keiner davon sperrt.
      */
     'markierung_ab_treffern' => 1,
+
+    /**
+     * Gespeicherte Suchen. Die Obergrenze ist keine Schikane: Jede gemerkte
+     * Suche laeuft im taeglichen Auftrag als echte Abfrage, und ein Konto mit
+     * hunderten davon waere ein Weg, den Server ueber die Suche zu belasten.
+     * Zwanzig sind mehr, als ein Mensch ueberblickt.
+     */
+    'gespeicherte_suchen' => [
+        'max_je_konto' => 20,
+    ],
 ];

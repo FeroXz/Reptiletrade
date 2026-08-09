@@ -1,0 +1,9 @@
+{# Strukturierte Daten. Zusammengestellt hat sie StructuredData — hier wird nur
+   ausgegeben.
+
+   Das JSON kommt fertig kodiert an; |raw ist deshalb sicher und nötig, jede
+   Escape-Runde darüber machte das JSON kaputt. Dieselbe Aufteilung wie bei
+   inhalt/_seo.html.twig. #}
+{% if jsonld %}
+    <script type="application/ld+json">{{ jsonld|raw }}</script>
+{% endif %}

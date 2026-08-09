@@ -110,6 +110,10 @@ final readonly class ContactService
                 'betreff' => $subject,
                 'nachricht' => $body,
             ]),
+            // Ohne Konto: Die Kopie geht an den Betreiber, nicht an einen
+            // Nutzer — es gibt hier nichts abzubestellen.
+            null,
+            'kontakt',
         ));
     }
 

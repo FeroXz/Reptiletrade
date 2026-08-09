@@ -21,6 +21,7 @@ use Reptilienmarkt\Http\View\TwigFactory;
 use Reptilienmarkt\Infra\Persistence\PdoAuditLog;
 use Reptilienmarkt\Infra\Persistence\PdoJobRepository;
 use Reptilienmarkt\Infra\Persistence\PdoLegalTextRepository;
+use Reptilienmarkt\Infra\Persistence\PdoMailOutboxRepository;
 use Reptilienmarkt\Infra\Persistence\PdoMorphRepository;
 use Reptilienmarkt\Infra\Persistence\PdoSessionRepository;
 use Reptilienmarkt\Infra\Persistence\PdoSpeciesRepository;
@@ -88,6 +89,7 @@ final class AdminTextsTest extends DatabaseTestCase
                 $audit,
             ),
             $jobs,
+            new PdoMailOutboxRepository($this->database),
             new RetentionPolicy($fristen, $this->clock),
             new UiTextService($this->translator, $this->overrides, $audit, $this->clock),
             new StubViewer($viewer),

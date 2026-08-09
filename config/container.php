@@ -51,6 +51,7 @@ use Reptilienmarkt\Domain\Job\JobHandler;
 use Reptilienmarkt\Domain\Job\JobRepository;
 use Reptilienmarkt\Domain\Job\JobRunner;
 use Reptilienmarkt\Domain\Job\JobScheduler;
+use Reptilienmarkt\Domain\Listing\FavoriteRepository;
 use Reptilienmarkt\Domain\Listing\GeneticsCalculator;
 use Reptilienmarkt\Domain\Listing\LegalDocumentRepository;
 use Reptilienmarkt\Domain\Listing\ListingManager;
@@ -60,18 +61,25 @@ use Reptilienmarkt\Domain\Listing\ListingWizard;
 use Reptilienmarkt\Domain\Listing\MorphStringGenerator;
 use Reptilienmarkt\Domain\Listing\SellerStatsService;
 use Reptilienmarkt\Domain\Mail\Mailer;
+use Reptilienmarkt\Domain\Mail\MailOutboxRepository;
 use Reptilienmarkt\Domain\Message\ConversationRepository;
+use Reptilienmarkt\Domain\Message\MessageNotifier;
 use Reptilienmarkt\Domain\Message\MessageRepository;
 use Reptilienmarkt\Domain\Message\MessagingService;
 use Reptilienmarkt\Domain\Moderation\ReportRepository;
 use Reptilienmarkt\Domain\Moderation\ReportService;
+use Reptilienmarkt\Domain\Notification\NotificationPreferenceRepository;
+use Reptilienmarkt\Domain\Notification\NotificationPreferenceService;
 use Reptilienmarkt\Domain\Privacy\AccountDeletionService;
 use Reptilienmarkt\Domain\Privacy\DataExportService;
 use Reptilienmarkt\Domain\Privacy\RetentionPolicy;
 use Reptilienmarkt\Domain\Review\ReviewRepository;
 use Reptilienmarkt\Domain\Review\ReviewService;
 use Reptilienmarkt\Domain\Search\ListingSearchRepository;
+use Reptilienmarkt\Domain\Search\SavedSearchRepository;
+use Reptilienmarkt\Domain\Search\SavedSearchService;
 use Reptilienmarkt\Domain\Search\SearchIndex;
+use Reptilienmarkt\Domain\Seo\SitemapRepository;
 use Reptilienmarkt\Domain\Setting\Settings;
 use Reptilienmarkt\Domain\Site\SiteIdentity;
 use Reptilienmarkt\Domain\Site\SiteIdentityOverrideRepository;
@@ -107,6 +115,7 @@ use Reptilienmarkt\Http\Controller\AuthController;
 use Reptilienmarkt\Http\Controller\BillingController;
 use Reptilienmarkt\Http\Controller\ContactController;
 use Reptilienmarkt\Http\Controller\ContentController;
+use Reptilienmarkt\Http\Controller\FavoriteController;
 use Reptilienmarkt\Http\Controller\GeneticsController;
 use Reptilienmarkt\Http\Controller\LegalDocumentController;
 use Reptilienmarkt\Http\Controller\LegalPageController;
@@ -122,6 +131,7 @@ use Reptilienmarkt\Http\Controller\PasswordResetController;
 use Reptilienmarkt\Http\Controller\PrivacyController;
 use Reptilienmarkt\Http\Controller\ProfileController;
 use Reptilienmarkt\Http\Controller\ReportController;
+use Reptilienmarkt\Http\Controller\SavedSearchController;
 use Reptilienmarkt\Http\Controller\SitemapController;
 use Reptilienmarkt\Http\Controller\SpeciesController;
 use Reptilienmarkt\Http\Controller\StatsController;
@@ -141,12 +151,16 @@ use Reptilienmarkt\Infra\Job\Handler\ContentPublishHandler;
 use Reptilienmarkt\Infra\Job\Handler\ListingArchiveHandler;
 use Reptilienmarkt\Infra\Job\Handler\ListingExpiryNoticeHandler;
 use Reptilienmarkt\Infra\Job\Handler\LogRotationHandler;
+use Reptilienmarkt\Infra\Job\Handler\MailDispatchHandler;
 use Reptilienmarkt\Infra\Job\Handler\MediaCleanupHandler;
 use Reptilienmarkt\Infra\Job\Handler\RetentionHandler;
 use Reptilienmarkt\Infra\Job\Handler\SavedSearchAlertHandler;
 use Reptilienmarkt\Infra\Job\Handler\SearchReindexHandler;
 use Reptilienmarkt\Infra\Mail\FileMailer;
+use Reptilienmarkt\Infra\Mail\PreferenceAwareMailer;
+use Reptilienmarkt\Infra\Mail\QueueingMailer;
 use Reptilienmarkt\Infra\Mail\SendmailMailer;
+use Reptilienmarkt\Infra\Mail\SmtpMailer;
 use Reptilienmarkt\Infra\Payment\NullPaymentProvider;
 use Reptilienmarkt\Infra\Payment\StripePaymentProvider;
 use Reptilienmarkt\Infra\Persistence\Database;
@@ -162,17 +176,20 @@ use Reptilienmarkt\Infra\Persistence\PdoContentEntryRepository;
 use Reptilienmarkt\Infra\Persistence\PdoContentRevisionRepository;
 use Reptilienmarkt\Infra\Persistence\PdoContentTermRepository;
 use Reptilienmarkt\Infra\Persistence\PdoConversationRepository;
+use Reptilienmarkt\Infra\Persistence\PdoFavoriteRepository;
 use Reptilienmarkt\Infra\Persistence\PdoGeneticsSimulationRepository;
 use Reptilienmarkt\Infra\Persistence\PdoJobRepository;
 use Reptilienmarkt\Infra\Persistence\PdoLegalDocumentRepository;
 use Reptilienmarkt\Infra\Persistence\PdoLegalTextRepository;
 use Reptilienmarkt\Infra\Persistence\PdoListingMediaRepository;
 use Reptilienmarkt\Infra\Persistence\PdoListingRepository;
+use Reptilienmarkt\Infra\Persistence\PdoMailOutboxRepository;
 use Reptilienmarkt\Infra\Persistence\PdoMediaRepository;
 use Reptilienmarkt\Infra\Persistence\PdoMediaUsageRepository;
 use Reptilienmarkt\Infra\Persistence\PdoMenuRepository;
 use Reptilienmarkt\Infra\Persistence\PdoMessageRepository;
 use Reptilienmarkt\Infra\Persistence\PdoMorphRepository;
+use Reptilienmarkt\Infra\Persistence\PdoNotificationPreferenceRepository;
 use Reptilienmarkt\Infra\Persistence\PdoPaymentRepository;
 use Reptilienmarkt\Infra\Persistence\PdoPostalCodeRepository;
 use Reptilienmarkt\Infra\Persistence\PdoPreviewTokenRepository;
@@ -180,9 +197,11 @@ use Reptilienmarkt\Infra\Persistence\PdoRateLimitRepository;
 use Reptilienmarkt\Infra\Persistence\PdoRedirectRepository;
 use Reptilienmarkt\Infra\Persistence\PdoReportRepository;
 use Reptilienmarkt\Infra\Persistence\PdoReviewRepository;
+use Reptilienmarkt\Infra\Persistence\PdoSavedSearchRepository;
 use Reptilienmarkt\Infra\Persistence\PdoSessionRepository;
 use Reptilienmarkt\Infra\Persistence\PdoSettings;
 use Reptilienmarkt\Infra\Persistence\PdoSiteIdentityOverrideRepository;
+use Reptilienmarkt\Infra\Persistence\PdoSitemapRepository;
 use Reptilienmarkt\Infra\Persistence\PdoSpeciesRepository;
 use Reptilienmarkt\Infra\Persistence\PdoSubscriptionRepository;
 use Reptilienmarkt\Infra\Persistence\PdoTextOverrideRepository;
@@ -385,6 +404,7 @@ $container->set(Environment::class, static fn(Container $c): Environment => Twig
     $root . '/storage/cache/twig',
     $c->get(Translator::class),
     $c->get(ViewContext::class),
+    $c->get(PublicImageStorage::class),
 ));
 
 $container->set(SearchRequestParser::class, static fn(Container $c): SearchRequestParser => new SearchRequestParser(
@@ -397,6 +417,20 @@ $container->set(SearchRequestParser::class, static fn(Container $c): SearchReque
 $container->set(MarketController::class, static fn(Container $c): MarketController => new MarketController(
     $c->get(ListingSearchRepository::class),
     $c->get(SearchRequestParser::class),
+    $c->get(SavedSearchService::class),
+    $c->get(Viewer::class),
+    $c->get(SessionManager::class),
+    $c->get(Translator::class),
+    $c->get(Environment::class),
+    Env::string('APP_URL', 'https://example.tld'),
+));
+
+$container->set(SavedSearchController::class, static fn(Container $c): SavedSearchController => new SavedSearchController(
+    $c->get(SavedSearchService::class),
+    $c->get(SpeciesRepository::class),
+    $c->get(Viewer::class),
+    $c->get(SessionManager::class),
+    $c->get(Translator::class),
     $c->get(Environment::class),
 ));
 
@@ -405,6 +439,7 @@ $container->set(SpeciesController::class, static fn(Container $c): SpeciesContro
     $c->get(MorphRepository::class),
     $c->get(ListingSearchRepository::class),
     $c->get(Environment::class),
+    Env::string('APP_URL', 'https://example.tld'),
 ));
 
 $container->set(ApiController::class, static fn(Container $c): ApiController => new ApiController(
@@ -413,6 +448,8 @@ $container->set(ApiController::class, static fn(Container $c): ApiController => 
     $c->get(MorphRepository::class),
     $c->get(PostalCodeRepository::class),
     $c->get(SearchRequestParser::class),
+    $c->get(RateLimiter::class),
+    $c->get(Clock::class),
 ));
 
 // ------------------------------------------------------- Konto und Sitzung
@@ -750,8 +787,22 @@ $container->set(ListingController::class, static fn(Container $c): ListingContro
     $c->get(ListingWizard::class),
     $c->get(UserRepository::class),
     $c->get(BreederProfileRepository::class),
+    $c->get(FavoriteRepository::class),
     $c->get(SessionManager::class),
     $c->get(Viewer::class),
+    $c->get(Environment::class),
+    Env::string('APP_URL', 'https://example.tld'),
+));
+
+$container->set(FavoriteRepository::class, static fn(Container $c): FavoriteRepository => new PdoFavoriteRepository($c->get(Database::class)));
+
+$container->set(FavoriteController::class, static fn(Container $c): FavoriteController => new FavoriteController(
+    $c->get(FavoriteRepository::class),
+    $c->get(ListingRepository::class),
+    $c->get(Viewer::class),
+    $c->get(SessionManager::class),
+    $c->get(Translator::class),
+    $c->get(Clock::class),
     $c->get(Environment::class),
 ));
 
@@ -771,21 +822,78 @@ $container->set(RateLimiter::class, static fn(Container $c): RateLimiter => new 
     $c->get(TrustConfiguration::class)->rateLimits(),
 ));
 
+$container->set(SavedSearchRepository::class, static fn(Container $c): SavedSearchRepository => new PdoSavedSearchRepository($c->get(Database::class)));
+
+$container->set(SavedSearchService::class, static fn(Container $c): SavedSearchService => new SavedSearchService(
+    $c->get(SavedSearchRepository::class),
+    $c->get(AuditLog::class),
+    $c->get(Clock::class),
+    $c->get(TrustConfiguration::class)->savedSearchLimit(),
+));
+
 $container->set(FraudKeywordFilter::class, static fn(Container $c): FraudKeywordFilter => $c->get(TrustConfiguration::class)->keywordFilter());
 $container->set(ContactMasker::class, static fn(Container $c): ContactMasker => $c->get(TrustConfiguration::class)->contactMasker());
 $container->set(AutoModerationPolicy::class, static fn(Container $c): AutoModerationPolicy => $c->get(TrustConfiguration::class)->autoModeration());
 
 // -------------------------------------------------------------- Mailversand
-$container->set(Mailer::class, static function () use ($root): Mailer {
-    // Voreinstellung ist die Datei-Ablage: Ein falsch konfigurierter Server
-    // soll keine echten Mails an echte Adressen schicken.
-    return Env::string('MAIL_TRANSPORT', 'datei') === 'sendmail'
-        ? new SendmailMailer(
-            Env::string('MAIL_FROM', 'noreply@example.tld'),
-            Env::string('MAIL_FROM_NAME', 'Reptilienmarkt'),
-        )
-        : new FileMailer($root . '/' . ltrim(Env::string('MAIL_DIRECTORY', 'storage/mail'), '/'));
+$container->set(MailOutboxRepository::class, static fn(Container $c): MailOutboxRepository => new PdoMailOutboxRepository($c->get(Database::class)));
+
+/**
+ * Der Transport — wer die Mail tatsaechlich aus dem Haus traegt.
+ *
+ * Voreinstellung ist die Datei-Ablage: Ein falsch konfigurierter Server soll
+ * keine echten Mails an echte Adressen schicken. Der Transport wird nur vom
+ * Auftrag mail.dispatch benutzt, nie aus einem Request heraus.
+ */
+$container->set('mail.transport', static function (Container $c) use ($root): Mailer {
+    $absender = Env::string('MAIL_FROM', 'noreply@example.tld');
+    $name = Env::string('MAIL_FROM_NAME', 'Reptilienmarkt');
+
+    return match (Env::string('MAIL_TRANSPORT', 'datei')) {
+        'sendmail' => new SendmailMailer($absender, $name),
+        'smtp' => new SmtpMailer(
+            Env::string('SMTP_HOST', 'localhost'),
+            Env::int('SMTP_PORT', 587),
+            $absender,
+            $name,
+            $c->get(Logger::class),
+            Env::string('SMTP_USERNAME'),
+            Env::string('SMTP_PASSWORD'),
+            Env::string('SMTP_ENCRYPTION', SmtpMailer::ENCRYPTION_STARTTLS),
+            Env::int('SMTP_TIMEOUT', 10),
+        ),
+        default => new FileMailer($root . '/' . ltrim(Env::string('MAIL_DIRECTORY', 'storage/mail'), '/')),
+    };
 });
+
+/**
+ * Wer Mailer verlangt, bekommt den Postausgang — und davor die Einwilligung.
+ *
+ * Kein Aufrufer soll sich entscheiden muessen, ob er sofort oder spaeter
+ * versendet — die Antwort ist immer "spaeter". Der Transport haengt an einem
+ * fremden Dienst, und der darf keinen Vorgang aufhalten. Und keiner soll sich
+ * merken muessen, ob der Empfaenger diese Art Mail ueberhaupt will: Das
+ * entscheidet der Umschlag, nicht der Aufrufer.
+ */
+$container->set(Mailer::class, static fn(Container $c): Mailer => new PreferenceAwareMailer(
+    new QueueingMailer(
+        $c->get(MailOutboxRepository::class),
+        $c->get(Clock::class),
+        $c->get(Logger::class),
+    ),
+    $c->get(NotificationPreferenceService::class),
+    $c->get(Translator::class),
+    Env::string('APP_URL', 'https://example.tld'),
+));
+
+// -------------------------------------------------- Benachrichtigungen
+$container->set(NotificationPreferenceRepository::class, static fn(Container $c): NotificationPreferenceRepository => new PdoNotificationPreferenceRepository($c->get(Database::class)));
+
+$container->set(NotificationPreferenceService::class, static fn(Container $c): NotificationPreferenceService => new NotificationPreferenceService(
+    $c->get(NotificationPreferenceRepository::class),
+    $c->get(AuditLog::class),
+    $c->get(Clock::class),
+));
 
 // -------------------------------------------- Konto, Verifizierung, Token
 $container->set(TokenRepository::class, static fn(Container $c): TokenRepository => new PdoTokenRepository($c->get(Database::class)));
@@ -806,6 +914,7 @@ $container->set(AccountService::class, static fn(Container $c): AccountService =
     $c->get(TokenService::class),
     $c->get(PasswordHasher::class),
     $c->get(TotpAuthenticator::class),
+    $c->get(SessionRepository::class),
     $c->get(Mailer::class),
     $c->get(AuditLog::class),
     $c->get(Clock::class),
@@ -824,6 +933,17 @@ $container->set(MessageRepository::class, static fn(Container $c): MessageReposi
 $container->set(ReviewRepository::class, static fn(Container $c): ReviewRepository => new PdoReviewRepository($c->get(Database::class)));
 $container->set(ReportRepository::class, static fn(Container $c): ReportRepository => new PdoReportRepository($c->get(Database::class)));
 
+$container->set(MessageNotifier::class, static fn(Container $c): MessageNotifier => new MessageNotifier(
+    $c->get(ConversationRepository::class),
+    $c->get(MessageRepository::class),
+    $c->get(ListingRepository::class),
+    $c->get(UserRepository::class),
+    $c->get(Mailer::class),
+    $c->get(Translator::class),
+    $c->get(Clock::class),
+    Env::string('APP_URL', 'https://example.tld'),
+));
+
 $container->set(MessagingService::class, static fn(Container $c): MessagingService => new MessagingService(
     $c->get(ConversationRepository::class),
     $c->get(MessageRepository::class),
@@ -831,6 +951,7 @@ $container->set(MessagingService::class, static fn(Container $c): MessagingServi
     $c->get(RateLimiter::class),
     $c->get(FraudKeywordFilter::class),
     $c->get(ContactMasker::class),
+    $c->get(MessageNotifier::class),
     $c->get(AuditLog::class),
     $c->get(Clock::class),
 ));
@@ -853,6 +974,8 @@ $container->set(AccountController::class, static fn(Container $c): AccountContro
     $c->get(UserDocumentRepository::class),
     $c->get(PrivateStorage::class),
     $c->get(TotpAuthenticator::class),
+    $c->get(NotificationPreferenceService::class),
+    $c->get(SessionRepository::class),
     $c->get(RateLimiter::class),
     $c->get(Viewer::class),
     $c->get(SessionManager::class),
@@ -879,6 +1002,7 @@ $container->set(ProfileController::class, static fn(Container $c): ProfileContro
     $c->get(SessionManager::class),
     $c->get(Translator::class),
     $c->get(Environment::class),
+    Env::string('APP_URL', 'https://example.tld'),
 ));
 
 $container->set(MessageController::class, static fn(Container $c): MessageController => new MessageController(
@@ -1063,7 +1187,18 @@ $container->set(JobRepository::class, static fn(Container $c): JobRepository => 
  * @return array<string, JobHandler>
  */
 $container->set('jobs.handlers', static function (Container $c) use ($root): array {
+    /** @var Mailer $transport */
+    $transport = $c->get('mail.transport');
+
     $handlers = [
+        // Der einzige Handler, der den Transport bekommt statt des Mailers:
+        // Er ist die Stelle, an der die Mail das Haus verlaesst.
+        new MailDispatchHandler(
+            $c->get(MailOutboxRepository::class),
+            $transport,
+            $c->get(Clock::class),
+            $c->get(Logger::class),
+        ),
         new ListingExpiryNoticeHandler(
             $c->get(Database::class),
             $c->get(Mailer::class),
@@ -1074,7 +1209,9 @@ $container->set('jobs.handlers', static function (Container $c) use ($root): arr
         ),
         new ListingArchiveHandler($c->get(Database::class), $c->get(ListingIndexer::class), $c->get(Clock::class)),
         new SavedSearchAlertHandler(
-            $c->get(Database::class),
+            $c->get(SavedSearchRepository::class),
+            $c->get(ListingSearchRepository::class),
+            $c->get(UserRepository::class),
             $c->get(Mailer::class),
             $c->get(Translator::class),
             $c->get(Clock::class),
@@ -1174,6 +1311,7 @@ $container->set(AdminController::class, static fn(Container $c): AdminController
     $c->get(DashboardService::class),
     $c->get(SpeciesCatalogService::class),
     $c->get(JobRepository::class),
+    $c->get(MailOutboxRepository::class),
     $c->get(RetentionPolicy::class),
     $c->get(UiTextService::class),
     $c->get(Viewer::class),
@@ -1205,9 +1343,11 @@ $container->set(NewsController::class, static fn(Container $c): NewsController =
     Env::string('APP_URL', 'https://example.tld'),
 ));
 
+$container->set(SitemapRepository::class, static fn(Container $c): SitemapRepository => new PdoSitemapRepository($c->get(Database::class)));
+
 $container->set(SitemapController::class, static fn(Container $c): SitemapController => new SitemapController(
     $c->get(ContentEntryRepository::class),
-    $c->get(SpeciesRepository::class),
+    $c->get(SitemapRepository::class),
     $c->get(Clock::class),
     Env::string('APP_URL', 'https://example.tld'),
 ));

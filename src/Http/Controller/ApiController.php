@@ -12,9 +12,11 @@ use Reptilienmarkt\Domain\Species\Morph;
 use Reptilienmarkt\Domain\Species\MorphRepository;
 use Reptilienmarkt\Domain\Species\Species;
 use Reptilienmarkt\Domain\Species\SpeciesRepository;
+use Reptilienmarkt\Domain\Trust\RateLimiter;
 use Reptilienmarkt\Http\Message\Request;
 use Reptilienmarkt\Http\Message\Response;
 use Reptilienmarkt\Http\Search\SearchRequestParser;
+use Reptilienmarkt\Support\Clock;
 
 /**
  * REST-API unter /api/v1/ auf denselben Domain-Services wie die Web-Routen —
@@ -28,14 +30,32 @@ final readonly class ApiController
         private MorphRepository $morphs,
         private PostalCodeRepository $postalCodes,
         private SearchRequestParser $parser,
+        private RateLimiter $rateLimiter,
+        private Clock $clock,
     ) {}
+
+    /**
+     * Wie lange eine Antwort allgemeingueltig ist.
+     *
+     * Die Endpunkte sind anonym und liefern fuer alle dasselbe — anders als die
+     * HTML-Seiten, die Namen und CSRF-Token tragen. Eine Minute ist kurz genug,
+     * dass eine neue Anzeige nicht auffaellig spaet erscheint, und lang genug,
+     * dass ein tippendes Vorschlagsfeld nicht jede Taste bis in die Datenbank
+     * durchreicht.
+     */
+    private const int CACHE_SECONDS = 60;
 
     public function listings(Request $request): Response
     {
+        $abgewiesen = $this->guard($request);
+        if ($abgewiesen !== null) {
+            return $abgewiesen;
+        }
+
         $parsed = $this->parser->parse($request);
         $result = $this->listings->search($parsed->criteria);
 
-        return Response::json([
+        return $this->cached([
             'treffer' => array_map(
                 static fn(ListingSummary $listing): array => [
                     'id' => $listing->id,
@@ -70,10 +90,15 @@ final readonly class ApiController
 
     public function species(Request $request): Response
     {
+        $abgewiesen = $this->guard($request);
+        if ($abgewiesen !== null) {
+            return $abgewiesen;
+        }
+
         $term = $request->queryString('q');
         $species = $term === null ? $this->species->all() : $this->species->search($term);
 
-        return Response::json([
+        return $this->cached([
             'arten' => array_map(
                 static fn(Species $entry): array => [
                     'id' => $entry->id,
@@ -93,6 +118,11 @@ final readonly class ApiController
 
     public function morphs(Request $request): Response
     {
+        $abgewiesen = $this->guard($request);
+        if ($abgewiesen !== null) {
+            return $abgewiesen;
+        }
+
         $slug = $request->attribute('slug');
         $species = $slug === null ? null : ($this->species->findBySlug($slug) ?? $this->species->findByCommonSlug($slug));
 
@@ -100,7 +130,7 @@ final readonly class ApiController
             return Response::json(['fehler' => 'Art nicht gefunden'], 404);
         }
 
-        return Response::json([
+        return $this->cached([
             'art' => $species->scientificName,
             'morphs' => array_map(
                 static fn(Morph $morph): array => [
@@ -118,15 +148,20 @@ final readonly class ApiController
 
     public function places(Request $request): Response
     {
+        $abgewiesen = $this->guard($request);
+        if ($abgewiesen !== null) {
+            return $abgewiesen;
+        }
+
         $term = $request->queryString('q');
         if ($term === null) {
-            return Response::json(['orte' => []]);
+            return $this->cached(['orte' => []]);
         }
 
         $countryValue = $request->queryString('land');
         $country = $countryValue === null ? null : Country::tryFrom($countryValue);
 
-        return Response::json([
+        return $this->cached([
             'orte' => array_map(
                 static fn($place): array => [
                     'land' => $place->country->value,
@@ -137,5 +172,34 @@ final readonly class ApiController
                 $this->postalCodes->search($term, $country, 10),
             ),
         ]);
+    }
+
+    /**
+     * Eine Rate-Grenze je Adresse.
+     *
+     * Ohne Anmeldung gibt es nichts anderes, woran sie haengen koennte. Sie
+     * schuetzt nicht vor einem entschlossenen Angreifer — dafuer braucht es den
+     * Webserver davor —, sondern vor dem versehentlichen Dauerlauf: einem
+     * Skript in einer Schleife, einem Vorschlagsfeld ohne Entprellung.
+     */
+    private function guard(Request $request): ?Response
+    {
+        $entscheidung = $this->rateLimiter->attempt('api.ip', $request->clientIp ?? 'unbekannt');
+
+        if ($entscheidung->allowed) {
+            return null;
+        }
+
+        return Response::json(['fehler' => $entscheidung->message()], 429)
+            ->withHeader('retry-after', (string) $entscheidung->retryAfterSeconds($this->clock->now()));
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    private function cached(array $data): Response
+    {
+        return Response::json($data)
+            ->withHeader('cache-control', 'public, max-age=' . self::CACHE_SECONDS);
     }
 }
