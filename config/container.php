@@ -51,6 +51,7 @@ use Reptilienmarkt\Domain\Job\JobHandler;
 use Reptilienmarkt\Domain\Job\JobRepository;
 use Reptilienmarkt\Domain\Job\JobRunner;
 use Reptilienmarkt\Domain\Job\JobScheduler;
+use Reptilienmarkt\Domain\Listing\FavoriteRepository;
 use Reptilienmarkt\Domain\Listing\GeneticsCalculator;
 use Reptilienmarkt\Domain\Listing\LegalDocumentRepository;
 use Reptilienmarkt\Domain\Listing\ListingManager;
@@ -113,6 +114,7 @@ use Reptilienmarkt\Http\Controller\AuthController;
 use Reptilienmarkt\Http\Controller\BillingController;
 use Reptilienmarkt\Http\Controller\ContactController;
 use Reptilienmarkt\Http\Controller\ContentController;
+use Reptilienmarkt\Http\Controller\FavoriteController;
 use Reptilienmarkt\Http\Controller\GeneticsController;
 use Reptilienmarkt\Http\Controller\LegalDocumentController;
 use Reptilienmarkt\Http\Controller\LegalPageController;
@@ -173,6 +175,7 @@ use Reptilienmarkt\Infra\Persistence\PdoContentEntryRepository;
 use Reptilienmarkt\Infra\Persistence\PdoContentRevisionRepository;
 use Reptilienmarkt\Infra\Persistence\PdoContentTermRepository;
 use Reptilienmarkt\Infra\Persistence\PdoConversationRepository;
+use Reptilienmarkt\Infra\Persistence\PdoFavoriteRepository;
 use Reptilienmarkt\Infra\Persistence\PdoGeneticsSimulationRepository;
 use Reptilienmarkt\Infra\Persistence\PdoJobRepository;
 use Reptilienmarkt\Infra\Persistence\PdoLegalDocumentRepository;
@@ -777,8 +780,21 @@ $container->set(ListingController::class, static fn(Container $c): ListingContro
     $c->get(ListingWizard::class),
     $c->get(UserRepository::class),
     $c->get(BreederProfileRepository::class),
+    $c->get(FavoriteRepository::class),
     $c->get(SessionManager::class),
     $c->get(Viewer::class),
+    $c->get(Environment::class),
+));
+
+$container->set(FavoriteRepository::class, static fn(Container $c): FavoriteRepository => new PdoFavoriteRepository($c->get(Database::class)));
+
+$container->set(FavoriteController::class, static fn(Container $c): FavoriteController => new FavoriteController(
+    $c->get(FavoriteRepository::class),
+    $c->get(ListingRepository::class),
+    $c->get(Viewer::class),
+    $c->get(SessionManager::class),
+    $c->get(Translator::class),
+    $c->get(Clock::class),
     $c->get(Environment::class),
 ));
 

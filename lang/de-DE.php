@@ -333,6 +333,16 @@ return [
         . 'ein Export aus einer neueren Fassung bleibt also einlesbar. '
         . 'Geschrieben wird über den wissenschaftlichen Namen: Vorhandenes wird aktualisiert, Neues angelegt.',
 
+    // ------------------------------------------------------------ Merkliste
+    'merkliste.titel' => 'Merkliste',
+    'merkliste.merken' => 'Merken',
+    'merkliste.entmerken' => 'Nicht mehr merken',
+    'merkliste.gemerkt' => 'Die Anzeige liegt auf deiner Merkliste.',
+    'merkliste.entfernt' => 'Die Anzeige ist von deiner Merkliste entfernt.',
+    'merkliste.leer' => 'Deine Merkliste ist leer. Auf jeder Anzeige findest du den Knopf „Merken".',
+    'merkliste.zustand' => 'Derzeit nicht öffentlich: {zustand}',
+    'statistik.merkungen' => 'Merkungen',
+
     // ------------------------------------------------------ Gemerkte Suchen
     'suchen.titel' => 'Gemerkte Suchen',
     'suchen.merken' => 'Suche merken',

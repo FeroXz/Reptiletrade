@@ -16,6 +16,7 @@ use Reptilienmarkt\Http\Controller\AuthController;
 use Reptilienmarkt\Http\Controller\BillingController;
 use Reptilienmarkt\Http\Controller\ContactController;
 use Reptilienmarkt\Http\Controller\ContentController;
+use Reptilienmarkt\Http\Controller\FavoriteController;
 use Reptilienmarkt\Http\Controller\GeneticsController;
 use Reptilienmarkt\Http\Controller\LegalDocumentController;
 use Reptilienmarkt\Http\Controller\LegalPageController;
@@ -113,6 +114,11 @@ $router->get('/zuechter/{slug}/', ProfileController::class, 'show', 'profil');
 // Postfach
 $router->get('/postfach/', MessageController::class, 'inbox', 'postfach');
 $router->post('/anzeige/{id}/nachricht', MessageController::class, 'start', 'postfach.starten');
+
+// Merkliste
+$router->get('/konto/merkliste', FavoriteController::class, 'index', 'merkliste');
+$router->post('/anzeige/{id}/merken', FavoriteController::class, 'add', 'merkliste.merken');
+$router->post('/anzeige/{id}/entmerken', FavoriteController::class, 'remove', 'merkliste.entmerken');
 $router->get('/postfach/{id}/', MessageController::class, 'show', 'postfach.gespraech');
 $router->post('/postfach/{id}/senden', MessageController::class, 'send', 'postfach.senden');
 $router->post('/postfach/{id}/handel', MessageController::class, 'confirmDeal', 'postfach.handel');

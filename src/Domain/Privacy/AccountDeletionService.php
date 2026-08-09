@@ -91,6 +91,9 @@ final readonly class AccountDeletionService
             // Mails jemand bekommen will, ist eine Aussage ueber diese Person
             // und haelt keine Bewertung der Gegenseite zusammen.
             $database->execute('DELETE FROM notification_preferences WHERE user_id = :id', ['id' => $userId]);
+            // Was jemand gemerkt hat, ist eine Aussage ueber seine Interessen —
+            // und fuer die Anbieter nur eine Zahl, die um eins kleiner wird.
+            $database->execute('DELETE FROM listing_favorites WHERE user_id = :id', ['id' => $userId]);
             $database->execute('DELETE FROM breeder_profiles WHERE user_id = :id', ['id' => $userId]);
             $database->execute('DELETE FROM breeding_announcements WHERE user_id = :id', ['id' => $userId]);
             // Genetik-Berichte sind Angaben zum eigenen Zuchtbestand. Sie

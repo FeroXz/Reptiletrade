@@ -110,6 +110,18 @@
                                     <input type="hidden" name="_csrf" value="{{ csrf }}">
                                     <button type="submit" class="knopf knopf-primaer">Anbieter schreiben</button>
                                 </form>
+
+                                {# Echtes Formular. merkliste.js tauscht nur den
+                                   Knopf, wenn es geladen ist. #}
+                                <form method="post" data-merken data-gemerkt="{{ gemerkt ? 'ja' : 'nein' }}"
+                                      action="/anzeige/{{ listing.id }}/{{ gemerkt ? 'entmerken' : 'merken' }}">
+                                    <input type="hidden" name="_csrf" value="{{ csrf }}">
+                                    <input type="hidden" name="weiter" value="/anzeige/{{ listing.id }}/">
+                                    <button type="submit" class="knopf" aria-pressed="{{ gemerkt ? 'true' : 'false' }}">
+                                        {{ gemerkt ? t('merkliste.entmerken') : t('merkliste.merken') }}
+                                    </button>
+                                </form>
+
                                 <a class="text-xs gedaempft underline" href="/melden/listing/{{ listing.id }}">
                                     {{ t('meldung.titel') }}
                                 </a>
@@ -142,4 +154,8 @@
             </p>
         {% endif %}
     </article>
+{% endblock %}
+
+{% block skripte %}
+    <script src="/assets/merkliste.js" defer></script>
 {% endblock %}

@@ -92,6 +92,12 @@ final readonly class DataExportService
                    FROM reports WHERE reporter_id = :id ORDER BY id',
                 ['id' => $userId],
             ),
+            'merkliste' => $this->rows(
+                'SELECT f.listing_id, l.title, f.created_at
+                   FROM listing_favorites f JOIN listings l ON l.id = f.listing_id
+                  WHERE f.user_id = :id ORDER BY f.created_at',
+                ['id' => $userId],
+            ),
             // Nur die Abweichungen — mehr steht nicht in der Tabelle. Wer nie
             // etwas eingestellt hat, hat hier eine leere Liste und laeuft auf
             // den Voreinstellungen.

@@ -71,6 +71,7 @@
                                 <th class="p-3">{{ t('statistik.spalte_anzeige') }}</th>
                                 <th class="p-3">{{ t('statistik.aufrufe') }}</th>
                                 <th class="p-3">{{ t('statistik.anfragen') }}</th>
+                                <th class="p-3">{{ t('statistik.merkungen') }}</th>
                                 <th class="p-3">{{ t('statistik.quote') }}</th>
                             </tr>
                         </thead>
@@ -83,6 +84,7 @@
                                     </td>
                                     <td class="p-3">{{ zeile.views }}</td>
                                     <td class="p-3">{{ zeile.enquiries }}</td>
+                                    <td class="p-3">{{ zeile.favorites }}</td>
                                     <td class="p-3">
                                         {{ zeile.enquiryRate is null ? '—' : zeile.enquiryRate|number_format(1, ',', '.') ~ ' %' }}
                                     </td>

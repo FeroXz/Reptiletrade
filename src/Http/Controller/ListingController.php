@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Reptilienmarkt\Http\Controller;
 
+use Reptilienmarkt\Domain\Listing\FavoriteRepository;
 use Reptilienmarkt\Domain\Listing\ListingMediaRepository;
 use Reptilienmarkt\Domain\Listing\ListingRepository;
 use Reptilienmarkt\Domain\Listing\ListingWizard;
@@ -33,6 +34,7 @@ final readonly class ListingController
         private ListingWizard $wizard,
         private UserRepository $users,
         private BreederProfileRepository $profiles,
+        private FavoriteRepository $favorites,
         private SessionManager $session,
         private Viewer $currentUser,
         private Environment $twig,
@@ -72,6 +74,7 @@ final readonly class ListingController
             'morph_string' => $this->wizard->morphString($listing->id ?? 0),
             'genotyp' => $this->wizard->genotype($listing->id ?? 0),
             'ist_eigene' => $istEigene,
+            'gemerkt' => $viewer !== null && $this->favorites->has($viewer->id ?? 0, $listing->id ?? 0),
             'anbieter' => $this->users->findById($listing->userId),
             'anbieter_profil' => $this->profiles->findByUser($listing->userId),
             'csrf' => $this->session->csrfToken(),
