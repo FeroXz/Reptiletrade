@@ -13,18 +13,36 @@ final readonly class PdoSessionRepository implements SessionRepository
 {
     public function __construct(private Database $database) {}
 
+    private const string COLUMNS = 'id, user_id, ip_address, user_agent, payload, two_factor_pending, '
+        . 'created_at, last_seen_at, expires_at';
+
     public function find(string $id): ?Session
     {
         $row = $this->database->selectOne(
-            'SELECT id, user_id, ip_address, user_agent, payload, two_factor_pending, created_at, last_seen_at, expires_at
-               FROM sessions WHERE id = :id',
+            'SELECT ' . self::COLUMNS . ' FROM sessions WHERE id = :id',
             ['id' => $id],
         );
 
-        if ($row === null) {
-            return null;
-        }
+        return $row === null ? null : $this->map($row);
+    }
 
+    public function forUser(int $userId): array
+    {
+        $rows = $this->database->select(
+            'SELECT ' . self::COLUMNS . ' FROM sessions
+              WHERE user_id = :user AND expires_at > :now
+              ORDER BY last_seen_at DESC',
+            ['user' => $userId, 'now' => gmdate('Y-m-d\TH:i:s\Z')],
+        );
+
+        return array_map($this->map(...), $rows);
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     */
+    private function map(array $row): Session
+    {
         /** @var mixed $payload */
         $payload = json_decode((string) $row['payload'], true);
 
@@ -76,6 +94,14 @@ final readonly class PdoSessionRepository implements SessionRepository
     public function deleteForUser(int $userId): void
     {
         $this->database->execute('DELETE FROM sessions WHERE user_id = :user_id', ['user_id' => $userId]);
+    }
+
+    public function deleteForUserExcept(int $userId, string $keepId): int
+    {
+        return $this->database->execute(
+            'DELETE FROM sessions WHERE user_id = :user_id AND id <> :behalten',
+            ['user_id' => $userId, 'behalten' => $keepId],
+        );
     }
 
     public function deleteExpired(): int

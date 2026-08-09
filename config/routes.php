@@ -91,6 +91,11 @@ $router->post('/konto/zwei-faktor', AccountController::class, 'setupTwoFactor', 
 $router->post('/konto/zwei-faktor/bestaetigen', AccountController::class, 'confirmTwoFactor', 'konto.zweifaktor.bestaetigen');
 $router->post('/konto/zwei-faktor/aus', AccountController::class, 'disableTwoFactor', 'konto.zweifaktor.aus');
 
+// Sitzungen
+$router->get('/konto/sitzungen', AccountController::class, 'sessions', 'sitzungen');
+$router->post('/konto/sitzungen/alle-beenden', AccountController::class, 'endAllSessions', 'sitzungen.alle');
+$router->post('/konto/sitzungen/{id}/beenden', AccountController::class, 'endSession', 'sitzungen.beenden');
+
 // Benachrichtigungen. Der Abmeldelink liegt bewusst ausserhalb von /konto/ —
 // er muss ohne Anmeldung funktionieren. Mit dem POST /abmelden (Sitzungsende)
 // hat er nichts zu tun ausser dem Wortstamm; er beendet keine Sitzung.

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Reptilienmarkt\Http\Session;
 
 use DateTimeImmutable;
+use Reptilienmarkt\Domain\Auth\DeviceFingerprint;
 use Reptilienmarkt\Domain\Auth\Session;
 use Reptilienmarkt\Domain\Auth\SessionRepository;
 use Reptilienmarkt\Http\HttpException;
@@ -60,8 +61,8 @@ final class SessionManager
                     $now,
                     $this->expiry(),
                     $existing->twoFactorPending,
-                    $request->clientIp ?? $existing->ipAddress,
-                    $request->headers['user-agent'] ?? $existing->userAgent,
+                    DeviceFingerprint::shortenIp($request->clientIp) ?? $existing->ipAddress,
+                    DeviceFingerprint::shortenAgent($request->headers['user-agent'] ?? null) ?? $existing->userAgent,
                 );
 
                 return;
@@ -327,8 +328,10 @@ final class SessionManager
             $now,
             $this->expiry(),
             false,
-            $request === null ? $ip : ($request->clientIp ?? $ip),
-            $request === null ? $agent : ($request->headers['user-agent'] ?? $agent),
+            // Gekuerzt gespeichert: Was nicht in der Datenbank steht, kann auch
+            // nicht versehentlich woanders landen.
+            $request === null ? $ip : (DeviceFingerprint::shortenIp($request->clientIp) ?? $ip),
+            $request === null ? $agent : (DeviceFingerprint::shortenAgent($request->headers['user-agent'] ?? null) ?? $agent),
         );
     }
 

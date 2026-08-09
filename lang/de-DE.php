@@ -333,6 +333,25 @@ return [
         . 'ein Export aus einer neueren Fassung bleibt also einlesbar. '
         . 'Geschrieben wird über den wissenschaftlichen Namen: Vorhandenes wird aktualisiert, Neues angelegt.',
 
+    // ------------------------------------------------------------ Sitzungen
+    'sitzungen.titel' => 'Angemeldete Geräte',
+    'sitzungen.erklaerung' => 'Hier siehst du, wo dein Konto gerade angemeldet ist. '
+        . 'Von der Herkunft wird nur das Netz gespeichert, von der Browserkennung nur der Anfang — '
+        . 'zum Wiedererkennen reicht das, für mehr gibt es keinen Grund.',
+    'sitzungen.diese' => 'Dieses Gerät',
+    'sitzungen.zuletzt' => 'Zuletzt aktiv: {zeitpunkt}',
+    'sitzungen.angemeldet_seit' => 'Angemeldet seit {zeitpunkt}',
+    'sitzungen.beenden' => 'Beenden',
+    'sitzungen.beendet' => 'Die Sitzung ist beendet.',
+    'sitzungen.eigene_nicht' => 'Das ist deine aktuelle Sitzung — dafür gibt es den Abmeldeknopf.',
+    'sitzungen.alle_titel' => 'Alle anderen Geräte abmelden',
+    'sitzungen.alle_erklaerung' => 'Wenn du den Verdacht hast, dass jemand anderes Zugriff auf dein Konto hat: '
+        . 'Das beendet alle Sitzungen außer dieser. Danach solltest du auch dein Passwort ändern.',
+    'sitzungen.passwort' => 'Zur Bestätigung dein Passwort',
+    'sitzungen.alle_beenden' => 'Alle anderen beenden',
+    'sitzungen.alle_beendet' => '{anzahl} Sitzungen wurden beendet.',
+    'sitzungen.passwort_falsch' => 'Das Passwort stimmt nicht.',
+
     // ------------------------------------------------------------ Merkliste
     'merkliste.titel' => 'Merkliste',
     'merkliste.merken' => 'Merken',

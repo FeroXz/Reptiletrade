@@ -18,6 +18,7 @@ use Reptilienmarkt\Domain\User\AccountService;
 use Reptilienmarkt\Domain\User\User;
 use Reptilienmarkt\Domain\User\VerificationLevel;
 use Reptilienmarkt\Infra\Persistence\PdoAuditLog;
+use Reptilienmarkt\Infra\Persistence\PdoSessionRepository;
 use Reptilienmarkt\Infra\Persistence\PdoTokenRepository;
 use Reptilienmarkt\Infra\Persistence\PdoUserRepository;
 use Reptilienmarkt\Infra\Persistence\PdoVerificationRepository;
@@ -65,6 +66,7 @@ final class AccountServiceTest extends DatabaseTestCase
             $this->tokens,
             $hasher,
             $this->totp,
+            new PdoSessionRepository($this->database),
             $this->mailer,
             new PdoAuditLog($this->database),
             $this->clock,

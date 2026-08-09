@@ -42,4 +42,12 @@ final readonly class Session
     {
         return $this->payload[$key] ?? $default;
     }
+
+    /**
+     * Grobe Geraetebezeichnung fuer die Sitzungsliste.
+     */
+    public function deviceLabel(): string
+    {
+        return DeviceFingerprint::label($this->userAgent);
+    }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Reptilienmarkt\Http\Controller;
 
+use Reptilienmarkt\Domain\Auth\SessionRepository;
 use Reptilienmarkt\Domain\Auth\TokenException;
 use Reptilienmarkt\Domain\Auth\TokenType;
 use Reptilienmarkt\Domain\Auth\TotpAuthenticator;
@@ -17,6 +18,7 @@ use Reptilienmarkt\Domain\User\AccountService;
 use Reptilienmarkt\Domain\User\UserDocument;
 use Reptilienmarkt\Domain\User\UserDocumentRepository;
 use Reptilienmarkt\Domain\User\UserDocumentType;
+use Reptilienmarkt\Http\HttpException;
 use Reptilienmarkt\Http\Message\Request;
 use Reptilienmarkt\Http\Message\Response;
 use Reptilienmarkt\Http\Session\SessionManager;
@@ -37,6 +39,7 @@ final readonly class AccountController
         private PrivateStorage $storage,
         private TotpAuthenticator $totp,
         private NotificationPreferenceService $notifications,
+        private SessionRepository $sessions,
         private RateLimiter $rateLimiter,
         private Viewer $currentUser,
         private SessionManager $session,
@@ -196,6 +199,9 @@ final readonly class AccountController
                 $user,
                 $this->input($request, 'aktuelles_passwort'),
                 $this->input($request, 'neues_passwort'),
+                // Die eigene Sitzung bleibt — wer sein Passwort wechselt, soll
+                // sich nicht dabei selbst aussperren.
+                $this->session->id(),
             );
 
             $this->session->flash('erfolg', $this->translator->translate('konto.passwort_geaendert'));
@@ -251,6 +257,73 @@ final readonly class AccountController
         }
 
         return Response::redirect('/konto/');
+    }
+
+    // ------------------------------------------------------ Sitzungen
+
+    public function sessions(Request $request): Response
+    {
+        $user = $this->currentUser->require();
+
+        return Response::html($this->twig->render('konto/sitzungen.html.twig', [
+            'sitzungen' => $this->sessions->forUser($user->id ?? 0),
+            'aktuelle' => $this->session->id(),
+            'csrf' => $this->session->csrfToken(),
+            'meldungen' => $this->session->takeFlashes(),
+        ]));
+    }
+
+    public function endSession(Request $request): Response
+    {
+        $user = $this->currentUser->require();
+        $this->guardCsrf($request);
+
+        $id = $request->attribute('id') ?? '';
+        $sitzung = $id === '' ? null : $this->sessions->find($id);
+
+        // 404 statt 403: Eine fremde Sitzungskennung soll nicht einmal in ihrer
+        // Existenz bestaetigt werden.
+        if ($sitzung === null || $sitzung->userId !== ($user->id ?? 0)) {
+            throw HttpException::notFound('Sitzung nicht gefunden.');
+        }
+
+        if ($sitzung->id === $this->session->id()) {
+            // Die eigene Sitzung hier zu beenden waere ein Abmelden mit
+            // falschem Namen — dafuer gibt es den Abmeldeknopf.
+            $this->session->flash('fehler', $this->translator->translate('sitzungen.eigene_nicht'));
+
+            return Response::redirect('/konto/sitzungen');
+        }
+
+        $this->sessions->delete($sitzung->id);
+        $this->session->flash('erfolg', $this->translator->translate('sitzungen.beendet'));
+
+        return Response::redirect('/konto/sitzungen');
+    }
+
+    /**
+     * Alle uebrigen Sitzungen beenden — gegen Passwort.
+     *
+     * Das Passwort ist hier kein Formalismus: Genau diese Massnahme greift
+     * gegen eine uebernommene Sitzung, und wer die Sitzung uebernommen hat,
+     * soll sie nicht gegen den rechtmaessigen Inhaber richten koennen.
+     */
+    public function endAllSessions(Request $request): Response
+    {
+        $user = $this->currentUser->require();
+        $this->guardCsrf($request);
+
+        if (!$this->accounts->verifyPassword($user, $this->input($request, 'passwort'))) {
+            $this->session->flash('fehler', $this->translator->translate('sitzungen.passwort_falsch'));
+
+            return Response::redirect('/konto/sitzungen');
+        }
+
+        $beendet = $this->accounts->endAllSessions($user, $this->session->id());
+
+        $this->session->flash('erfolg', $this->translator->translate('sitzungen.alle_beendet', ['anzahl' => $beendet]));
+
+        return Response::redirect('/konto/sitzungen');
     }
 
     // ------------------------------------------------- Benachrichtigungen
