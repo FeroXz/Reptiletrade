@@ -9,7 +9,10 @@ use Reptilienmarkt\Domain\Content\ContentEntry;
 use Reptilienmarkt\Domain\Content\ContentEntryRepository;
 use Reptilienmarkt\Domain\Content\ContentPath;
 use Reptilienmarkt\Domain\Content\ContentRenderer;
+use Reptilienmarkt\Domain\Content\MediaRepository;
 use Reptilienmarkt\Domain\Content\PreviewService;
+use Reptilienmarkt\Domain\Content\RedirectService;
+use Reptilienmarkt\Domain\Content\SeoContext;
 use Reptilienmarkt\Http\Message\Request;
 use Reptilienmarkt\Http\Message\Response;
 use Twig\Environment;
@@ -29,7 +32,10 @@ final readonly class ContentController
         private ContentBlockRepository $blocks,
         private ContentRenderer $renderer,
         private PreviewService $previews,
+        private RedirectService $redirects,
+        private MediaRepository $media,
         private Environment $twig,
+        private string $baseUrl = 'https://example.tld',
     ) {}
 
     public function show(Request $request): Response
@@ -40,13 +46,28 @@ final readonly class ContentController
             return $this->notFound();
         }
 
-        $entry = $this->entries->findByPath(ContentPath::normalize($pfad));
+        $normalisiert = ContentPath::normalize($pfad);
+        $entry = $this->entries->findByPath($normalisiert);
 
         if ($entry === null) {
-            return $this->notFound();
+            // Erst die Weiterleitungen fragen, dann aufgeben: Genau dafuer
+            // gibt es sie.
+            $redirect = $this->redirects->resolve($normalisiert);
+
+            return $redirect === null
+                ? $this->notFound()
+                : Response::redirect($redirect->toPath, $redirect->code);
         }
 
         if ($entry->status->isGone()) {
+            // Auch ein archivierter Inhalt kann weitergeleitet worden sein —
+            // dann gilt die Weiterleitung, nicht die 410.
+            $redirect = $this->redirects->resolve($normalisiert);
+
+            if ($redirect !== null) {
+                return Response::redirect($redirect->toPath, $redirect->code);
+            }
+
             // 410 statt 404: Ein bewusst entfernter Inhalt ist etwas anderes
             // als ein Tippfehler in der URL. Suchmaschinen nehmen die Adresse
             // daraufhin dauerhaft aus dem Bestand, statt sie monatelang weiter
@@ -60,7 +81,21 @@ final readonly class ContentController
             return $this->notFound();
         }
 
-        return $this->render($entry);
+        $response = $this->render($entry);
+        $etag = $this->seo($entry)->etag();
+
+        // Ein unveraenderter Inhalt braucht nicht noch einmal uebertragen zu
+        // werden. Die Seite bleibt trotzdem "private": Die Kopfzeile zeigt den
+        // angemeldeten Namen, und ein vorgelagerter Zwischenspeicher duerfte
+        // sie deshalb nicht an den naechsten Besucher weiterreichen.
+        if (($request->headers['if-none-match'] ?? '') === $etag) {
+            return new Response('', 304, ['etag' => $etag, 'cache-control' => 'private, must-revalidate']);
+        }
+
+        return $response
+            ->withHeader('etag', $etag)
+            ->withHeader('cache-control', 'private, must-revalidate')
+            ->withHeader('x-robots-tag', $entry->noindex ? 'noindex, follow' : 'all');
     }
 
     /**
@@ -101,8 +136,19 @@ final readonly class ContentController
             'eintrag' => $entry,
             'bloecke' => $this->renderer->prepare($blocks),
             'pfadleiste' => $this->breadcrumb($entry),
+            'seo' => $this->seo($entry),
             'vorschau' => $preview,
         ]));
+    }
+
+    private function seo(ContentEntry $entry): SeoContext
+    {
+        return new SeoContext(
+            $entry,
+            $this->baseUrl,
+            $this->breadcrumb($entry),
+            $entry->ogImageId === null ? null : $this->media->findById($entry->ogImageId),
+        );
     }
 
     /**

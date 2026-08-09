@@ -13,6 +13,7 @@ use Reptilienmarkt\Domain\Content\ContentService;
 use Reptilienmarkt\Domain\Content\ContentText;
 use Reptilienmarkt\Domain\Content\ContentType;
 use Reptilienmarkt\Domain\Content\MarkdownRenderer;
+use Reptilienmarkt\Domain\Content\RedirectService;
 use Reptilienmarkt\Domain\Content\Taxonomy;
 use Reptilienmarkt\Domain\Privacy\RetentionPolicy;
 use Reptilienmarkt\Http\Controller\NewsController;
@@ -23,6 +24,7 @@ use Reptilienmarkt\Infra\Persistence\PdoContentBlockRepository;
 use Reptilienmarkt\Infra\Persistence\PdoContentEntryRepository;
 use Reptilienmarkt\Infra\Persistence\PdoContentRevisionRepository;
 use Reptilienmarkt\Infra\Persistence\PdoContentTermRepository;
+use Reptilienmarkt\Infra\Persistence\PdoRedirectRepository;
 use Reptilienmarkt\Infra\Search\ContentIndexer;
 use Reptilienmarkt\Infra\Search\Fts5ContentSearchIndex;
 use Reptilienmarkt\Support\Translator;
@@ -309,6 +311,11 @@ final class NewsTest extends DatabaseTestCase
             new PdoContentRevisionRepository($this->database),
             $this->index,
             new ContentText(new MarkdownRenderer()),
+            new RedirectService(
+                new PdoRedirectRepository($this->database),
+                new PdoAuditLog($this->database),
+                $this->clock,
+            ),
             new RetentionPolicy(require \dirname(__DIR__, 2) . '/config/aufbewahrung.php', $this->clock),
             new PdoAuditLog($this->database),
             $this->clock,

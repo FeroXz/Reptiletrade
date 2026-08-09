@@ -21,7 +21,12 @@ declare(strict_types=1);
 
 use Reptilienmarkt\Domain\Auth\Session;
 use Reptilienmarkt\Domain\Auth\SessionRepository;
+use Reptilienmarkt\Domain\Content\MenuRepository;
+use Reptilienmarkt\Domain\Content\RedirectService;
+use Reptilienmarkt\Domain\Content\ReservedPaths;
 use Reptilienmarkt\Domain\Site\SiteIdentity;
+use Reptilienmarkt\Http\Controller\SitemapController;
+use Reptilienmarkt\Http\Message\Request;
 use Reptilienmarkt\Infra\Persistence\Database;
 use Reptilienmarkt\Support\Container;
 use Reptilienmarkt\Support\Env;
@@ -382,6 +387,125 @@ try {
         : $befund->ok('Keine gescheiterten Auftraege');
 } catch (Throwable $exception) {
     $befund->problem('Der Auftragsstand ist nicht lesbar', $exception->getMessage());
+}
+
+// ------------------------------------------------------- Redaktionssystem
+$befund->abschnitt('Redaktionssystem');
+
+$medienVerzeichnis = $root . '/' . ltrim(Env::string('STORAGE_MEDIA', 'public/media'), '/');
+
+if (!is_dir($medienVerzeichnis)) {
+    $befund->problem(
+        'Das Medienverzeichnis fehlt: ' . kurz($root, $medienVerzeichnis),
+        'Anlegen mit: sudo install -d -o www-data -g www-data -m 775 ' . $medienVerzeichnis,
+    );
+} elseif (!is_writable($medienVerzeichnis)) {
+    $befund->problem(
+        'Das Medienverzeichnis ist nicht beschreibbar: ' . kurz($root, $medienVerzeichnis),
+        'Ohne Schreibrecht scheitert jeder Upload der Redaktion.',
+    );
+} else {
+    $befund->ok('Das Medienverzeichnis ist beschreibbar', kurz($root, $medienVerzeichnis));
+}
+
+// Die zweite Linie gegen ausgefuehrte Uploads. Geprueft wird die Regel, nicht
+// der Webserver — den kann dieses Skript nicht befragen.
+$medienHtaccess = $medienVerzeichnis . '/.htaccess';
+
+if (!is_file($medienHtaccess)) {
+    $befund->warnung(
+        'In ' . kurz($root, $medienVerzeichnis) . ' fehlt die .htaccess',
+        'Bei Apache waere PHP dort dann ausfuehrbar. Bei nginx greift stattdessen die '
+        . 'location-Regel aus docs/INSTALLATION.md — dann ist dieser Hinweis gegenstandslos.',
+    );
+} else {
+    $regeln = (string) file_get_contents($medienHtaccess);
+
+    str_contains($regeln, 'RemoveHandler') && str_contains($regeln, 'php')
+        ? $befund->ok('PHP-Ausfuehrung in der Mediathek ist per .htaccess unterbunden')
+        : $befund->problem(
+            'Die .htaccess der Mediathek sperrt keine Skriptendungen',
+            'Erwartet werden RemoveHandler/RemoveType fuer .php und Verwandte.',
+        );
+}
+
+try {
+    $menues = $container->get(MenuRepository::class);
+    $vorhanden = array_keys($menues->menus());
+
+    $fehlende = array_diff(['hauptmenu', 'fussbereich'], $vorhanden);
+
+    $fehlende === []
+        ? $befund->ok('Die Menues hauptmenu und fussbereich sind angelegt')
+        : $befund->problem(
+            'Es fehlen Menues: ' . implode(', ', $fehlende),
+            'Sie entstehen mit Migration 0028 — laeuft "php bin/migrate.php status" sauber durch?',
+        );
+
+    $verwaist = $menues->danglingItems();
+
+    $verwaist === []
+        ? $befund->ok('Kein Menueeintrag zeigt auf einen geloeschten Inhalt')
+        : $befund->warnung(
+            count($verwaist) . ' Menueeintraege zeigen ins Leere',
+            'Sie werden im Menue uebersprungen. Aufraeumen unter /admin/menues: '
+            . implode(', ', array_map(static fn(array $e): string => $e['label'], $verwaist)),
+        );
+} catch (Throwable $exception) {
+    $befund->problem('Die Menues sind nicht lesbar', $exception->getMessage());
+}
+
+try {
+    $schleifen = $container->get(RedirectService::class)->loops();
+
+    $schleifen === []
+        ? $befund->ok('Keine Weiterleitungsschleifen')
+        : $befund->problem(
+            count($schleifen) . ' Weiterleitungen fuehren im Kreis',
+            'Ein Besucher landet dort in einer Endlosschleife: '
+            . implode(', ', array_map(
+                static fn(array $s): string => $s['from'] . ' ⇄ ' . $s['to'],
+                $schleifen,
+            )),
+        );
+} catch (Throwable $exception) {
+    $befund->problem('Die Weiterleitungen sind nicht lesbar', $exception->getMessage());
+}
+
+// Die Reservierungsliste gegen die tatsaechlich registrierten Routen — und
+// gegen das, was bereits in der Datenbank steht. Der Test tut dasselbe fuer
+// die Liste; hier geht es um den Datenbestand einer laufenden Installation.
+try {
+    $kollisionen = [];
+
+    foreach ($container->get(Database::class)->select(
+        "SELECT path FROM content_entries WHERE type = 'seite'",
+    ) as $zeile) {
+        $pfad = (string) $zeile['path'];
+
+        if (ReservedPaths::isReserved($pfad)) {
+            $kollisionen[] = $pfad;
+        }
+    }
+
+    $kollisionen === []
+        ? $befund->ok('Kein Inhaltspfad kollidiert mit einer registrierten Route')
+        : $befund->problem(
+            count($kollisionen) . ' Inhaltspfade sind von der Anwendung belegt',
+            'Sie werden nie ausgeliefert, weil die feste Route vorher greift: ' . implode(', ', $kollisionen),
+        );
+} catch (Throwable $exception) {
+    $befund->problem('Die Inhaltspfade sind nicht lesbar', $exception->getMessage());
+}
+
+try {
+    $sitemap = $container->get(SitemapController::class)->sitemap(new Request('GET', '/sitemap.xml'));
+
+    $sitemap->status === 200 && str_contains($sitemap->body, '<urlset')
+        ? $befund->ok('Die Sitemap laesst sich erzeugen')
+        : $befund->problem('Die Sitemap ist nicht erzeugbar', 'Status ' . $sitemap->status);
+} catch (Throwable $exception) {
+    $befund->problem('Die Sitemap ist nicht erzeugbar', $exception->getMessage());
 }
 
 // ---------------------------------------------------------------- Fazit

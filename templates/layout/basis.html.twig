@@ -19,6 +19,17 @@
             <button type="submit" class="knopf knopf-primaer">Suchen</button>
         </form>
 
+        {# Das Hauptmenü wird von der Redaktion gepflegt. Ist es leer, fehlt
+           hier schlicht nichts — die Kontonavigation daneben bleibt. #}
+        {% if betrachter is defined and betrachter.menu('hauptmenu') is not empty %}
+            <nav class="hidden items-center gap-4 text-sm lg:flex" aria-label="{{ t('inhalt.hauptmenu') }}">
+                {% for eintrag in betrachter.menu('hauptmenu') %}
+                    <a href="{{ eintrag.resolvedPath }}"
+                       {% if eintrag.isExternal %}rel="noopener noreferrer"{% endif %}>{{ eintrag.label }}</a>
+                {% endfor %}
+            </nav>
+        {% endif %}
+
         <nav class="flex items-center gap-4 text-sm" aria-label="Konto">
             {% if betrachter is defined and betrachter.isAuthenticated %}
                 <a href="/postfach/" class="flex items-center gap-1">
@@ -61,11 +72,22 @@
     </p>
     {# Impressum und Datenschutz gehoeren auf jede Seite und muessen mit
        hoechstens zwei Klicks erreichbar sein. #}
+    {# Impressum und Datenschutz stehen fest verdrahtet hier — sie muessen mit
+       hoechstens zwei Klicks erreichbar sein, und das darf nicht davon
+       abhaengen, dass jemand ein Menue pflegt. Was die Redaktion ergaenzt,
+       kommt dahinter. #}
     <nav class="flex flex-wrap gap-4">
         <a class="underline" href="/impressum">Impressum</a>
         <a class="underline" href="/datenschutz">Datenschutz</a>
         <a class="underline" href="/nutzungsbedingungen">Nutzungsbedingungen</a>
         <a class="underline" href="/kontakt">Kontakt</a>
+        <a class="underline" href="/news/">{{ t('inhalt.news_titel') }}</a>
+        {% if betrachter is defined %}
+            {% for eintrag in betrachter.menu('fussbereich') %}
+                <a class="underline" href="{{ eintrag.resolvedPath }}"
+                   {% if eintrag.isExternal %}rel="noopener noreferrer"{% endif %}>{{ eintrag.label }}</a>
+            {% endfor %}
+        {% endif %}
     </nav>
 </footer>
 {% block skripte %}{% endblock %}

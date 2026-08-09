@@ -16,14 +16,17 @@ use Reptilienmarkt\Domain\Content\ContentText;
 use Reptilienmarkt\Domain\Content\ContentType;
 use Reptilienmarkt\Domain\Content\MarkdownRenderer;
 use Reptilienmarkt\Domain\Content\PreviewService;
+use Reptilienmarkt\Domain\Content\RedirectService;
 use Reptilienmarkt\Http\Controller\ContentController;
 use Reptilienmarkt\Http\Message\Request;
 use Reptilienmarkt\Http\View\TwigFactory;
+use Reptilienmarkt\Infra\Persistence\PdoAuditLog;
 use Reptilienmarkt\Infra\Persistence\PdoContentBlockRepository;
 use Reptilienmarkt\Infra\Persistence\PdoContentEntryRepository;
 use Reptilienmarkt\Infra\Persistence\PdoListingRepository;
 use Reptilienmarkt\Infra\Persistence\PdoMediaRepository;
 use Reptilienmarkt\Infra\Persistence\PdoPreviewTokenRepository;
+use Reptilienmarkt\Infra\Persistence\PdoRedirectRepository;
 use Reptilienmarkt\Infra\Persistence\PdoSpeciesRepository;
 use Reptilienmarkt\Support\Translator;
 use Reptilienmarkt\Tests\DatabaseTestCase;
@@ -50,6 +53,7 @@ final class ContentPageTest extends DatabaseTestCase
         $this->blocks = new PdoContentBlockRepository($this->database);
 
         $root = \dirname(__DIR__, 2);
+        $clock = new FrozenClock(new DateTimeImmutable('2026-08-08T10:00:00+00:00'));
 
         $this->controller = new ContentController(
             $this->entries,
@@ -61,8 +65,11 @@ final class ContentPageTest extends DatabaseTestCase
                 new PdoSpeciesRepository($this->database),
                 new PdoMediaRepository($this->database),
             ),
-            new PreviewService(new PdoPreviewTokenRepository($this->database), new FrozenClock(new DateTimeImmutable('2026-08-08T10:00:00+00:00'))),
+            new PreviewService(new PdoPreviewTokenRepository($this->database), $clock),
+            new RedirectService(new PdoRedirectRepository($this->database), new PdoAuditLog($this->database), $clock),
+            new PdoMediaRepository($this->database),
             TwigFactory::create($root . '/templates', true, null, new Translator($root . '/lang')),
+            'https://reptilienmarkt.example',
         );
     }
 
@@ -79,7 +86,13 @@ final class ContentPageTest extends DatabaseTestCase
         self::assertStringContainsString('<h1 class="text-2xl font-semibold">Haltung im Terrarium</h1>', $response->body);
         self::assertStringContainsString('<h2>Grundlagen</h2>', $response->body);
         self::assertStringContainsString('<strong>wichtiger</strong>', $response->body);
-        self::assertStringContainsString('<link rel="canonical" href="/haltung/">', $response->body);
+        // Kanonisch ist absolut: Eine relative Angabe laesst offen, ob
+        // https://beispiel.tld/haltung/ und https://www.beispiel.tld/haltung/
+        // dieselbe Seite sind.
+        self::assertStringContainsString(
+            '<link rel="canonical" href="https://reptilienmarkt.example/haltung/">',
+            $response->body,
+        );
     }
 
     public function testEntwurfIstOeffentlichNichtErreichbar(): void
@@ -231,6 +244,66 @@ final class ContentPageTest extends DatabaseTestCase
 
         self::assertStringContainsString('href="/art/pogona-vitticeps/"', $body);
         self::assertStringContainsString('Pogona vitticeps', $body);
+    }
+
+    public function testEinAlterPfadWirdWeitergeleitet(): void
+    {
+        $this->redirects()->create('/alter-pfad/', '/haltung/', null);
+
+        $response = $this->controller->show($this->request('alter-pfad/'));
+
+        self::assertSame(301, $response->status);
+        self::assertSame('/haltung/', $response->headers['location'] ?? '');
+    }
+
+    public function testEinArchivierterInhaltMitWeiterleitungLeitetWeiter(): void
+    {
+        // Die Weiterleitung schlaegt die 410: Wer sagt, wohin es weitergeht,
+        // meint nicht "endgueltig weg".
+        $this->save('alt', 'Alte Seite', ContentStatus::Archiviert);
+        $this->redirects()->create('/alt/', '/haltung/', null);
+
+        $response = $this->controller->show($this->request('alt/'));
+
+        self::assertSame(301, $response->status);
+    }
+
+    public function testEineUnveraenderteSeiteAntwortetMit304(): void
+    {
+        $this->save('haltung', 'Haltung', ContentStatus::Veroeffentlicht);
+
+        $erst = $this->controller->show($this->request('haltung/'));
+        $etag = (string) ($erst->headers['etag'] ?? '');
+
+        self::assertNotSame('', $etag);
+
+        $zweit = $this->controller->show(
+            (new Request('GET', '/haltung/', [], [], ['if-none-match' => $etag]))
+                ->withAttributes(['pfad' => 'haltung/']),
+        );
+
+        self::assertSame(304, $zweit->status);
+        self::assertSame('', $zweit->body);
+    }
+
+    public function testInhaltsseitenBleibenPrivatZwischengespeichert(): void
+    {
+        // Die Kopfzeile zeigt den angemeldeten Namen — ein vorgelagerter
+        // Zwischenspeicher darf die Seite nicht weiterreichen.
+        $this->save('haltung', 'Haltung', ContentStatus::Veroeffentlicht);
+
+        $response = $this->controller->show($this->request('haltung/'));
+
+        self::assertStringContainsString('private', (string) ($response->headers['cache-control'] ?? ''));
+    }
+
+    private function redirects(): RedirectService
+    {
+        return new RedirectService(
+            new PdoRedirectRepository($this->database),
+            new PdoAuditLog($this->database),
+            new FrozenClock(new DateTimeImmutable('2026-08-08T10:00:00+00:00')),
+        );
     }
 
     private function save(

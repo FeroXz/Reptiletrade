@@ -19,10 +19,9 @@ declare(strict_types=1);
  *   6. Medien: Metadaten weg, srcset im Markup, Loeschsperre bei Verwendung.
  *   7. Beitraege, Kategoriearchiv, Volltextsuche und Feed.
  *   8. Eine Fassung laesst sich zuruecksetzen.
- *   9. Zuruecknehmen und Archivieren wirken wie angekuendigt (Entwurf, 410).
- *
- * Das letzte Arbeitspaket ergaenzt hier: Slug-Aenderung mit Weiterleitung,
- * Menues und Sitemap.
+ *   9. Eine Slug-Aenderung legt die 301 selbst an, ohne Kette.
+ *  10. Sitemap, robots.txt und Menues.
+ *  11. Zuruecknehmen und Archivieren wirken wie angekuendigt (Entwurf, 410).
  *
  * Aufruf: php tools/smoke_cms.php [--behalten]
  */
@@ -194,9 +193,14 @@ pruefe(
     'kein strong im Rumpf',
 );
 pruefe(
-    str_contains($oeffentlich->body, '<link rel="canonical" href="/haltung-im-terrarium/">'),
-    'Die Seite nennt ihre kanonische Adresse',
+    str_contains($oeffentlich->body, 'rel="canonical" href="http://localhost/haltung-im-terrarium/"'),
+    'Die Seite nennt ihre kanonische Adresse absolut',
     'kein canonical',
+);
+pruefe(
+    str_contains($oeffentlich->body, '<meta property="og:title" content="Haltung im Terrarium">'),
+    'Die Seite traegt OpenGraph-Angaben',
+    'kein og:title',
 );
 
 // ----------------------------------------------------- 4) Kollisionsschutz
@@ -467,7 +471,98 @@ $titel = (string) $container->get(Database::class)->scalar(
 );
 pruefe($titel === 'Haltung im Terrarium', 'Das Zuruecksetzen stellt den Titel wieder her', 'Titel ist: ' . $titel);
 
-// ----------------------------------------------------- 10) Statuswechsel
+// ------------------------------------- 10) Slug-Aenderung und Weiterleitung
+echo "\nWeiterleitungen\n";
+
+$redaktion->post('/admin/inhalte/' . $seiteId . '/bearbeiten', [
+    'titel' => 'Haltung im Terrarium',
+    'slug' => 'terrarienhaltung',
+    'vorlage' => 'standard',
+    'aktion' => 'speichern',
+]);
+
+$alt = $gast->get('/haltung-im-terrarium/');
+pruefe($alt->status === 301, 'Der alte Pfad antwortet mit 301', 'Status ' . $alt->status);
+pruefe(
+    ($alt->headers['location'] ?? '') === '/terrarienhaltung/',
+    'Die Weiterleitung zeigt auf den neuen Pfad',
+    'Ziel war: ' . (string) ($alt->headers['location'] ?? '—'),
+);
+pruefe($gast->get('/terrarienhaltung/')->status === 200, 'Die Seite ist unter der neuen Adresse da', 'kein 200');
+
+// Zweite Umbenennung: Der erste Pfad muss direkt aufs Ziel zeigen, nicht in
+// eine Kette laufen.
+$redaktion->post('/admin/inhalte/' . $seiteId . '/bearbeiten', [
+    'titel' => 'Haltung im Terrarium',
+    'slug' => 'haltung-im-terrarium',
+    'vorlage' => 'standard',
+    'aktion' => 'speichern',
+]);
+
+$ziel = (string) $container->get(Database::class)->scalar(
+    "SELECT to_path FROM content_redirects WHERE from_path = '/haltung-im-terrarium/'",
+);
+$erste = (string) $container->get(Database::class)->scalar(
+    "SELECT to_path FROM content_redirects WHERE from_path = '/terrarienhaltung/'",
+);
+
+pruefe($erste === '/haltung-im-terrarium/', 'Die zweite Umbenennung legt ihre eigene 301 an', 'Ziel: ' . $erste);
+pruefe(
+    $ziel === '' || $ziel === '/haltung-im-terrarium/',
+    'Keine Weiterleitungskette entsteht',
+    'Ziel der ersten: ' . $ziel,
+);
+
+$schleife = $redaktion->sendPost('/admin/weiterleitungen', [
+    'von' => '/terrarienhaltung/',
+    'nach' => '/haltung-im-terrarium/',
+    'code' => '301',
+]);
+pruefe($schleife->status >= 300 && $schleife->status < 400, 'Die Weiterleitungsliste nimmt Eingaben an', 'Status ' . $schleife->status);
+
+// ------------------------------------------------- 11) Sitemap und robots
+echo "\nSitemap und robots.txt\n";
+
+$sitemap = $gast->get('/sitemap.xml');
+pruefe($sitemap->status === 200, 'Die Sitemap antwortet', 'Status ' . $sitemap->status);
+pruefe(@simplexml_load_string($sitemap->body) !== false, 'Die Sitemap ist gueltiges XML', 'XML-Fehler');
+pruefe(
+    str_contains($sitemap->body, '/haltung-im-terrarium/'),
+    'Die veroeffentlichte Seite steht in der Sitemap',
+    'die Seite fehlt',
+);
+
+$etag = (string) ($sitemap->headers['etag'] ?? '');
+pruefe($etag !== '', 'Die Sitemap traegt ein ETag', 'kein ETag');
+
+$robots = $gast->get('/robots.txt');
+pruefe($robots->status === 200, 'robots.txt antwortet', 'Status ' . $robots->status);
+pruefe(str_contains($robots->body, 'Sitemap:'), 'robots.txt verweist auf die Sitemap', 'kein Sitemap-Verweis');
+pruefe(str_contains($robots->body, 'Disallow: /admin/'), 'robots.txt sperrt die Verwaltung', 'kein Disallow');
+
+// ------------------------------------------------------------ 12) Menues
+echo "\nMenues\n";
+
+$menues = $redaktion->get('/admin/menues');
+pruefe($menues->status === 200, 'Die Menueverwaltung rendert', 'Status ' . $menues->status);
+
+$redaktion->post('/admin/menues', [
+    'menu' => 'hauptmenu',
+    'label' => 'Haltung',
+    'ziel_typ' => 'entry',
+    'ziel_wert' => (string) $seiteId,
+    'sichtbarkeit' => 'alle',
+    'reihenfolge' => '0',
+]);
+
+$start = $gast->get('/markt/');
+pruefe(
+    str_contains($start->body, '>Haltung</a>'),
+    'Der Menueeintrag erscheint in der Kopfzeile',
+    'kein Menueeintrag im Markup',
+);
+
+// ----------------------------------------------------- 13) Statuswechsel
 echo "\nStatuswechsel\n";
 
 $redaktion->post('/admin/inhalte/' . $seiteId . '/zuruecknehmen', []);
@@ -487,7 +582,7 @@ pruefe(
     'Status ' . $archiviert->status,
 );
 
-// ----------------------------------------------------------- 11) Loeschen
+// ----------------------------------------------------------- 14) Loeschen
 echo "\nAufraeumen\n";
 
 $redaktion->post('/admin/inhalte/' . $seiteId . '/loeschen', []);

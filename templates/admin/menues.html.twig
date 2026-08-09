@@ -1,0 +1,114 @@
+{% extends 'layout/basis.html.twig' %}
+{% block titel %}{{ t('admin.menue.titel') }} — Reptilienmarkt{% endblock %}
+{% block kopf %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block inhalt %}
+    <div class="mx-auto max-w-4xl space-y-6">
+        {% include 'partials/meldungen.html.twig' %}
+
+        <div class="flex flex-wrap items-baseline justify-between gap-3">
+            <div>
+                <h1 class="text-xl font-semibold">{{ t('admin.menue.titel') }}</h1>
+                <p class="gedaempft">{{ t('admin.menue.erklaerung') }}</p>
+            </div>
+            <a class="text-sm underline" href="/admin/inhalte">{{ t('admin.inhalt.titel') }}</a>
+        </div>
+
+        <nav class="flex flex-wrap gap-3 text-sm" aria-label="{{ t('admin.menue.titel') }}">
+            {% for slug, name in menues %}
+                <a class="{{ slug == menu ? 'font-semibold' : 'underline' }}" href="/admin/menues?menu={{ slug }}">{{ name }}</a>
+            {% endfor %}
+        </nav>
+
+        {% if eintraege is empty %}
+            <p class="karte p-6 text-sm gedaempft">{{ t('admin.menue.leer') }}</p>
+        {% else %}
+            <div class="karte overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="text-left">
+                            <th class="px-4 py-3">{{ t('admin.menue.spalte_beschriftung') }}</th>
+                            <th class="px-4 py-3">{{ t('admin.menue.spalte_ziel') }}</th>
+                            <th class="px-4 py-3">{{ t('admin.menue.spalte_sichtbar') }}</th>
+                            <th class="px-4 py-3">{{ t('admin.menue.spalte_reihenfolge') }}</th>
+                            <th class="px-4 py-3">{{ t('admin.inhalt.spalte_aktion') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for eintrag in eintraege %}
+                            <tr class="border-t" style="border-color: var(--rand)">
+                                <td class="px-4 py-3">{{ eintrag.label }}</td>
+                                <td class="px-4 py-3 gedaempft">
+                                    {{ eintrag.targetType.label }}: {{ eintrag.targetValue }}
+                                </td>
+                                <td class="px-4 py-3 gedaempft">{{ eintrag.visibility.label }}</td>
+                                <td class="px-4 py-3 gedaempft">{{ eintrag.sortOrder }}</td>
+                                <td class="px-4 py-3">
+                                    <form method="post" action="/admin/menues/{{ eintrag.id }}/loeschen">
+                                        <input type="hidden" name="_csrf" value="{{ csrf }}">
+                                        <input type="hidden" name="menu" value="{{ menu }}">
+                                        <button type="submit" class="knopf text-xs">{{ t('allgemein.loeschen') }}</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+
+        <form method="post" action="/admin/menues" class="karte space-y-4 p-6">
+            <input type="hidden" name="_csrf" value="{{ csrf }}">
+            <input type="hidden" name="menu" value="{{ menu }}">
+
+            <h2 class="text-base font-semibold">{{ t('admin.menue.neu') }}</h2>
+
+            <div class="grid gap-4 sm:grid-cols-2">
+                <div>
+                    <label class="text-sm" for="label">{{ t('admin.menue.spalte_beschriftung') }}</label>
+                    <input class="feld" id="label" name="label" required>
+                </div>
+                <div>
+                    <label class="text-sm" for="ziel_typ">{{ t('admin.menue.zieltyp') }}</label>
+                    <select class="feld" id="ziel_typ" name="ziel_typ">
+                        {% for typ in zieltypen %}
+                            <option value="{{ typ.value }}">{{ typ.label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label class="text-sm" for="ziel_wert">{{ t('admin.menue.zielwert') }}</label>
+                <input class="feld" id="ziel_wert" name="ziel_wert" required aria-describedby="ziel-hilfe">
+                <p class="mt-1 text-xs gedaempft" id="ziel-hilfe">{{ t('admin.menue.zielwert_hilfe') }}</p>
+            </div>
+
+            <details>
+                <summary class="cursor-pointer text-sm">{{ t('admin.menue.vorhandene_inhalte') }}</summary>
+                <ul class="mt-2 space-y-1 text-xs gedaempft">
+                    {% for seite in seiten %}
+                        <li>#{{ seite.id }} — {{ seite.title }} ({{ seite.path }})</li>
+                    {% endfor %}
+                </ul>
+            </details>
+
+            <div class="grid gap-4 sm:grid-cols-2">
+                <div>
+                    <label class="text-sm" for="sichtbarkeit">{{ t('admin.menue.spalte_sichtbar') }}</label>
+                    <select class="feld" id="sichtbarkeit" name="sichtbarkeit">
+                        {% for sicht in sichtbarkeiten %}
+                            <option value="{{ sicht.value }}">{{ sicht.label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="text-sm" for="reihenfolge">{{ t('admin.menue.spalte_reihenfolge') }}</label>
+                    <input class="feld" id="reihenfolge" name="reihenfolge" inputmode="numeric" value="0">
+                </div>
+            </div>
+
+            <button type="submit" class="knopf knopf-primaer">{{ t('admin.menue.hinzufuegen') }}</button>
+        </form>
+    </div>
+{% endblock %}

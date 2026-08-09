@@ -14,6 +14,7 @@ use Reptilienmarkt\Domain\Content\ContentText;
 use Reptilienmarkt\Domain\Content\ContentType;
 use Reptilienmarkt\Domain\Content\MarkdownRenderer;
 use Reptilienmarkt\Domain\Content\PreviewService;
+use Reptilienmarkt\Domain\Content\RedirectService;
 use Reptilienmarkt\Domain\Job\Job;
 use Reptilienmarkt\Domain\Job\JobStatus;
 use Reptilienmarkt\Domain\Privacy\RetentionPolicy;
@@ -29,6 +30,7 @@ use Reptilienmarkt\Infra\Persistence\PdoContentRevisionRepository;
 use Reptilienmarkt\Infra\Persistence\PdoListingRepository;
 use Reptilienmarkt\Infra\Persistence\PdoMediaRepository;
 use Reptilienmarkt\Infra\Persistence\PdoPreviewTokenRepository;
+use Reptilienmarkt\Infra\Persistence\PdoRedirectRepository;
 use Reptilienmarkt\Infra\Persistence\PdoSpeciesRepository;
 use Reptilienmarkt\Infra\Search\Fts5ContentSearchIndex;
 use Reptilienmarkt\Support\Log\NullLogger;
@@ -238,7 +240,14 @@ final class ContentSchedulingTest extends DatabaseTestCase
                 new PdoMediaRepository($this->database),
             ),
             $this->previews(),
+            new RedirectService(
+                new PdoRedirectRepository($this->database),
+                new PdoAuditLog($this->database),
+                $this->clock,
+            ),
+            new PdoMediaRepository($this->database),
             TwigFactory::create($root . '/templates', true, null, new Translator($root . '/lang')),
+            'https://reptilienmarkt.example',
         );
     }
 
@@ -260,6 +269,11 @@ final class ContentSchedulingTest extends DatabaseTestCase
             new PdoContentRevisionRepository($this->database),
             new Fts5ContentSearchIndex($this->database),
             new ContentText(new MarkdownRenderer()),
+            new RedirectService(
+                new PdoRedirectRepository($this->database),
+                new PdoAuditLog($this->database),
+                $this->clock,
+            ),
             new RetentionPolicy(require \dirname(__DIR__, 3) . '/config/aufbewahrung.php', $this->clock),
             new PdoAuditLog($this->database),
             $this->clock,

@@ -7,6 +7,7 @@ use Reptilienmarkt\Http\Controller\AdminContentController;
 use Reptilienmarkt\Http\Controller\AdminController;
 use Reptilienmarkt\Http\Controller\AdminListingController;
 use Reptilienmarkt\Http\Controller\AdminMediaController;
+use Reptilienmarkt\Http\Controller\AdminStructureController;
 use Reptilienmarkt\Http\Controller\AdminUserController;
 use Reptilienmarkt\Http\Controller\AnnouncementController;
 use Reptilienmarkt\Http\Controller\ApiController;
@@ -29,6 +30,7 @@ use Reptilienmarkt\Http\Controller\PasswordResetController;
 use Reptilienmarkt\Http\Controller\PrivacyController;
 use Reptilienmarkt\Http\Controller\ProfileController;
 use Reptilienmarkt\Http\Controller\ReportController;
+use Reptilienmarkt\Http\Controller\SitemapController;
 use Reptilienmarkt\Http\Controller\SpeciesController;
 use Reptilienmarkt\Http\Controller\StatsController;
 use Reptilienmarkt\Http\Routing\Router;
@@ -162,6 +164,14 @@ $router->post('/admin/inhalte/{id}/versionen/{nr}/zuruecksetzen', AdminContentCo
 $router->post('/admin/inhalte/{id}/vorschau', AdminContentController::class, 'preview', 'admin.inhalte.vorschau');
 
 // Mediathek. Loeschen ist zweistufig: erst die Verwendungen zeigen, dann loeschen.
+// Menues und Weiterleitungen
+$router->get('/admin/menues', AdminStructureController::class, 'menus', 'admin.menues');
+$router->post('/admin/menues', AdminStructureController::class, 'saveMenuItem', 'admin.menues.speichern');
+$router->post('/admin/menues/{id}/loeschen', AdminStructureController::class, 'deleteMenuItem', 'admin.menues.loeschen');
+$router->get('/admin/weiterleitungen', AdminStructureController::class, 'redirects', 'admin.weiterleitungen');
+$router->post('/admin/weiterleitungen', AdminStructureController::class, 'createRedirect', 'admin.weiterleitungen.anlegen');
+$router->post('/admin/weiterleitungen/{id}/loeschen', AdminStructureController::class, 'deleteRedirect', 'admin.weiterleitungen.loeschen');
+
 $router->get('/admin/medien', AdminMediaController::class, 'index', 'admin.medien');
 $router->post('/admin/medien', AdminMediaController::class, 'upload', 'admin.medien.hochladen');
 $router->post('/admin/medien/{id}/beschreiben', AdminMediaController::class, 'describe', 'admin.medien.beschreiben');
@@ -211,6 +221,9 @@ $router->get('/api/v1/orte', ApiController::class, 'places', 'api.orte');
 // Beitraege: Uebersicht, Kategoriearchiv, Feed. Die Einzelseite eines Beitrags
 // laeuft ueber die Auffangroute — sie ist eine Inhaltsseite wie jede andere,
 // nur mit einem Pfad, der das Jahr traegt.
+$router->get('/sitemap.xml', SitemapController::class, 'sitemap', 'sitemap');
+$router->get('/robots.txt', SitemapController::class, 'robots', 'robots');
+
 $router->get('/news/', NewsController::class, 'index', 'news');
 $router->get('/news/kategorie/{slug}/', NewsController::class, 'category', 'news.kategorie');
 $router->get('/feed.xml', NewsController::class, 'feed', 'news.feed');

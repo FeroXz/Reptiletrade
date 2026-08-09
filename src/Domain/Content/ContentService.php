@@ -29,6 +29,7 @@ final readonly class ContentService
         private ContentRevisionRepository $revisions,
         private ContentSearchIndex $search,
         private ContentText $text,
+        private RedirectService $redirects,
         private RetentionPolicy $retention,
         private AuditLog $audit,
         private Clock $clock,
@@ -188,6 +189,24 @@ final readonly class ContentService
 
         if ($moved !== []) {
             $moved = array_merge($moved, $this->moveDescendants($updated, $now, $actorId));
+
+            // Auto-301: aber nur fuer das, was oeffentlich stand. Ein Entwurf
+            // hatte nie eine Adresse, die jemand kennt — eine Weiterleitung
+            // darauf waere ein Eintrag ohne Anlass, der spaeter im Weg steht,
+            // wenn jemand den Pfad neu vergeben will.
+            if ($entry->isPublic()) {
+                foreach ($moved as $wechsel) {
+                    try {
+                        $this->redirects->create($wechsel['alt'], $wechsel['neu'], $actorId, auto: true);
+                    } catch (ContentException) {
+                        // Eine Schleife oder ein unbrauchbares Ziel soll das
+                        // Umbenennen nicht scheitern lassen: Die Seite liegt
+                        // bereits richtig, es fehlt nur die Weiterleitung. Der
+                        // Audit-Trail zeigt, welche entstanden sind.
+                        continue;
+                    }
+                }
+            }
 
             $this->record('content.updated', $id, $actorId, [
                 'pfad_alt' => $entry->path,

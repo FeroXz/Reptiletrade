@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace Reptilienmarkt\Http\View;
 
+use Reptilienmarkt\Domain\Content\ContentEntryRepository;
 use Reptilienmarkt\Domain\Content\ContentPermission;
+use Reptilienmarkt\Domain\Content\MenuItem;
+use Reptilienmarkt\Domain\Content\MenuRepository;
+use Reptilienmarkt\Domain\Content\MenuTargetType;
 use Reptilienmarkt\Domain\Message\ConversationRepository;
 use Reptilienmarkt\Domain\User\Role;
 use Reptilienmarkt\Domain\User\User;
@@ -28,7 +32,71 @@ final class ViewContext
         private readonly Viewer $viewer,
         private readonly ConversationRepository $conversations,
         private readonly ContentPermission $content,
+        private readonly MenuRepository $menus,
+        private readonly ContentEntryRepository $entries,
     ) {}
+
+    /** @var array<string, list<MenuItem>> */
+    private array $resolvedMenus = [];
+
+    /**
+     * Die sichtbaren Eintraege eines Menues, mit aufgeloesten Pfaden.
+     *
+     * Zwischengespeichert je Anfrage: Kopf- und Fussbereich fragen sonst
+     * dieselbe Liste zweimal ab. Ein Menue, das es nicht gibt, ergibt eine
+     * leere Liste — die Kopfzeile soll nicht deshalb ausfallen.
+     *
+     * @return list<MenuItem>
+     */
+    public function menu(string $slug): array
+    {
+        if (isset($this->resolvedMenus[$slug])) {
+            return $this->resolvedMenus[$slug];
+        }
+
+        $user = $this->viewer->get();
+        $sichtbar = [];
+
+        foreach ($this->menus->items($slug) as $item) {
+            if (!$item->visibility->allows($user)) {
+                continue;
+            }
+
+            $pfad = $this->resolveTarget($item);
+
+            // Ein Eintrag, dessen Inhalt es nicht mehr gibt, verschwindet
+            // still aus dem Menue. Ein Verweis ins Leere waere fuer den
+            // Besucher schlechter; dass er da ist, meldet bin/doctor.php.
+            if ($pfad === '') {
+                continue;
+            }
+
+            $sichtbar[] = $item->withResolved($pfad, []);
+        }
+
+        $this->resolvedMenus[$slug] = $sichtbar;
+
+        return $sichtbar;
+    }
+
+    /**
+     * Der Pfad hinter einem Menueeintrag. Bei "entry" wird er nachgeschlagen —
+     * so wandert er von selbst mit, wenn sich der Slug aendert.
+     */
+    private function resolveTarget(MenuItem $item): string
+    {
+        if ($item->targetType !== MenuTargetType::Entry) {
+            return $item->targetValue;
+        }
+
+        if (!ctype_digit($item->targetValue)) {
+            return '';
+        }
+
+        $entry = $this->entries->findById((int) $item->targetValue);
+
+        return $entry !== null && $entry->isPublic() ? $entry->path : '';
+    }
 
     public function user(): ?User
     {

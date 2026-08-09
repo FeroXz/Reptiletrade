@@ -241,6 +241,67 @@ Die Einzelseite eines Beitrags läuft über die Auffangroute und den `ContentCon
 eine Inhaltsseite wie jede andere, nur mit einem Pfad, der das Jahr trägt. Eine eigene Ausgabe
 wäre eine zweite Stelle, an der Blöcke gerendert werden.
 
+### E14 — Weiterleitungen: Ketten beim Anlegen auflösen, Schleifen abweisen
+
+Zeigt `/a/` auf `/b/` und kommt `/b/ → /c/` dazu, wird `/a/` gleich mit auf `/c/` gezogen. Sonst
+schickt jede Umbenennung den Besucher einen Sprung weiter durch die Geschichte der Seite — und
+Suchmaschinen geben nach wenigen Sprüngen auf.
+
+Schleifen werden **abgewiesen, nicht abgeschnitten**: Eine Weiterleitung, die im Kreis führt,
+ist ein Fehler in der Absicht des Redakteurs; ihn stillschweigend zu begradigen hieße zu raten,
+was gemeint war.
+
+Ein Sonderfall fiel erst beim Rauchtest auf: Wer einen Slug ändert und dann zurückbenennt,
+erzeugt formal einen Kreis (`/eins/ → /zwei/` und `/zwei/ → /eins/`) — und bekäme deshalb gar
+keine Weiterleitung. Deshalb räumt eine **automatische** Weiterleitung (also eine aus einer
+Umbenennung) eine bestehende Weiterleitung *vom Ziel weg* ab: Dort steht jetzt nachweislich eine
+Seite, die alte Angabe ist überholt. Für von Hand angelegte Weiterleitungen gilt das nicht — dort
+weiß niemand, ob das Ziel eine Seite ist, und eine stillschweigend gelöschte Weiterleitung des
+Betreibers wäre schlimmer als eine Fehlermeldung.
+
+Auto-301 entsteht nur für **veröffentlichte** Einträge. Ein Entwurf hatte nie eine Adresse, die
+jemand kennt; eine Weiterleitung darauf wäre ein Eintrag ohne Anlass, der später im Weg steht.
+Scheitert das Anlegen (Schleife, unbrauchbares Ziel), scheitert nicht die Umbenennung: Die Seite
+liegt bereits richtig, es fehlt nur die Weiterleitung.
+
+### E15 — Menüs: Ziel als Typ + Wert, Pfad wird nachgeschlagen
+
+`target_type` (`entry`/`route`/`url`) plus `target_value` statt dreier Spalten, von denen je zwei
+leer wären. Bei `entry` steht dort die ID; der Pfad wird beim Rendern nachgeschlagen und wandert
+damit von selbst mit, wenn der Slug sich ändert.
+
+Ein Fremdschlüssel auf `content_entries` entfällt bewusst: Er wäre nur in einem der drei Fälle
+sinnvoll, und SQLite kennt keine bedingten Fremdschlüssel. Ein Eintrag, dessen Inhalt es nicht
+mehr gibt, verschwindet still aus dem Menü — ein Verweis ins Leere wäre für den Besucher
+schlechter — und `bin/doctor.php` meldet ihn.
+
+`visibility` ist Darstellung, nicht Zugriffsschutz: Wer den Pfad kennt, ruft ihn auch ohne
+Menüeintrag auf. Der Schutz sitzt in den Controllern; hier geht es darum, dass „Registrieren" für
+Angemeldete verschwindet.
+
+Impressum, Datenschutz und Nutzungsbedingungen stehen **fest verdrahtet** im Fußbereich. Sie
+müssen mit höchstens zwei Klicks erreichbar sein, und das darf nicht davon abhängen, dass jemand
+ein Menü pflegt.
+
+### E16 — SEO: ein Kontextobjekt, JSON-LD von `json_encode`
+
+`SeoContext` stellt zusammen, was in den Kopf gehört — Titel, Beschreibung, Canonical (absolut,
+nicht relativ), OpenGraph, Twitter-Card, JSON-LD, ETag. Das Template gibt nur aus.
+
+Das JSON-LD entsteht in PHP und nicht im Template: Es ist JSON in einem `script`-Tag, und JSON
+gehört von `json_encode` gebaut. `JSON_HEX_TAG` schließt `</script>` im Titel aus — der einzige
+Weg, aus einem `ld+json`-Block auszubrechen, und einer, den `script-src 'self'` nicht auffängt,
+weil ein eigener Block ja erlaubt ist.
+
+Öffentliche Inhaltsseiten tragen ein ETag aus Pfad, Änderungszeitpunkt und Status und beantworten
+`If-None-Match` mit 304. `Cache-Control` bleibt `private`: Die Kopfzeile zeigt den angemeldeten
+Namen, ein vorgelagerter Zwischenspeicher dürfte die Seite nicht weiterreichen.
+
+`sitemap.xml` wird erzeugt, nicht gespeichert — eine Datei auf der Platte müsste nach jeder
+Änderung neu geschrieben werden, und der Moment, in dem das ausfällt, fällt niemandem auf. Ab
+5 000 Adressen ein Sitemap-Index. Was `noindex` trägt, steht nicht darin: Die Sitemap ist eine
+Einladung, und beides zugleich zu sagen ist ein Widerspruch.
+
 ### E10 — Zurücknehmen legt keine Weiterleitung an
 
 `veroeffentlicht` → `entwurf` entfernt die Seite aus dem öffentlichen Bestand, ohne eine 301
@@ -340,6 +401,27 @@ Revision zurückrollen, aufräumen.
 PHP-Ausführung, vorhandene Menüs, erzeugbare Sitemap, keine Weiterleitungsschleifen, keine
 Slug-Kollision mit einer registrierten Route.
 
+## Abnahme: was tatsächlich geprüft wird
+
+`tools/smoke_cms.php` baut seine Datenbank selbst auf und läuft durch den echten Kernel — mit
+Cookie, CSRF-Token und Weiterleitungen. In dieser Reihenfolge:
+
+1. Ohne Berechtigung ist die Redaktion nicht vorhanden (404, nicht 403).
+2. Seite anlegen, Blöcke füllen, veröffentlichen, öffentlich abrufen (Markdown, Canonical, OG).
+3. `/impressum` bleibt bei `config/impressum.php` — die Meldung nennt den Konflikt beim Namen.
+4. Ein geplanter Beitrag erscheint erst nach dem Lauf von `content.publish`, nicht vorher.
+5. Ein Vorschaulink zeigt den Entwurf ohne Anmeldung, mit `noindex`.
+6. Medien: drei Größen, Metadaten nachweislich weg, `srcset` im Markup, Löschsperre bei Verwendung.
+7. Beiträge, Kategoriearchiv, Volltextsuche, Feed gegen einen XML-Parser.
+8. Eine Fassung zurücksetzen.
+9. Slug ändern → 301; zweimal ändern → keine Kette.
+10. Sitemap (XML, ETag), `robots.txt`, Menüeintrag in der Kopfzeile.
+11. Zurücknehmen (Entwurf), Archivieren (410), Löschen — und die Spuren im Audit-Trail.
+
+`bin/doctor.php` prüft auf einer laufenden Installation: Schreibrechte auf `public/media/`, dort
+gesperrte PHP-Ausführung, vorhandene Menüs, Menüeinträge ins Leere, Weiterleitungsschleifen,
+Slug-Kollisionen mit registrierten Routen, erzeugbare Sitemap.
+
 ## Stand
 
 | Paket | Inhalt | Stand |
@@ -350,4 +432,4 @@ Slug-Kollision mit einer registrierten Route.
 | 10.4 | Revisionen, Vorschau-Token, Planung, Auftrag `content.publish` | erledigt |
 | 10.5 | Medienverwaltung, `media_usages`, `srcset` | erledigt |
 | 10.6 | Beiträge, Kategorien, `/news/`, `/feed.xml`, FTS5 | erledigt |
-| 10.7 | Menüs, Weiterleitungen, SEO, `sitemap.xml`, `robots.txt` | offen |
+| 10.7 | Menüs, Weiterleitungen, SEO, `sitemap.xml`, `robots.txt` | erledigt |

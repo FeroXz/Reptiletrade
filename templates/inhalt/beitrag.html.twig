@@ -4,8 +4,7 @@
 {% block beschreibung %}{{ eintrag.seoDescription ?? eintrag.title }}{% endblock %}
 
 {% block kopf %}
-    <link rel="canonical" href="{{ eintrag.path }}">
-    {% if eintrag.noindex %}<meta name="robots" content="noindex, follow">{% endif %}
+    {% include 'inhalt/_seo.html.twig' %}
 {% endblock %}
 
 {% block inhalt %}

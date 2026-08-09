@@ -13,6 +13,7 @@ use Reptilienmarkt\Domain\Content\ContentText;
 use Reptilienmarkt\Domain\Content\ContentType;
 use Reptilienmarkt\Domain\Content\MarkdownRenderer;
 use Reptilienmarkt\Domain\Content\PreviewService;
+use Reptilienmarkt\Domain\Content\RedirectService;
 use Reptilienmarkt\Domain\Privacy\RetentionPolicy;
 use Reptilienmarkt\Domain\User\Role;
 use Reptilienmarkt\Domain\User\User;
@@ -32,6 +33,7 @@ use Reptilienmarkt\Infra\Persistence\PdoContentTermRepository;
 use Reptilienmarkt\Infra\Persistence\PdoMediaRepository;
 use Reptilienmarkt\Infra\Persistence\PdoMediaUsageRepository;
 use Reptilienmarkt\Infra\Persistence\PdoPreviewTokenRepository;
+use Reptilienmarkt\Infra\Persistence\PdoRedirectRepository;
 use Reptilienmarkt\Infra\Persistence\PdoSessionRepository;
 use Reptilienmarkt\Infra\Search\Fts5ContentSearchIndex;
 use Reptilienmarkt\Infra\Storage\ImagePipeline;
@@ -353,6 +355,11 @@ final class AdminContentTest extends DatabaseTestCase
             new PdoContentRevisionRepository($this->database),
             new Fts5ContentSearchIndex($this->database),
             new ContentText(new MarkdownRenderer()),
+            new RedirectService(
+                new PdoRedirectRepository($this->database),
+                new PdoAuditLog($this->database),
+                $this->clock,
+            ),
             new RetentionPolicy(require \dirname(__DIR__, 2) . '/config/aufbewahrung.php', $this->clock),
             new PdoAuditLog($this->database),
             $this->clock,

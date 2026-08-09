@@ -36,8 +36,11 @@ use Reptilienmarkt\Domain\Content\ContentText;
 use Reptilienmarkt\Domain\Content\MarkdownRenderer;
 use Reptilienmarkt\Domain\Content\MediaRepository;
 use Reptilienmarkt\Domain\Content\MediaUsageRepository;
+use Reptilienmarkt\Domain\Content\MenuRepository;
 use Reptilienmarkt\Domain\Content\PreviewService;
 use Reptilienmarkt\Domain\Content\PreviewTokenRepository;
+use Reptilienmarkt\Domain\Content\RedirectRepository;
+use Reptilienmarkt\Domain\Content\RedirectService;
 use Reptilienmarkt\Domain\Genetics\CrossSimulation;
 use Reptilienmarkt\Domain\Genetics\GeneticsConfiguration;
 use Reptilienmarkt\Domain\Genetics\GeneticsSimulationRepository;
@@ -93,6 +96,7 @@ use Reptilienmarkt\Http\Controller\AdminContentController;
 use Reptilienmarkt\Http\Controller\AdminController;
 use Reptilienmarkt\Http\Controller\AdminListingController;
 use Reptilienmarkt\Http\Controller\AdminMediaController;
+use Reptilienmarkt\Http\Controller\AdminStructureController;
 use Reptilienmarkt\Http\Controller\AdminUserController;
 use Reptilienmarkt\Http\Controller\AnnouncementController;
 use Reptilienmarkt\Http\Controller\ApiController;
@@ -115,6 +119,7 @@ use Reptilienmarkt\Http\Controller\PasswordResetController;
 use Reptilienmarkt\Http\Controller\PrivacyController;
 use Reptilienmarkt\Http\Controller\ProfileController;
 use Reptilienmarkt\Http\Controller\ReportController;
+use Reptilienmarkt\Http\Controller\SitemapController;
 use Reptilienmarkt\Http\Controller\SpeciesController;
 use Reptilienmarkt\Http\Controller\StatsController;
 use Reptilienmarkt\Http\Kernel;
@@ -162,12 +167,14 @@ use Reptilienmarkt\Infra\Persistence\PdoListingMediaRepository;
 use Reptilienmarkt\Infra\Persistence\PdoListingRepository;
 use Reptilienmarkt\Infra\Persistence\PdoMediaRepository;
 use Reptilienmarkt\Infra\Persistence\PdoMediaUsageRepository;
+use Reptilienmarkt\Infra\Persistence\PdoMenuRepository;
 use Reptilienmarkt\Infra\Persistence\PdoMessageRepository;
 use Reptilienmarkt\Infra\Persistence\PdoMorphRepository;
 use Reptilienmarkt\Infra\Persistence\PdoPaymentRepository;
 use Reptilienmarkt\Infra\Persistence\PdoPostalCodeRepository;
 use Reptilienmarkt\Infra\Persistence\PdoPreviewTokenRepository;
 use Reptilienmarkt\Infra\Persistence\PdoRateLimitRepository;
+use Reptilienmarkt\Infra\Persistence\PdoRedirectRepository;
 use Reptilienmarkt\Infra\Persistence\PdoReportRepository;
 use Reptilienmarkt\Infra\Persistence\PdoReviewRepository;
 use Reptilienmarkt\Infra\Persistence\PdoSessionRepository;
@@ -363,6 +370,8 @@ $container->set(ViewContext::class, static fn(Container $c): ViewContext => new 
     $c->get(Viewer::class),
     $c->get(ConversationRepository::class),
     $c->get(ContentPermission::class),
+    $c->get(MenuRepository::class),
+    $c->get(ContentEntryRepository::class),
 ));
 
 $container->set(Environment::class, static fn(Container $c): Environment => TwigFactory::create(
@@ -452,7 +461,17 @@ $container->set(ContentService::class, static fn(Container $c): ContentService =
     $c->get(ContentRevisionRepository::class),
     $c->get(ContentSearchIndex::class),
     $c->get(ContentText::class),
+    $c->get(RedirectService::class),
     $c->get(RetentionPolicy::class),
+    $c->get(AuditLog::class),
+    $c->get(Clock::class),
+));
+
+$container->set(RedirectRepository::class, static fn(Container $c): RedirectRepository => new PdoRedirectRepository($c->get(Database::class)));
+$container->set(MenuRepository::class, static fn(Container $c): MenuRepository => new PdoMenuRepository($c->get(Database::class)));
+
+$container->set(RedirectService::class, static fn(Container $c): RedirectService => new RedirectService(
+    $c->get(RedirectRepository::class),
     $c->get(AuditLog::class),
     $c->get(Clock::class),
 ));
@@ -500,7 +519,10 @@ $container->set(ContentController::class, static fn(Container $c): ContentContro
     $c->get(ContentBlockRepository::class),
     $c->get(ContentRenderer::class),
     $c->get(PreviewService::class),
+    $c->get(RedirectService::class),
+    $c->get(MediaRepository::class),
     $c->get(Environment::class),
+    Env::string('APP_URL', 'https://example.tld'),
 ));
 
 // ------------------------------------------------------ Anzeigen und Ablage
@@ -1133,6 +1155,24 @@ $container->set(NewsController::class, static fn(Container $c): NewsController =
     $c->get(ContentSearchIndex::class),
     $c->get(Environment::class),
     Env::string('APP_URL', 'https://example.tld'),
+));
+
+$container->set(SitemapController::class, static fn(Container $c): SitemapController => new SitemapController(
+    $c->get(ContentEntryRepository::class),
+    $c->get(SpeciesRepository::class),
+    $c->get(Clock::class),
+    Env::string('APP_URL', 'https://example.tld'),
+));
+
+$container->set(AdminStructureController::class, static fn(Container $c): AdminStructureController => new AdminStructureController(
+    $c->get(MenuRepository::class),
+    $c->get(RedirectService::class),
+    $c->get(ContentEntryRepository::class),
+    $c->get(ContentPermission::class),
+    $c->get(Viewer::class),
+    $c->get(SessionManager::class),
+    $c->get(Translator::class),
+    $c->get(Environment::class),
 ));
 
 $container->set(AdminMediaController::class, static fn(Container $c): AdminMediaController => new AdminMediaController(
