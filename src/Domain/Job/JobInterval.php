@@ -16,6 +16,7 @@ namespace Reptilienmarkt\Domain\Job;
  */
 enum JobInterval: int
 {
+    case Fuenfminuetig = 5;
     case Viertelstuendlich = 15;
     case Stuendlich = 60;
 
@@ -27,6 +28,7 @@ enum JobInterval: int
     public function label(): string
     {
         return match ($this) {
+            self::Fuenfminuetig => 'alle fünf Minuten',
             self::Viertelstuendlich => 'viertelstündlich',
             self::Stuendlich => 'stündlich',
         };

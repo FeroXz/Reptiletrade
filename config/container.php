@@ -60,6 +60,7 @@ use Reptilienmarkt\Domain\Listing\ListingWizard;
 use Reptilienmarkt\Domain\Listing\MorphStringGenerator;
 use Reptilienmarkt\Domain\Listing\SellerStatsService;
 use Reptilienmarkt\Domain\Mail\Mailer;
+use Reptilienmarkt\Domain\Mail\MailOutboxRepository;
 use Reptilienmarkt\Domain\Message\ConversationRepository;
 use Reptilienmarkt\Domain\Message\MessageRepository;
 use Reptilienmarkt\Domain\Message\MessagingService;
@@ -141,12 +142,15 @@ use Reptilienmarkt\Infra\Job\Handler\ContentPublishHandler;
 use Reptilienmarkt\Infra\Job\Handler\ListingArchiveHandler;
 use Reptilienmarkt\Infra\Job\Handler\ListingExpiryNoticeHandler;
 use Reptilienmarkt\Infra\Job\Handler\LogRotationHandler;
+use Reptilienmarkt\Infra\Job\Handler\MailDispatchHandler;
 use Reptilienmarkt\Infra\Job\Handler\MediaCleanupHandler;
 use Reptilienmarkt\Infra\Job\Handler\RetentionHandler;
 use Reptilienmarkt\Infra\Job\Handler\SavedSearchAlertHandler;
 use Reptilienmarkt\Infra\Job\Handler\SearchReindexHandler;
 use Reptilienmarkt\Infra\Mail\FileMailer;
+use Reptilienmarkt\Infra\Mail\QueueingMailer;
 use Reptilienmarkt\Infra\Mail\SendmailMailer;
+use Reptilienmarkt\Infra\Mail\SmtpMailer;
 use Reptilienmarkt\Infra\Payment\NullPaymentProvider;
 use Reptilienmarkt\Infra\Payment\StripePaymentProvider;
 use Reptilienmarkt\Infra\Persistence\Database;
@@ -168,6 +172,7 @@ use Reptilienmarkt\Infra\Persistence\PdoLegalDocumentRepository;
 use Reptilienmarkt\Infra\Persistence\PdoLegalTextRepository;
 use Reptilienmarkt\Infra\Persistence\PdoListingMediaRepository;
 use Reptilienmarkt\Infra\Persistence\PdoListingRepository;
+use Reptilienmarkt\Infra\Persistence\PdoMailOutboxRepository;
 use Reptilienmarkt\Infra\Persistence\PdoMediaRepository;
 use Reptilienmarkt\Infra\Persistence\PdoMediaUsageRepository;
 use Reptilienmarkt\Infra\Persistence\PdoMenuRepository;
@@ -776,16 +781,48 @@ $container->set(ContactMasker::class, static fn(Container $c): ContactMasker => 
 $container->set(AutoModerationPolicy::class, static fn(Container $c): AutoModerationPolicy => $c->get(TrustConfiguration::class)->autoModeration());
 
 // -------------------------------------------------------------- Mailversand
-$container->set(Mailer::class, static function () use ($root): Mailer {
-    // Voreinstellung ist die Datei-Ablage: Ein falsch konfigurierter Server
-    // soll keine echten Mails an echte Adressen schicken.
-    return Env::string('MAIL_TRANSPORT', 'datei') === 'sendmail'
-        ? new SendmailMailer(
-            Env::string('MAIL_FROM', 'noreply@example.tld'),
-            Env::string('MAIL_FROM_NAME', 'Reptilienmarkt'),
-        )
-        : new FileMailer($root . '/' . ltrim(Env::string('MAIL_DIRECTORY', 'storage/mail'), '/'));
+$container->set(MailOutboxRepository::class, static fn(Container $c): MailOutboxRepository => new PdoMailOutboxRepository($c->get(Database::class)));
+
+/**
+ * Der Transport — wer die Mail tatsaechlich aus dem Haus traegt.
+ *
+ * Voreinstellung ist die Datei-Ablage: Ein falsch konfigurierter Server soll
+ * keine echten Mails an echte Adressen schicken. Der Transport wird nur vom
+ * Auftrag mail.dispatch benutzt, nie aus einem Request heraus.
+ */
+$container->set('mail.transport', static function (Container $c) use ($root): Mailer {
+    $absender = Env::string('MAIL_FROM', 'noreply@example.tld');
+    $name = Env::string('MAIL_FROM_NAME', 'Reptilienmarkt');
+
+    return match (Env::string('MAIL_TRANSPORT', 'datei')) {
+        'sendmail' => new SendmailMailer($absender, $name),
+        'smtp' => new SmtpMailer(
+            Env::string('SMTP_HOST', 'localhost'),
+            Env::int('SMTP_PORT', 587),
+            $absender,
+            $name,
+            $c->get(Logger::class),
+            Env::string('SMTP_USERNAME'),
+            Env::string('SMTP_PASSWORD'),
+            Env::string('SMTP_ENCRYPTION', SmtpMailer::ENCRYPTION_STARTTLS),
+            Env::int('SMTP_TIMEOUT', 10),
+        ),
+        default => new FileMailer($root . '/' . ltrim(Env::string('MAIL_DIRECTORY', 'storage/mail'), '/')),
+    };
 });
+
+/**
+ * Wer Mailer verlangt, bekommt den Postausgang.
+ *
+ * Kein Aufrufer soll sich entscheiden muessen, ob er sofort oder spaeter
+ * versendet — die Antwort ist immer "spaeter". Der Transport haengt an einem
+ * fremden Dienst, und der darf keinen Vorgang aufhalten.
+ */
+$container->set(Mailer::class, static fn(Container $c): Mailer => new QueueingMailer(
+    $c->get(MailOutboxRepository::class),
+    $c->get(Clock::class),
+    $c->get(Logger::class),
+));
 
 // -------------------------------------------- Konto, Verifizierung, Token
 $container->set(TokenRepository::class, static fn(Container $c): TokenRepository => new PdoTokenRepository($c->get(Database::class)));
@@ -1063,7 +1100,18 @@ $container->set(JobRepository::class, static fn(Container $c): JobRepository => 
  * @return array<string, JobHandler>
  */
 $container->set('jobs.handlers', static function (Container $c) use ($root): array {
+    /** @var Mailer $transport */
+    $transport = $c->get('mail.transport');
+
     $handlers = [
+        // Der einzige Handler, der den Transport bekommt statt des Mailers:
+        // Er ist die Stelle, an der die Mail das Haus verlaesst.
+        new MailDispatchHandler(
+            $c->get(MailOutboxRepository::class),
+            $transport,
+            $c->get(Clock::class),
+            $c->get(Logger::class),
+        ),
         new ListingExpiryNoticeHandler(
             $c->get(Database::class),
             $c->get(Mailer::class),
@@ -1174,6 +1222,7 @@ $container->set(AdminController::class, static fn(Container $c): AdminController
     $c->get(DashboardService::class),
     $c->get(SpeciesCatalogService::class),
     $c->get(JobRepository::class),
+    $c->get(MailOutboxRepository::class),
     $c->get(RetentionPolicy::class),
     $c->get(UiTextService::class),
     $c->get(Viewer::class),

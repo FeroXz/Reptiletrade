@@ -307,6 +307,10 @@ return [
     'admin.betrieb' => 'Betrieb',
     'admin.jobs_wartend' => '{anzahl} Aufträge warten',
     'admin.jobs_fehlgeschlagen' => '{anzahl} fehlgeschlagen',
+    'admin.mails_aufgegeben' => 'Nicht zugestellte Mails',
+    'admin.mails_aufgegeben_hinweis' => 'Diese Mails wurden nach mehreren Versuchen aufgegeben. '
+        . 'Sie bleiben im Postausgang stehen, damit nachvollziehbar bleibt, wer seine Nachricht nicht bekommen hat.',
+    'admin.mail_versuche' => '{anzahl} Versuche',
     'admin.fristen' => 'Aufbewahrungsfristen',
     'admin.frist_aus' => 'keine Löschung',
     'admin.artenstamm_warnung' => 'Der Artenstamm ist die Grundlage der Rechtsprüfung: '

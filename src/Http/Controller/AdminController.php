@@ -8,6 +8,7 @@ use Reptilienmarkt\Domain\Admin\CatalogException;
 use Reptilienmarkt\Domain\Admin\DashboardService;
 use Reptilienmarkt\Domain\Admin\SpeciesCatalogService;
 use Reptilienmarkt\Domain\Job\JobRepository;
+use Reptilienmarkt\Domain\Mail\MailOutboxRepository;
 use Reptilienmarkt\Domain\Privacy\RetentionPolicy;
 use Reptilienmarkt\Domain\Site\TextException;
 use Reptilienmarkt\Domain\Site\UiTextService;
@@ -34,6 +35,7 @@ final readonly class AdminController
         private DashboardService $dashboard,
         private SpeciesCatalogService $catalog,
         private JobRepository $jobs,
+        private MailOutboxRepository $outbox,
         private RetentionPolicy $retention,
         private UiTextService $texts,
         private Viewer $currentUser,
@@ -49,6 +51,10 @@ final readonly class AdminController
         return Response::html($this->twig->render('admin/dashboard.html.twig', [
             'kennzahlen' => $this->dashboard->stats(),
             'fehlgeschlagene_jobs' => $this->jobs->recentFailures(10),
+            // Aufgegebene Mails scheitern nicht mehr ueber den Auftrag — der
+            // waere sonst dauerhaft rot. Sie gehoeren trotzdem hierher: Eine
+            // nicht zugestellte Bestaetigungsmail merkt sonst niemand.
+            'fehlgeschlagene_mails' => $this->outbox->recentFailures(10),
             'fristen' => $this->retention->all(),
             'geaenderte_texte' => $this->texts->changedCount(),
             'disclaimer_titel' => Disclaimer::TITLE,

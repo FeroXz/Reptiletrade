@@ -24,6 +24,7 @@ use Reptilienmarkt\Domain\Auth\SessionRepository;
 use Reptilienmarkt\Domain\Content\MenuRepository;
 use Reptilienmarkt\Domain\Content\RedirectService;
 use Reptilienmarkt\Domain\Content\ReservedPaths;
+use Reptilienmarkt\Domain\Mail\MailOutboxRepository;
 use Reptilienmarkt\Domain\Site\SiteIdentity;
 use Reptilienmarkt\Domain\Site\SiteIdentityService;
 use Reptilienmarkt\Http\Controller\SitemapController;
@@ -441,6 +442,61 @@ try {
         : $befund->ok('Keine gescheiterten Auftraege');
 } catch (Throwable $exception) {
     $befund->problem('Der Auftragsstand ist nicht lesbar', $exception->getMessage());
+}
+
+// ------------------------------------------------------------- Mailversand
+$befund->abschnitt('Mailversand');
+
+$transport = Env::string('MAIL_TRANSPORT', 'datei');
+
+// Der Transport ist die Stelle, an der eine Fehlkonfiguration erst auffaellt,
+// wenn jemand auf seine Bestaetigungsmail wartet — also hier fragen, nicht dort.
+if ($transport === 'sendmail') {
+    function_exists('mail')
+        ? $befund->ok('Transport: sendmail (lokaler MTA)')
+        : $befund->problem(
+            'Transport sendmail, aber mail() ist abgeschaltet',
+            'In der php.ini steht mail() unter disable_functions. Entweder freigeben oder MAIL_TRANSPORT=smtp setzen.',
+        );
+} elseif ($transport === 'smtp') {
+    $smtpHost = Env::string('SMTP_HOST');
+    $verschluesselung = Env::string('SMTP_ENCRYPTION', 'starttls');
+
+    if ($smtpHost === '') {
+        $befund->problem('Transport smtp, aber SMTP_HOST ist leer', 'Ohne Server geht keine Mail hinaus.');
+    } elseif ($verschluesselung === 'keine' && Env::string('SMTP_USERNAME') !== '') {
+        $befund->problem(
+            'SMTP ohne Verschluesselung, aber mit Zugangsdaten',
+            'Das Passwort ginge im Klartext ueber die Leitung. SMTP_ENCRYPTION=starttls setzen.',
+        );
+    } else {
+        $befund->ok(sprintf('Transport: smtp (%s:%d, %s)', $smtpHost, Env::int('SMTP_PORT', 587), $verschluesselung));
+    }
+} else {
+    $befund->warnung(
+        'Transport: Dateiablage — es geht keine Mail hinaus',
+        'Fuer den Betrieb MAIL_TRANSPORT=sendmail oder =smtp setzen. Die Mails liegen unter '
+            . Env::string('MAIL_DIRECTORY', 'storage/mail') . '.',
+    );
+}
+
+try {
+    /** @var MailOutboxRepository $outbox */
+    $outbox = $container->get(MailOutboxRepository::class);
+
+    // Dreissig Minuten sind grosszuegig: Der Auftrag laeuft alle fuenf. Was
+    // laenger liegt, haengt — an einem toten Transport oder an einem Worker,
+    // der nicht laeuft.
+    $liegengeblieben = $outbox->countPendingBefore(new DateTimeImmutable('-30 minutes'));
+
+    $liegengeblieben > 0
+        ? $befund->warnung(
+            $liegengeblieben . ' Mails liegen laenger als 30 Minuten im Ausgang',
+            'Laeuft der Worker? Stimmt der Transport? php bin/worker.php --einmal zeigt den Fehlertext.',
+        )
+        : $befund->ok('Der Postausgang ist aktuell');
+} catch (Throwable $exception) {
+    $befund->problem('Der Postausgang ist nicht lesbar', $exception->getMessage());
 }
 
 // ------------------------------------------------------- Redaktionssystem
