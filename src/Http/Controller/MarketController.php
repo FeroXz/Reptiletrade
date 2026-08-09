@@ -34,6 +34,7 @@ final readonly class MarketController
         private SessionManager $session,
         private Translator $translator,
         private Environment $twig,
+        private string $appUrl = 'https://example.tld',
     ) {}
 
     public function home(Request $request): Response
@@ -62,6 +63,7 @@ final readonly class MarketController
             'uebergaben' => Handover::cases(),
             'umkreise' => SearchRadius::cases(),
             'angemeldet' => $this->currentUser->isAuthenticated(),
+            'basis_url' => rtrim($this->appUrl, '/'),
             'csrf' => $this->session->csrfToken(),
             'meldungen' => $this->session->takeFlashes(),
             'dimension' => [

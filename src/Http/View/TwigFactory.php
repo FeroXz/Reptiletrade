@@ -7,6 +7,7 @@ namespace Reptilienmarkt\Http\View;
 use Reptilienmarkt\Domain\Search\SearchCriteria;
 use Reptilienmarkt\Http\Search\SearchUrlBuilder;
 use Reptilienmarkt\Http\Search\SearchUrlContext;
+use Reptilienmarkt\Infra\Storage\PublicImageStorage;
 use Reptilienmarkt\Support\Slugger;
 use Reptilienmarkt\Support\Translator;
 use Twig\Environment;
@@ -22,6 +23,7 @@ final class TwigFactory
         ?string $cachePath = null,
         ?Translator $translator = null,
         ?ViewContext $context = null,
+        ?PublicImageStorage $images = null,
     ): Environment {
         $twig = new Environment(new FilesystemLoader($templatePath), [
             'debug' => $debug,
@@ -33,6 +35,14 @@ final class TwigFactory
         $twig->addFunction(new TwigFunction(
             'markt_url',
             static fn(SearchCriteria $criteria, SearchUrlContext $context): string => SearchUrlBuilder::build($criteria, $context),
+        ));
+
+        // srcset fuer Anzeigenbilder. Ohne Ablage — etwa in einem Test, der nur
+        // ein Template uebersetzt — bleibt es leer, und das img faellt auf sein
+        // src zurueck. Eine fehlende Ablage soll kein kaputtes Markup ergeben.
+        $twig->addFunction(new TwigFunction(
+            'bild_srcset',
+            static fn(?string $path): string => $path === null || $images === null ? '' : $images->srcset($path),
         ));
 
         $twig->addFilter(new TwigFilter('slug', static fn(string $value): string => Slugger::slug($value)));

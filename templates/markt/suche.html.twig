@@ -17,6 +17,14 @@
     {%- endif -%}
 {% endblock %}
 
+
+{% block kopf %}
+    {# Die Facettensuche ist unter zwei Formen erreichbar: /markt/bartagame/ und
+       /markt/?art_id=5. Kanonisch ist die Pfadform — markt_url baut sie, sobald
+       der Kontext die Art kennt, und fällt sonst auf die Query-Form zurück. #}
+    <link rel="canonical" href="{{ basis_url }}{{ markt_url(kriterien, url_kontext) }}">
+{% endblock %}
+
 {% block inhalt %}
     <div class="grid gap-6 lg:grid-cols-[18rem_1fr]" data-markt>
 
@@ -218,7 +226,7 @@
                 {% else %}
                     <div class="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
                         {% for anzeige in ergebnis.listings %}
-                            {% include 'partials/kachel.html.twig' with { anzeige: anzeige } only %}
+                            {% include 'partials/kachel.html.twig' with { anzeige: anzeige, zuerst: loop.first } only %}
                         {% endfor %}
                     </div>
                 {% endif %}

@@ -30,7 +30,7 @@ use Reptilienmarkt\Infra\Persistence\PdoContentRevisionRepository;
 use Reptilienmarkt\Infra\Persistence\PdoConversationRepository;
 use Reptilienmarkt\Infra\Persistence\PdoMenuRepository;
 use Reptilienmarkt\Infra\Persistence\PdoRedirectRepository;
-use Reptilienmarkt\Infra\Persistence\PdoSpeciesRepository;
+use Reptilienmarkt\Infra\Persistence\PdoSitemapRepository;
 use Reptilienmarkt\Infra\Search\Fts5ContentSearchIndex;
 use Reptilienmarkt\Tests\DatabaseTestCase;
 use Reptilienmarkt\Tests\Support\FrozenClock;
@@ -321,7 +321,7 @@ final class SeoDeliveryTest extends DatabaseTestCase
     {
         return new SitemapController(
             $this->entries,
-            new PdoSpeciesRepository($this->database),
+            new PdoSitemapRepository($this->database),
             $this->clock,
             'https://reptilienmarkt.example',
         );

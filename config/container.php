@@ -79,6 +79,7 @@ use Reptilienmarkt\Domain\Search\ListingSearchRepository;
 use Reptilienmarkt\Domain\Search\SavedSearchRepository;
 use Reptilienmarkt\Domain\Search\SavedSearchService;
 use Reptilienmarkt\Domain\Search\SearchIndex;
+use Reptilienmarkt\Domain\Seo\SitemapRepository;
 use Reptilienmarkt\Domain\Setting\Settings;
 use Reptilienmarkt\Domain\Site\SiteIdentity;
 use Reptilienmarkt\Domain\Site\SiteIdentityOverrideRepository;
@@ -200,6 +201,7 @@ use Reptilienmarkt\Infra\Persistence\PdoSavedSearchRepository;
 use Reptilienmarkt\Infra\Persistence\PdoSessionRepository;
 use Reptilienmarkt\Infra\Persistence\PdoSettings;
 use Reptilienmarkt\Infra\Persistence\PdoSiteIdentityOverrideRepository;
+use Reptilienmarkt\Infra\Persistence\PdoSitemapRepository;
 use Reptilienmarkt\Infra\Persistence\PdoSpeciesRepository;
 use Reptilienmarkt\Infra\Persistence\PdoSubscriptionRepository;
 use Reptilienmarkt\Infra\Persistence\PdoTextOverrideRepository;
@@ -402,6 +404,7 @@ $container->set(Environment::class, static fn(Container $c): Environment => Twig
     $root . '/storage/cache/twig',
     $c->get(Translator::class),
     $c->get(ViewContext::class),
+    $c->get(PublicImageStorage::class),
 ));
 
 $container->set(SearchRequestParser::class, static fn(Container $c): SearchRequestParser => new SearchRequestParser(
@@ -419,6 +422,7 @@ $container->set(MarketController::class, static fn(Container $c): MarketControll
     $c->get(SessionManager::class),
     $c->get(Translator::class),
     $c->get(Environment::class),
+    Env::string('APP_URL', 'https://example.tld'),
 ));
 
 $container->set(SavedSearchController::class, static fn(Container $c): SavedSearchController => new SavedSearchController(
@@ -435,6 +439,7 @@ $container->set(SpeciesController::class, static fn(Container $c): SpeciesContro
     $c->get(MorphRepository::class),
     $c->get(ListingSearchRepository::class),
     $c->get(Environment::class),
+    Env::string('APP_URL', 'https://example.tld'),
 ));
 
 $container->set(ApiController::class, static fn(Container $c): ApiController => new ApiController(
@@ -784,6 +789,7 @@ $container->set(ListingController::class, static fn(Container $c): ListingContro
     $c->get(SessionManager::class),
     $c->get(Viewer::class),
     $c->get(Environment::class),
+    Env::string('APP_URL', 'https://example.tld'),
 ));
 
 $container->set(FavoriteRepository::class, static fn(Container $c): FavoriteRepository => new PdoFavoriteRepository($c->get(Database::class)));
@@ -994,6 +1000,7 @@ $container->set(ProfileController::class, static fn(Container $c): ProfileContro
     $c->get(SessionManager::class),
     $c->get(Translator::class),
     $c->get(Environment::class),
+    Env::string('APP_URL', 'https://example.tld'),
 ));
 
 $container->set(MessageController::class, static fn(Container $c): MessageController => new MessageController(
@@ -1334,9 +1341,11 @@ $container->set(NewsController::class, static fn(Container $c): NewsController =
     Env::string('APP_URL', 'https://example.tld'),
 ));
 
+$container->set(SitemapRepository::class, static fn(Container $c): SitemapRepository => new PdoSitemapRepository($c->get(Database::class)));
+
 $container->set(SitemapController::class, static fn(Container $c): SitemapController => new SitemapController(
     $c->get(ContentEntryRepository::class),
-    $c->get(SpeciesRepository::class),
+    $c->get(SitemapRepository::class),
     $c->get(Clock::class),
     Env::string('APP_URL', 'https://example.tld'),
 ));

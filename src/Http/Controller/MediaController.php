@@ -61,7 +61,17 @@ final readonly class MediaController
         $target = $this->images->allocate($listingId);
 
         try {
-            $processed = $this->pipeline->process($file->temporaryPath, $target['absolute'], $target['thumbAbsolute']);
+            // Alle Breiten in einem Durchgang: Die Trefferliste laedt sonst
+            // jedes Bild in voller Groesse, und das ist auf einem Telefon der
+            // Unterschied zwischen einer Liste und einer Wartezeit.
+            $varianten = $this->pipeline->processVariants($file->temporaryPath, $this->images->variantTargets($target['relative']));
+            // Die groesste Fassung ist die Datei, die in listing_media steht —
+            // ihre Masse sind die, die dort gespeichert werden.
+            $processed = $varianten[max(PublicImageStorage::WIDTHS)] ?? null;
+
+            if ($processed === null) {
+                return $this->back($listingId, 4, 'fehler', 'Das Bild liess sich nicht verarbeiten.');
+            }
         } catch (ImageException $exception) {
             return $this->back($listingId, 4, 'fehler', $exception->getMessage());
         }

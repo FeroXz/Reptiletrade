@@ -7,7 +7,7 @@ namespace Reptilienmarkt\Http\Controller;
 use DateTimeImmutable;
 use DateTimeZone;
 use Reptilienmarkt\Domain\Content\ContentEntryRepository;
-use Reptilienmarkt\Domain\Species\SpeciesRepository;
+use Reptilienmarkt\Domain\Seo\SitemapRepository;
 use Reptilienmarkt\Http\Message\Request;
 use Reptilienmarkt\Http\Message\Response;
 use Reptilienmarkt\Support\Clock;
@@ -33,7 +33,7 @@ final readonly class SitemapController
 
     public function __construct(
         private ContentEntryRepository $entries,
-        private SpeciesRepository $species,
+        private SitemapRepository $sources,
         private Clock $clock,
         private string $baseUrl = 'https://example.tld',
     ) {}
@@ -90,8 +90,9 @@ final readonly class SitemapController
     }
 
     /**
-     * Alle oeffentlichen Adressen: Seiten, Beitraege, Artenprofile und die
-     * Marktlandingpage.
+     * Alle oeffentlichen Adressen: Einstiege, Inhaltsseiten, Anzeigen,
+     * Artenprofile und Zuechterseiten — jeweils mit Aenderungsdatum, soweit es
+     * eines gibt.
      *
      * @return list<array{loc: string, lastmod: ?DateTimeImmutable}>
      */
@@ -114,8 +115,10 @@ final readonly class SitemapController
             $urls[] = ['loc' => $entry->path, 'lastmod' => $entry->updatedAt ?? $entry->publishedAt];
         }
 
-        foreach ($this->species->all() as $art) {
-            $urls[] = ['loc' => '/art/' . $art->slug . '/', 'lastmod' => null];
+        foreach ([$this->sources->listings(), $this->sources->species(), $this->sources->breeders()] as $gruppe) {
+            foreach ($gruppe as $url) {
+                $urls[] = ['loc' => $url->loc, 'lastmod' => $url->lastmod];
+            }
         }
 
         return $urls;

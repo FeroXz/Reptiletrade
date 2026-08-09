@@ -3,6 +3,11 @@
 {% block titel %}{{ listing.title }} — {{ art.commonNameDe }} — Reptilienmarkt{% endblock %}
 {% block beschreibung %}{{ listing.description|slice(0, 160) }}{% endblock %}
 
+{% block kopf %}
+    <link rel="canonical" href="{{ kanonisch }}">
+    {% include 'partials/strukturierte_daten.html.twig' %}
+{% endblock %}
+
 {% block inhalt %}
     <article class="mx-auto max-w-4xl space-y-5">
         {% include 'partials/meldungen.html.twig' %}
