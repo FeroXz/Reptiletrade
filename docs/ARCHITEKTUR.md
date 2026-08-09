@@ -65,14 +65,24 @@ src/Domain/
   Trust/          Review, Report, ReportReason(enum), ReviewRepository, ReportRepository
   Messaging/      Conversation, Message, ConversationRepository, ContactMasker
   Audit/          AuditEntry, AuditAction(enum), AuditLog
-  Job/            Job, JobRepository, JobHandler
+  Job/            Job, JobRepository, JobHandler, JobScheduler, JobInterval(enum)
+  Mail/           MailMessage, Mailer, MailOutboxRepository, MailOutboxEntry, MailStatus(enum)
+  Notification/   NotificationChannel(enum), NotificationPreferenceService,
+                  NotificationPreferenceRepository
+  Search/         SearchCriteria, SearchCriteriaCodec, SavedSearch, SavedSearchService,
+                  SavedSearchRepository, AlertFrequency(enum), ListingSearchRepository
+  Seo/            StructuredData, SitemapRepository, SitemapUrl
+  Content/        ContentEntry, ContentService, SeoContext, MenuRepository, RedirectService
+  Privacy/        DataExportService, AccountDeletionService, RetentionPolicy
 src/Legal/        LegalGuard, LegalDecision, LegalRule (+ Regelimplementierungen), LegalTextRepository
 src/Infra/
   Persistence/    Database, Pdo*Repository, Mapper, Migrator, Migration
   Search/         SearchIndex, Fts5SearchIndex
   Storage/        FileStorage, PrivateStorage, ImagePipeline (EXIF-Strip, WebP, Thumbs)
   Genetics/       PdfReportGenerator, PdfDocument (eigener PDF-Schreiber, keine Fremdbibliothek)
-  Mail/           Mailer, Translator-gestützte Templates
+  Mail/           QueueingMailer (Standard), PreferenceAwareMailer (Umschlag),
+                  SendmailMailer / SmtpMailer / FileMailer (Transporte), MailHeaders
+  Job/Handler/    MailDispatchHandler, SavedSearchAlertHandler, ListingExpiryNoticeHandler, …
 src/Http/         Kernel, Router, Route, Middleware/*, Controller/*, Message/*
 src/Support/      Env, Clock, Translator, Slugger, Json
 ```
@@ -95,6 +105,25 @@ Die Domain-Schicht ist framework- und PDO-frei; `src/Infra` kennt die Domain, ni
   deaktiviert und danach mit `PRAGMA foreign_key_check` verifiziert.
 - Domänen-Constraints stehen als `CHECK`-Constraints in der DB (Enum-Werte, Wertebereiche) — die DB ist
   die letzte Verteidigungslinie, die Domain-Enums die erste.
+
+## Antwortköpfe
+
+`Kernel::withSecurityHeaders()` setzt sie für **jede** Antwort, auch für Fehlerseiten:
+`content-security-policy` (ohne `unsafe-inline` und `unsafe-eval` bei `script-src`),
+`x-content-type-options`, `x-frame-options`, `referrer-policy`, `permissions-policy`,
+`cross-origin-opener-policy` und `cross-origin-resource-policy`.
+
+`strict-transport-security` steht dabei allein: Er wird **nur über eine tatsächlich verschlüsselte
+Verbindung** gesetzt, erkannt über dieselbe Prüfung wie das `Secure`-Flag des Sitzungs-Cookies
+(`Request::$secure`). Der Grund ist die Einbahnstraße: Ein Browser, der den Kopf einmal gesehen hat,
+spricht die Domain ein Jahr lang ausschließlich über HTTPS an — auch wenn dort noch kein Zertifikat
+liegt. Über HTTP mitgeschickt wäre er kein zu strenger, sondern ein sich selbst aussperrender
+Fehlstart, und zwar für Monate.
+
+HTML-Antworten bekommen `cache-control: private, no-store`, weil sie den angemeldeten Namen und
+einen sitzungsgebundenen CSRF-Token tragen. Die anonymen Endpunkte unter `/api/v1/` liefern
+dagegen für alle dasselbe und tragen `cache-control: public, max-age=60`; sie sind zusätzlich über
+`api.ip` in `config/trust.php` begrenzt (120 Anfragen je Minute und Adresse).
 
 ## Datenherkunft PLZ
 

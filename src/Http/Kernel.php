@@ -53,10 +53,10 @@ final readonly class Kernel
         }
 
         try {
-            return $this->withSecurityHeaders($handler($request));
+            return $this->withSecurityHeaders($handler($request), $request);
         } catch (Throwable $exception) {
             // Hier landet nur noch, was in der Middleware selbst schiefgeht.
-            return $this->withSecurityHeaders($this->handleException($request, $exception));
+            return $this->withSecurityHeaders($this->handleException($request, $exception), $request);
         }
     }
 
@@ -170,15 +170,53 @@ final readonly class Kernel
         . "base-uri 'none'; "
         . "object-src 'none'";
 
-    private function withSecurityHeaders(Response $response): Response
+    /**
+     * Merkmale, die diese Anwendung nicht braucht.
+     *
+     * Kamera, Mikrofon und Standort fragt sie nie ab; interest-cohort schaltet
+     * die Zuordnung zu Werbe-Interessengruppen ab. Der Kopf schuetzt vor allem
+     * gegen eingebettete Fremdinhalte und gegen kuenftige Aenderungen, die so
+     * etwas versehentlich mitbringen — er ist billig und die Aussage ist wahr.
+     */
+    private const string PERMISSIONS_POLICY = 'camera=(), microphone=(), geolocation=(), interest-cohort=()';
+
+    /**
+     * Ein Jahr, mit Unterdomains und Vorladeliste — der uebliche Wert. Er wird
+     * nur ueber eine tatsaechlich verschluesselte Verbindung gesetzt; siehe
+     * unten.
+     */
+    private const string STRICT_TRANSPORT_SECURITY = 'max-age=31536000; includeSubDomains; preload';
+
+    private function withSecurityHeaders(Response $response, Request $request): Response
     {
         $response = $response
             ->withHeader('x-content-type-options', 'nosniff')
             ->withHeader('referrer-policy', 'strict-origin-when-cross-origin')
             ->withHeader('content-security-policy', self::CONTENT_SECURITY_POLICY)
+            ->withHeader('permissions-policy', self::PERMISSIONS_POLICY)
+            // Trennt den Browsing-Kontext von dem, was diese Seite oeffnet oder
+            // was sie oeffnet — window.opener zeigt danach ins Leere.
+            ->withHeader('cross-origin-opener-policy', 'same-origin')
+            // Fremde Seiten sollen Bilder und Antworten von hier nicht
+            // einbinden koennen. Statische Dateien liefert der Webserver aus;
+            // fuer die gilt dessen Konfiguration.
+            ->withHeader('cross-origin-resource-policy', 'same-origin')
             // frame-ancestors deckt dasselbe ab, aber aeltere Browser kennen es
             // nicht. Der Kopf kostet nichts.
             ->withHeader('x-frame-options', 'DENY');
+
+        // HSTS **nur** ueber TLS, und mit derselben Erkennung wie das
+        // Secure-Flag des Sitzungs-Cookies.
+        //
+        // Der Kopf ist die einzige Sicherheitsmassnahme hier, die sich nicht
+        // zuruecknehmen laesst: Ein Browser, der ihn einmal gesehen hat,
+        // spricht diese Domain ein Jahr lang ausschliesslich ueber HTTPS an —
+        // auch wenn das Zertifikat noch fehlt. Ihn ueber eine unverschluesselte
+        // Verbindung mitzuschicken, waere deshalb kein zu strenger, sondern ein
+        // sich selbst aussperrender Fehlstart.
+        if ($request->secure) {
+            $response = $response->withHeader('strict-transport-security', self::STRICT_TRANSPORT_SECURITY);
+        }
 
         // HTML-Seiten sind hier nie allgemeingueltig: Die Kopfzeile zeigt den
         // angemeldeten Namen, Formulare tragen einen sitzungsgebundenen

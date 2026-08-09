@@ -22,7 +22,8 @@ Architekturentscheidungen (Router, SQLite vs. PostgreSQL, Migrationsstrategie, K
 | 7 | Admin, DSGVO, Betrieb | umgesetzt |
 | 8 | Anzeigen verwalten (bearbeiten, pausieren, löschen) | umgesetzt |
 | 9 | Kontosperren, Kontaktformular, Rechtsseiten | umgesetzt |
-| 10 | Vererbungsrechnung (Verpaarungs-Simulator) | umgesetzt |
+| 10 | Vererbungsrechnung, Redaktionssystem, Mediathek, Menüs, Weiterleitungen, Textverwaltung | umgesetzt |
+| 11 | Postausgang und SMTP, Benachrichtigungen, gemerkte Suchen, Merkliste, Sitzungsverwaltung, strukturierte Daten | umgesetzt |
 
 ## Voraussetzungen
 
@@ -74,6 +75,7 @@ npm install && npm run build
 | `php bin/seed.php` | Stammdaten einspielen, wiederholbar (Upsert) |
 | `php bin/import_postal_codes.php [--geonames=DE.txt]` | Postleitzahlen einspielen bzw. durch exakte GeoNames-Zentroide ersetzen |
 | `php bin/reindex.php` | Volltextindex vollständig neu aufbauen |
+| `php bin/reimage.php [--pruefen] [--alle]` | Fehlende Bildgrößen (400/800/1600) für Bestandsanzeigen nachrechnen |
 | `php tools/generate_demo_listings.php --anzahl=50000` | Demo-Anzeigen für Messungen (nicht in Produktion) |
 | `php tools/benchmark_search.php --schreiben` | Suche messen und `docs/SUCHE.md` schreiben |
 | `php tools/smoke_wizard.php [--behalten]` | Abnahme Phase 4: Anzeige komplett anlegen und veröffentlichen |
@@ -479,15 +481,23 @@ Der Zeitplan steht in `Reptilienmarkt\Domain\Job\JobScheduler` und damit im Code
 Crontab. Auf dem Server genügen zwei Einträge:
 
 ```cron
-0  * * * *  php /pfad/bin/cron.php          # fällige Aufgaben einplanen
+*/5 * * * *  php /pfad/bin/cron.php          # fällige Aufgaben einplanen
 */5 * * * *  php /pfad/bin/worker.php --einmal
 30 2 * * *  php /pfad/bin/backup.php
 ```
 
+Der Aufruf ist fünfminütig, nicht stündlich: Der Postausgang trägt Bestätigungslinks und
+Passwortmails, und wer sich gerade registriert hat, wartet vor seinem Postfach. Die selteneren
+Aufgaben laufen deswegen nicht öfter — der `JobScheduler` kennt zu jedem Auftrag seinen Abstand
+und plant ihn erst wieder ein, wenn er verstrichen ist.
+
 | Auftrag | Wann | Zweck |
 |---|---|---|
+| `mail.dispatch` | alle 5 Minuten | Postausgang zustellen (siehe „Mailversand") |
+| `content.publish` | viertelstündlich | Geplante redaktionelle Beiträge freischalten |
 | `listing.archive` | stündlich | Abgelaufene Anzeigen abschalten |
 | `billing.expire` | stündlich | Abgelaufene Top-Platzierungen und Abos beenden |
+| `user.ban_expiry` | stündlich | Befristete Kontosperren aufheben |
 | `retention.enforce` | 03:00 UTC | Aufbewahrungsfristen umsetzen |
 | `media.cleanup` | 04:00 UTC | Verwaiste Bilddateien entfernen |
 | `log.rotate` | 04:00 UTC | Alte Protokolldateien entfernen |
@@ -509,6 +519,122 @@ Protokolle sind JSON-Zeilen unter `LOG_DIRECTORY`, eine Datei je Tag. Bekannte G
 (Passwort, Token, Secret, Cookie, Authorization) werden vor dem Schreiben ersetzt. Der Audit-Trail
 in der Datenbank ist etwas anderes: Er ist per Trigger append-only, dokumentiert
 Rechtsentscheidungen und Moderationsvorgänge und wird **nie** rotiert.
+
+## Mailversand
+
+Mails werden **nie im Request verschickt**, sondern in die Tabelle `mail_outbox` geschrieben; der
+Auftrag `mail.dispatch` stellt sie alle fünf Minuten zu. Der Grund ist eine Erfahrung, die jede
+Anwendung einmal macht: Ein langsamer oder toter MTA hängt sonst die Registrierung an seiner
+Antwortzeit auf, und ein Fehlschlag ist unwiederbringlich verloren — niemand erfährt, dass die
+Bestätigungsmail nie ankam.
+
+`MAIL_TRANSPORT` wählt nur, **womit** der Auftrag zustellt:
+
+| Wert | Bedeutung |
+|---|---|
+| `datei` | Ablage unter `MAIL_DIRECTORY` (Voreinstellung, verschickt nichts) |
+| `sendmail` | über den lokalen MTA (`mail()`) |
+| `smtp` | über einen SMTP-Server, siehe die `SMTP_*`-Werte in `.env.example` |
+
+Der SMTP-Transport ist reines PHP über `stream_socket_client` — EHLO, STARTTLS, AUTH PLAIN/LOGIN,
+Dot-Stuffing, MIME-codierte Kopfzeilen. Der Sprachumfang, den ein Absender braucht, ist klein
+genug, dass eine Bibliothek samt Aktualisierungspflicht in keinem Verhältnis stünde.
+
+Wiederholt wird über den Backoff des `JobRunner`. Eine Mail wird nach zehn Versuchen aufgegeben;
+die Zeile bleibt stehen und erscheint im Dashboard unter „Nicht zugestellte Mails" — sie ist der
+einzige Beleg dafür, dass jemand seine Nachricht nicht bekommen hat. `php bin/doctor.php` prüft die
+Transportkonfiguration und meldet Mails, die länger als 30 Minuten im Ausgang liegen.
+
+## Benachrichtigungen
+
+Unter `/konto/benachrichtigungen` stellt jedes Konto ein, worüber es Post bekommt. Die Kanäle sind
+ein Enum, dessen Schlüssel zugleich der **Zweck** der Mail ist (`MailMessage::$purpose`) — damit
+gibt es keine zweite Zuordnungstabelle, die auseinanderlaufen kann.
+
+| Kanal | Voreinstellung |
+|---|---|
+| `nachricht.neu` | an |
+| `suche.treffer` | **aus** — wer eine Suche merkt, entscheidet sich dort dafür |
+| `anzeige.ablauf` | an |
+| `handel.bestaetigung` | an |
+| `system.wichtig` | **nicht abschaltbar** |
+
+`system.wichtig` trägt Kontosperren, Sicherheitshinweise und Änderungen an Rechtstexten. Ein
+Abschalter dafür wäre ein Schalter gegen die eigene Rechtsposition — und gegen die des Nutzers, der
+auf nichts davon reagieren könnte.
+
+Entschieden wird in einem Umschlag um den Mailer (`PreferenceAwareMailer`), nicht in jedem Dienst:
+Die Frage „darf ich das schreiben?" gehört an genau eine Stelle, sonst wird sie beim nächsten neuen
+Mailanlass vergessen. Jede abbestellbare Mail trägt den Abmeldelink im Text und einen
+`List-Unsubscribe`-Kopf; `GET /abmelden/{token}?kanal=…` schaltet ohne Anmeldung genau einen Kanal
+ab und beendet keine Sitzung.
+
+> Der Abmeldetoken steht wie alle Token nur als SHA-256-Hash in der Datenbank. Der Klartext lässt
+> sich daraus nicht zurückholen, also stellt jede Mail einen neuen aus und entwertet den vorigen.
+> Ein älterer Abmeldelink landet auf einer Seite, die das sagt und auf die Einstellungen verweist.
+
+### Neue Nachrichten
+
+`MessagingService` reiht nach `send()` und `openConversation()` eine Mail an die Gegenseite ein —
+über den Postausgang und den Einwilligungsumschlag, nie direkt. Zusammengefasst statt geflutet,
+über zwei Grenzen, die beide nötig sind: höchstens eine Mail je Gespräch und Stunde, und keine
+zweite, solange die erste ungelesen ist.
+
+Die Mail enthält **keinen Nachrichtentext**, nur Absendername, Anzeigentitel und Link. Die
+Kontaktmaskierung greift beim Anzeigen und nicht beim Speichern; der Text in einer Mail würde sie
+umgehen und unmaskiert an eine Adresse gehen, die die Plattform nicht kontrolliert.
+
+## Gemerkte Suchen und Merkliste
+
+`/konto/suchen` verwaltet gemerkte Suchen, gespeichert werden die **normalisierten Kriterien** und
+nicht die URL: Eine gespeicherte Adresse hinge am aktuellen Schema, und bei einer Facettensuche
+ändert sich so etwas. Die Adresse wird beim Anzeigen über den vorhandenen `SearchUrlBuilder` neu
+gebaut. Die Obergrenze steht in `config/trust.php` (`gespeicherte_suchen.max_je_konto`, 20).
+
+`/konto/merkliste` zeigt gemerkte Anzeigen. Pausierte und abgelaufene bleiben sichtbar und
+gekennzeichnet — eine kommentarlos verschwundene Anzeige sieht wie ein Fehler aus. Die Merkzahl
+sieht ausschließlich der Anbieter in `/konto/statistik`: Eine öffentliche Zahl lädt zum
+Hochschrauben ein.
+
+## Angemeldete Geräte
+
+`/konto/sitzungen` listet die offenen Sitzungen mit grober Gerätebezeichnung und letztem Zugriff;
+die aktuelle ist markiert. Einzelne lassen sich beenden, „alle anderen beenden" verlangt das
+Passwort — genau diese Maßnahme greift gegen eine übernommene Sitzung, und wer die Sitzung
+übernommen hat, soll sie nicht gegen den rechtmäßigen Inhaber richten können. Ein Passwortwechsel
+beendet die übrigen Sitzungen ohnehin.
+
+Gespeichert wird **gekürzt**: IPv4 ohne das letzte Oktett, IPv6 ohne den Interface-Identifier, die
+Browserkennung auf 180 Zeichen. Zum Wiedererkennen reicht das; für mehr gibt es keinen Grund. Die
+Aufbewahrungsfrist steht als `sitzungen_tage` in `config/aufbewahrung.php`.
+
+## Auffindbarkeit
+
+Strukturierte Daten baut `Reptilienmarkt\Domain\Seo\StructuredData` — an einer Stelle und nicht je
+Template, aus demselben Grund wie beim `SeoContext` des Redaktionssystems: JSON gehört von
+`json_encode` gebaut, nicht von einer Templatesprache zusammengesetzt.
+
+| Seite | Auszeichnung |
+|---|---|
+| Anzeige | `Product` mit `offers`, Preis, Währung, Verfügbarkeit aus dem Status |
+| Artenprofil | `CollectionPage` und `BreadcrumbList` in einem `@graph` |
+| Züchterseite | `Person` oder `Organization`, `aggregateRating` erst ab drei Bewertungen |
+
+Die Anzeige trägt **kein** `aggregateRating`: Die Bewertungen gelten dem Konto und nicht diesem
+Tier. Fehlt der Preis (Tausch, Preis auf Anfrage), entfällt das `Offer` ganz — eines ohne Preis ist
+eine leere Hülle.
+
+Die Sitemap nennt Anzeigen, Artenprofile, Züchterseiten und redaktionelle Inhalte, jeweils mit
+`lastmod`. Entwürfe, Anzeigen in Prüfung, pausierte, abgelaufene und gesperrte bleiben draußen —
+eine Einladung auf eine Seite, die 404 antwortet, ist ein gemeldeter Fehler.
+
+Anzeigenbilder liegen in drei Breiten (400/800/1600) vor; die Trefferkachel wählt über `srcset` und
+`sizes`, trägt `width`/`height` gegen den Layoutsprung und lädt verzögert außer beim ersten
+Treffer. Bestandsbilder bekommen ihre kleinen Größen über `php bin/reimage.php` — eine
+Nachholarbeit, keine laufende Aufgabe, und deshalb ein Befehl statt eines Auftrags im Request.
+
+Die Facettensuche ist unter zwei Adressformen erreichbar; kanonisch ist die Pfadform:
+`/markt/?art_id=5` und `/markt/bartagame/` verweisen beide auf `/markt/bartagame/`.
 
 ## Verwaltung
 
@@ -787,7 +913,9 @@ fällt auf, statt eine leere Stelle zu hinterlassen. Ein Test vergleicht die in 
 verwendeten Schlüssel gegen den Katalog.
 
 > Der Übersetzer ist in Phase 5 eingeführt. Die Templates aus den Phasen 1 bis 4 tragen ihre Texte
-> noch direkt im Markup; sie nachzuziehen ist offen und rein mechanisch.
+> noch direkt im Markup; sie nachzuziehen ist offen und rein mechanisch. Was genau fehlt — 11 Dateien
+> mit 135 Fundstellen aus den Phasen 1 bis 4, dazu 23 spätere Dateien — steht mit Erhebungsmethode
+> und Vorschlag zur Reihenfolge in [`docs/OFFENE-UEBERSETZUNGEN.md`](docs/OFFENE-UEBERSETZUNGEN.md).
 
 ## Datensätze
 

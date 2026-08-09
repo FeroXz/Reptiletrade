@@ -448,6 +448,8 @@ $container->set(ApiController::class, static fn(Container $c): ApiController => 
     $c->get(MorphRepository::class),
     $c->get(PostalCodeRepository::class),
     $c->get(SearchRequestParser::class),
+    $c->get(RateLimiter::class),
+    $c->get(Clock::class),
 ));
 
 // ------------------------------------------------------- Konto und Sitzung
