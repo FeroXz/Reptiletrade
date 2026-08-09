@@ -1,0 +1,88 @@
+{% extends 'layout/basis.html.twig' %}
+{% block titel %}{{ t('admin.inhalt.titel') }} — Reptilienmarkt{% endblock %}
+{% block kopf %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block inhalt %}
+    <div class="mx-auto max-w-5xl space-y-6">
+        {% include 'partials/meldungen.html.twig' %}
+
+        <div class="flex flex-wrap items-baseline justify-between gap-3">
+            <div>
+                <h1 class="text-xl font-semibold">{{ t('admin.inhalt.titel') }}</h1>
+                <p class="gedaempft">{{ t('admin.inhalt.erklaerung') }}</p>
+            </div>
+            <div class="flex items-center gap-4">
+                <a class="text-sm underline" href="/admin/">{{ t('admin.titel') }}</a>
+                <a class="knopf knopf-primaer" href="/admin/inhalte/neu">{{ t('admin.inhalt.neu') }}</a>
+            </div>
+        </div>
+
+        {# GET-Formular: Die gefilterte Ansicht bleibt verlinkbar, und nach dem
+           Speichern führt die Weiterleitung wieder hierher. #}
+        <form method="get" action="/admin/inhalte" class="karte flex flex-wrap items-end gap-3 p-4">
+            <div class="grow">
+                <label class="text-sm" for="q">{{ t('admin.inhalt.suche') }}</label>
+                <input class="feld" id="q" type="search" name="q" value="{{ suche }}"
+                       placeholder="{{ t('admin.inhalt.suche_platzhalter') }}">
+            </div>
+            <div>
+                <label class="text-sm" for="typ">{{ t('admin.inhalt.typ') }}</label>
+                <select class="feld" id="typ" name="typ">
+                    <option value="">{{ t('admin.inhalt.alle') }}</option>
+                    {% for kandidat in typen %}
+                        <option value="{{ kandidat.value }}" {{ typ == kandidat.value ? 'selected' : '' }}>{{ kandidat.label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="text-sm" for="status">{{ t('admin.inhalt.status') }}</label>
+                <select class="feld" id="status" name="status">
+                    <option value="">{{ t('admin.inhalt.alle') }}</option>
+                    {% for kandidat in zustaende %}
+                        <option value="{{ kandidat.value }}" {{ status == kandidat.value ? 'selected' : '' }}>{{ kandidat.label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="knopf">{{ t('admin.inhalt.filtern') }}</button>
+        </form>
+
+        {% if eintraege is empty %}
+            <p class="karte p-6 text-sm gedaempft">{{ t('admin.inhalt.leer') }}</p>
+        {% else %}
+            <div class="karte overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="text-left">
+                            <th class="px-4 py-3">{{ t('admin.inhalt.spalte_titel') }}</th>
+                            <th class="px-4 py-3">{{ t('admin.inhalt.spalte_pfad') }}</th>
+                            <th class="px-4 py-3">{{ t('admin.inhalt.spalte_typ') }}</th>
+                            <th class="px-4 py-3">{{ t('admin.inhalt.spalte_status') }}</th>
+                            <th class="px-4 py-3">{{ t('admin.inhalt.spalte_geaendert') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for eintrag in eintraege %}
+                            <tr class="border-t" style="border-color: var(--rand)">
+                                <td class="px-4 py-3">
+                                    <a class="underline" href="/admin/inhalte/{{ eintrag.id }}/bearbeiten">{{ eintrag.title }}</a>
+                                </td>
+                                <td class="px-4 py-3">
+                                    {% if eintrag.isPublic %}
+                                        <a class="gedaempft underline" href="{{ eintrag.path }}">{{ eintrag.path }}</a>
+                                    {% else %}
+                                        <span class="gedaempft">{{ eintrag.path }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-4 py-3">{{ eintrag.type.label }}</td>
+                                <td class="px-4 py-3">{{ eintrag.status.label }}</td>
+                                <td class="px-4 py-3 gedaempft">
+                                    {{ eintrag.updatedAt ? eintrag.updatedAt|date('d.m.Y H:i') : '—' }}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}

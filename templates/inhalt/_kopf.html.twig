@@ -1,0 +1,30 @@
+{# Kopf einer Inhaltsseite: Brotkrumen, Titel, Anriss.
+
+   Ausgelagert, weil ihn alle drei Vorlagen brauchen und ein Unterschied
+   zwischen ihnen genau hier niemandem nuetzt. #}
+{% if vorschau %}
+    <p class="karte p-3 text-sm" role="status">{{ t('inhalt.vorschau_hinweis') }}</p>
+{% endif %}
+
+{% if pfadleiste|length > 1 %}
+    <nav aria-label="{{ t('inhalt.pfadleiste') }}" class="text-sm gedaempft">
+        <ol class="flex flex-wrap items-center gap-2">
+            {% for stufe in pfadleiste %}
+                <li>
+                    {% if not loop.last %}
+                        <a class="underline" href="{{ stufe.path }}">{{ stufe.title }}</a>
+                        <span aria-hidden="true">›</span>
+                    {% else %}
+                        <span aria-current="page">{{ stufe.title }}</span>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ol>
+    </nav>
+{% endif %}
+
+<h1 class="text-2xl font-semibold">{{ eintrag.title }}</h1>
+
+{% if eintrag.excerpt %}
+    <p class="text-base gedaempft">{{ eintrag.excerpt }}</p>
+{% endif %}

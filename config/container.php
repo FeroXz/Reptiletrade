@@ -23,6 +23,24 @@ use Reptilienmarkt\Domain\Breeding\BreedingAnnouncementRepository;
 use Reptilienmarkt\Domain\Breeding\BreedingAnnouncementService;
 use Reptilienmarkt\Domain\Contact\ContactRepository;
 use Reptilienmarkt\Domain\Contact\ContactService;
+use Reptilienmarkt\Domain\Content\ContentBlockRepository;
+use Reptilienmarkt\Domain\Content\ContentEditorRepository;
+use Reptilienmarkt\Domain\Content\ContentEntryRepository;
+use Reptilienmarkt\Domain\Content\ContentPermission;
+use Reptilienmarkt\Domain\Content\ContentRenderer;
+use Reptilienmarkt\Domain\Content\ContentRevisionRepository;
+use Reptilienmarkt\Domain\Content\ContentSearchIndex;
+use Reptilienmarkt\Domain\Content\ContentService;
+use Reptilienmarkt\Domain\Content\ContentTermRepository;
+use Reptilienmarkt\Domain\Content\ContentText;
+use Reptilienmarkt\Domain\Content\MarkdownRenderer;
+use Reptilienmarkt\Domain\Content\MediaRepository;
+use Reptilienmarkt\Domain\Content\MediaUsageRepository;
+use Reptilienmarkt\Domain\Content\MenuRepository;
+use Reptilienmarkt\Domain\Content\PreviewService;
+use Reptilienmarkt\Domain\Content\PreviewTokenRepository;
+use Reptilienmarkt\Domain\Content\RedirectRepository;
+use Reptilienmarkt\Domain\Content\RedirectService;
 use Reptilienmarkt\Domain\Genetics\CrossSimulation;
 use Reptilienmarkt\Domain\Genetics\GeneticsConfiguration;
 use Reptilienmarkt\Domain\Genetics\GeneticsSimulationRepository;
@@ -74,14 +92,18 @@ use Reptilienmarkt\Domain\User\UserModerationService;
 use Reptilienmarkt\Domain\User\UserRepository;
 use Reptilienmarkt\Domain\User\VerificationRepository;
 use Reptilienmarkt\Http\Controller\AccountController;
+use Reptilienmarkt\Http\Controller\AdminContentController;
 use Reptilienmarkt\Http\Controller\AdminController;
 use Reptilienmarkt\Http\Controller\AdminListingController;
+use Reptilienmarkt\Http\Controller\AdminMediaController;
+use Reptilienmarkt\Http\Controller\AdminStructureController;
 use Reptilienmarkt\Http\Controller\AdminUserController;
 use Reptilienmarkt\Http\Controller\AnnouncementController;
 use Reptilienmarkt\Http\Controller\ApiController;
 use Reptilienmarkt\Http\Controller\AuthController;
 use Reptilienmarkt\Http\Controller\BillingController;
 use Reptilienmarkt\Http\Controller\ContactController;
+use Reptilienmarkt\Http\Controller\ContentController;
 use Reptilienmarkt\Http\Controller\GeneticsController;
 use Reptilienmarkt\Http\Controller\LegalDocumentController;
 use Reptilienmarkt\Http\Controller\LegalPageController;
@@ -92,10 +114,12 @@ use Reptilienmarkt\Http\Controller\MarketController;
 use Reptilienmarkt\Http\Controller\MediaController;
 use Reptilienmarkt\Http\Controller\MessageController;
 use Reptilienmarkt\Http\Controller\ModerationController;
+use Reptilienmarkt\Http\Controller\NewsController;
 use Reptilienmarkt\Http\Controller\PasswordResetController;
 use Reptilienmarkt\Http\Controller\PrivacyController;
 use Reptilienmarkt\Http\Controller\ProfileController;
 use Reptilienmarkt\Http\Controller\ReportController;
+use Reptilienmarkt\Http\Controller\SitemapController;
 use Reptilienmarkt\Http\Controller\SpeciesController;
 use Reptilienmarkt\Http\Controller\StatsController;
 use Reptilienmarkt\Http\Kernel;
@@ -110,6 +134,7 @@ use Reptilienmarkt\Http\View\ViewContext;
 use Reptilienmarkt\Infra\Genetics\PdfReportGenerator;
 use Reptilienmarkt\Infra\Job\Handler\BanExpiryHandler;
 use Reptilienmarkt\Infra\Job\Handler\BoostExpiryHandler;
+use Reptilienmarkt\Infra\Job\Handler\ContentPublishHandler;
 use Reptilienmarkt\Infra\Job\Handler\ListingArchiveHandler;
 use Reptilienmarkt\Infra\Job\Handler\ListingExpiryNoticeHandler;
 use Reptilienmarkt\Infra\Job\Handler\LogRotationHandler;
@@ -128,6 +153,11 @@ use Reptilienmarkt\Infra\Persistence\PdoBoostRepository;
 use Reptilienmarkt\Infra\Persistence\PdoBreederProfileRepository;
 use Reptilienmarkt\Infra\Persistence\PdoBreedingAnnouncementRepository;
 use Reptilienmarkt\Infra\Persistence\PdoContactRepository;
+use Reptilienmarkt\Infra\Persistence\PdoContentBlockRepository;
+use Reptilienmarkt\Infra\Persistence\PdoContentEditorRepository;
+use Reptilienmarkt\Infra\Persistence\PdoContentEntryRepository;
+use Reptilienmarkt\Infra\Persistence\PdoContentRevisionRepository;
+use Reptilienmarkt\Infra\Persistence\PdoContentTermRepository;
 use Reptilienmarkt\Infra\Persistence\PdoConversationRepository;
 use Reptilienmarkt\Infra\Persistence\PdoGeneticsSimulationRepository;
 use Reptilienmarkt\Infra\Persistence\PdoJobRepository;
@@ -135,11 +165,16 @@ use Reptilienmarkt\Infra\Persistence\PdoLegalDocumentRepository;
 use Reptilienmarkt\Infra\Persistence\PdoLegalTextRepository;
 use Reptilienmarkt\Infra\Persistence\PdoListingMediaRepository;
 use Reptilienmarkt\Infra\Persistence\PdoListingRepository;
+use Reptilienmarkt\Infra\Persistence\PdoMediaRepository;
+use Reptilienmarkt\Infra\Persistence\PdoMediaUsageRepository;
+use Reptilienmarkt\Infra\Persistence\PdoMenuRepository;
 use Reptilienmarkt\Infra\Persistence\PdoMessageRepository;
 use Reptilienmarkt\Infra\Persistence\PdoMorphRepository;
 use Reptilienmarkt\Infra\Persistence\PdoPaymentRepository;
 use Reptilienmarkt\Infra\Persistence\PdoPostalCodeRepository;
+use Reptilienmarkt\Infra\Persistence\PdoPreviewTokenRepository;
 use Reptilienmarkt\Infra\Persistence\PdoRateLimitRepository;
+use Reptilienmarkt\Infra\Persistence\PdoRedirectRepository;
 use Reptilienmarkt\Infra\Persistence\PdoReportRepository;
 use Reptilienmarkt\Infra\Persistence\PdoReviewRepository;
 use Reptilienmarkt\Infra\Persistence\PdoSessionRepository;
@@ -151,11 +186,15 @@ use Reptilienmarkt\Infra\Persistence\PdoTokenRepository;
 use Reptilienmarkt\Infra\Persistence\PdoUserDocumentRepository;
 use Reptilienmarkt\Infra\Persistence\PdoUserRepository;
 use Reptilienmarkt\Infra\Persistence\PdoVerificationRepository;
+use Reptilienmarkt\Infra\Search\ContentIndexer;
+use Reptilienmarkt\Infra\Search\Fts5ContentSearchIndex;
 use Reptilienmarkt\Infra\Search\Fts5SearchIndex;
 use Reptilienmarkt\Infra\Search\ListingIndexer;
 use Reptilienmarkt\Infra\Search\ListingQuery;
 use Reptilienmarkt\Infra\Search\PdoListingSearchRepository;
 use Reptilienmarkt\Infra\Storage\ImagePipeline;
+use Reptilienmarkt\Infra\Storage\MediaService;
+use Reptilienmarkt\Infra\Storage\MediaStorage;
 use Reptilienmarkt\Infra\Storage\PrivateStorage;
 use Reptilienmarkt\Infra\Storage\PublicImageStorage;
 use Reptilienmarkt\Legal\LegalGuard;
@@ -330,6 +369,9 @@ $container->set(Router::class, static function () use ($root): Router {
 $container->set(ViewContext::class, static fn(Container $c): ViewContext => new ViewContext(
     $c->get(Viewer::class),
     $c->get(ConversationRepository::class),
+    $c->get(ContentPermission::class),
+    $c->get(MenuRepository::class),
+    $c->get(ContentEntryRepository::class),
 ));
 
 $container->set(Environment::class, static fn(Container $c): Environment => TwigFactory::create(
@@ -394,6 +436,94 @@ $container->set(CurrentUser::class, static fn(Container $c): CurrentUser => new 
     $c->get(UserRepository::class),
 ));
 $container->set(Viewer::class, static fn(Container $c): Viewer => $c->get(CurrentUser::class));
+
+// ------------------------------------------------------- Redaktionssystem
+$container->set(ContentEntryRepository::class, static fn(Container $c): ContentEntryRepository => new PdoContentEntryRepository($c->get(Database::class)));
+$container->set(ContentBlockRepository::class, static fn(Container $c): ContentBlockRepository => new PdoContentBlockRepository($c->get(Database::class)));
+
+$container->set(ContentRevisionRepository::class, static fn(Container $c): ContentRevisionRepository => new PdoContentRevisionRepository($c->get(Database::class)));
+$container->set(PreviewTokenRepository::class, static fn(Container $c): PreviewTokenRepository => new PdoPreviewTokenRepository($c->get(Database::class)));
+
+$container->set(PreviewService::class, static fn(Container $c): PreviewService => new PreviewService(
+    $c->get(PreviewTokenRepository::class),
+    $c->get(Clock::class),
+));
+
+$container->set(ContentEditorRepository::class, static fn(Container $c): ContentEditorRepository => new PdoContentEditorRepository($c->get(Database::class)));
+
+$container->set(ContentPermission::class, static fn(Container $c): ContentPermission => new ContentPermission(
+    $c->get(ContentEditorRepository::class),
+));
+
+$container->set(ContentService::class, static fn(Container $c): ContentService => new ContentService(
+    $c->get(ContentEntryRepository::class),
+    $c->get(ContentBlockRepository::class),
+    $c->get(ContentRevisionRepository::class),
+    $c->get(ContentSearchIndex::class),
+    $c->get(ContentText::class),
+    $c->get(RedirectService::class),
+    $c->get(RetentionPolicy::class),
+    $c->get(AuditLog::class),
+    $c->get(Clock::class),
+));
+
+$container->set(RedirectRepository::class, static fn(Container $c): RedirectRepository => new PdoRedirectRepository($c->get(Database::class)));
+$container->set(MenuRepository::class, static fn(Container $c): MenuRepository => new PdoMenuRepository($c->get(Database::class)));
+
+$container->set(RedirectService::class, static fn(Container $c): RedirectService => new RedirectService(
+    $c->get(RedirectRepository::class),
+    $c->get(AuditLog::class),
+    $c->get(Clock::class),
+));
+
+$container->set(ContentTermRepository::class, static fn(Container $c): ContentTermRepository => new PdoContentTermRepository($c->get(Database::class)));
+$container->set(ContentSearchIndex::class, static fn(Container $c): ContentSearchIndex => new Fts5ContentSearchIndex($c->get(Database::class)));
+
+$container->set(ContentText::class, static fn(Container $c): ContentText => new ContentText($c->get(MarkdownRenderer::class)));
+
+$container->set(ContentIndexer::class, static fn(Container $c): ContentIndexer => new ContentIndexer(
+    $c->get(ContentEntryRepository::class),
+    $c->get(ContentBlockRepository::class),
+    $c->get(ContentText::class),
+    $c->get(ContentSearchIndex::class),
+));
+
+$container->set(MediaRepository::class, static fn(Container $c): MediaRepository => new PdoMediaRepository($c->get(Database::class)));
+$container->set(MediaUsageRepository::class, static fn(Container $c): MediaUsageRepository => new PdoMediaUsageRepository($c->get(Database::class)));
+
+$container->set(MediaStorage::class, static fn(): MediaStorage => new MediaStorage(
+    $root . '/' . ltrim(Env::string('STORAGE_MEDIA', 'public/media'), '/'),
+));
+
+$container->set(MediaService::class, static fn(Container $c): MediaService => new MediaService(
+    $c->get(MediaRepository::class),
+    $c->get(MediaUsageRepository::class),
+    $c->get(ImagePipeline::class),
+    $c->get(MediaStorage::class),
+    $c->get(AuditLog::class),
+    $c->get(Clock::class),
+));
+
+$container->set(MarkdownRenderer::class, static fn(): MarkdownRenderer => new MarkdownRenderer());
+
+$container->set(ContentRenderer::class, static fn(Container $c): ContentRenderer => new ContentRenderer(
+    $c->get(MarkdownRenderer::class),
+    $c->get(ContentText::class),
+    $c->get(ListingRepository::class),
+    $c->get(SpeciesRepository::class),
+    $c->get(MediaRepository::class),
+));
+
+$container->set(ContentController::class, static fn(Container $c): ContentController => new ContentController(
+    $c->get(ContentEntryRepository::class),
+    $c->get(ContentBlockRepository::class),
+    $c->get(ContentRenderer::class),
+    $c->get(PreviewService::class),
+    $c->get(RedirectService::class),
+    $c->get(MediaRepository::class),
+    $c->get(Environment::class),
+    Env::string('APP_URL', 'https://example.tld'),
+));
 
 // ------------------------------------------------------ Anzeigen und Ablage
 $container->set(ListingRepository::class, static fn(Container $c): ListingRepository => new PdoListingRepository($c->get(Database::class)));
@@ -902,6 +1032,12 @@ $container->set('jobs.handlers', static function (Container $c) use ($root): arr
             $c->get(Clock::class),
             Env::string('APP_URL', 'https://example.tld'),
         ),
+        new ContentPublishHandler(
+            $c->get(ContentService::class),
+            $c->get(PreviewService::class),
+            $c->get(Clock::class),
+            $c->get(Logger::class),
+        ),
         new MediaCleanupHandler(
             $c->get(Database::class),
             $root . '/' . ltrim(Env::string('STORAGE_PUBLIC', 'public/uploads'), '/'),
@@ -992,6 +1128,58 @@ $container->set(AdminController::class, static fn(Container $c): AdminController
     $c->get(JobRepository::class),
     $c->get(RetentionPolicy::class),
     $c->get(UiTextService::class),
+    $c->get(Viewer::class),
+    $c->get(SessionManager::class),
+    $c->get(Translator::class),
+    $c->get(Environment::class),
+));
+
+$container->set(AdminContentController::class, static fn(Container $c): AdminContentController => new AdminContentController(
+    $c->get(ContentService::class),
+    $c->get(ContentEntryRepository::class),
+    $c->get(ContentBlockRepository::class),
+    $c->get(ContentRevisionRepository::class),
+    $c->get(ContentTermRepository::class),
+    $c->get(PreviewService::class),
+    $c->get(MediaService::class),
+    $c->get(ContentPermission::class),
+    $c->get(Viewer::class),
+    $c->get(SessionManager::class),
+    $c->get(Translator::class),
+    $c->get(Environment::class),
+));
+
+$container->set(NewsController::class, static fn(Container $c): NewsController => new NewsController(
+    $c->get(ContentEntryRepository::class),
+    $c->get(ContentTermRepository::class),
+    $c->get(ContentSearchIndex::class),
+    $c->get(Environment::class),
+    Env::string('APP_URL', 'https://example.tld'),
+));
+
+$container->set(SitemapController::class, static fn(Container $c): SitemapController => new SitemapController(
+    $c->get(ContentEntryRepository::class),
+    $c->get(SpeciesRepository::class),
+    $c->get(Clock::class),
+    Env::string('APP_URL', 'https://example.tld'),
+));
+
+$container->set(AdminStructureController::class, static fn(Container $c): AdminStructureController => new AdminStructureController(
+    $c->get(MenuRepository::class),
+    $c->get(RedirectService::class),
+    $c->get(ContentEntryRepository::class),
+    $c->get(ContentPermission::class),
+    $c->get(Viewer::class),
+    $c->get(SessionManager::class),
+    $c->get(Translator::class),
+    $c->get(Environment::class),
+));
+
+$container->set(AdminMediaController::class, static fn(Container $c): AdminMediaController => new AdminMediaController(
+    $c->get(MediaService::class),
+    $c->get(MediaRepository::class),
+    $c->get(MediaUsageRepository::class),
+    $c->get(ContentPermission::class),
     $c->get(Viewer::class),
     $c->get(SessionManager::class),
     $c->get(Translator::class),

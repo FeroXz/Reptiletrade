@@ -1,0 +1,51 @@
+{% extends 'layout/basis.html.twig' %}
+{% block titel %}{{ t('admin.inhalt.neu') }} — Reptilienmarkt{% endblock %}
+{% block kopf %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block inhalt %}
+    <div class="mx-auto max-w-2xl space-y-6">
+        {% include 'partials/meldungen.html.twig' %}
+
+        <div class="flex flex-wrap items-baseline justify-between gap-3">
+            <h1 class="text-xl font-semibold">{{ t('admin.inhalt.neu') }}</h1>
+            <a class="text-sm underline" href="/admin/inhalte">{{ t('admin.inhalt.titel') }}</a>
+        </div>
+
+        <form method="post" action="/admin/inhalte/neu" class="karte space-y-4 p-6">
+            <input type="hidden" name="_csrf" value="{{ csrf }}">
+
+            <div>
+                <label class="text-sm" for="titel">{{ t('admin.inhalt.feld_titel') }}</label>
+                <input class="feld" id="titel" name="titel" required autofocus>
+            </div>
+
+            <div>
+                <label class="text-sm" for="typ">{{ t('admin.inhalt.typ') }}</label>
+                <select class="feld" id="typ" name="typ">
+                    {% for kandidat in typen %}
+                        <option value="{{ kandidat.value }}">{{ kandidat.label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label class="text-sm" for="slug">{{ t('admin.inhalt.feld_slug') }}</label>
+                <input class="feld" id="slug" name="slug" aria-describedby="slug-hilfe">
+                <p class="mt-1 text-xs gedaempft" id="slug-hilfe">{{ t('admin.inhalt.slug_hilfe') }}</p>
+            </div>
+
+            <div>
+                <label class="text-sm" for="eltern_id">{{ t('admin.inhalt.feld_eltern') }}</label>
+                <select class="feld" id="eltern_id" name="eltern_id" aria-describedby="eltern-hilfe">
+                    <option value="">{{ t('admin.inhalt.keine_eltern') }}</option>
+                    {% for seite in seiten %}
+                        <option value="{{ seite.id }}">{{ seite.path }} — {{ seite.title }}</option>
+                    {% endfor %}
+                </select>
+                <p class="mt-1 text-xs gedaempft" id="eltern-hilfe">{{ t('admin.inhalt.eltern_hilfe') }}</p>
+            </div>
+
+            <button type="submit" class="knopf knopf-primaer">{{ t('admin.inhalt.anlegen') }}</button>
+        </form>
+    </div>
+{% endblock %}

@@ -1,0 +1,9 @@
+{# Ein Hinweiskasten. role="note" statt "alert": Ein alert unterbricht
+   Screenreader-Nutzer mitten im Lesen, und das ist ein Kasten im Fliesstext
+   nicht wert. #}
+<aside class="karte p-4 fliesstext" role="note">
+    {% if block.string('titel') %}
+        <p class="font-semibold">{{ block.string('titel') }}</p>
+    {% endif %}
+    {{ block.html|raw }}
+</aside>

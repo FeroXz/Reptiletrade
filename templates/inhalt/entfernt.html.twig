@@ -1,0 +1,14 @@
+{% extends 'layout/basis.html.twig' %}
+
+{% block titel %}{{ t('inhalt.entfernt_titel') }} — Reptilienmarkt{% endblock %}
+
+{% block kopf %}<meta name="robots" content="noindex, follow">{% endblock %}
+
+{% block inhalt %}
+    {# 410, nicht 404: Der Inhalt gab es, und er wurde bewusst entfernt. #}
+    <div class="karte mx-auto max-w-lg p-8 text-center">
+        <h1 class="text-2xl font-semibold">{{ t('inhalt.entfernt_titel') }}</h1>
+        <p class="mt-2 text-sm gedaempft">{{ t('inhalt.entfernt_text') }}</p>
+        <p class="mt-6"><a class="knopf knopf-primaer" href="/markt/">{{ t('inhalt.zur_uebersicht') }}</a></p>
+    </div>
+{% endblock %}

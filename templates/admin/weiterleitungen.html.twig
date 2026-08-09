@@ -1,0 +1,93 @@
+{% extends 'layout/basis.html.twig' %}
+{% block titel %}{{ t('admin.weiterleitung.titel') }} — Reptilienmarkt{% endblock %}
+{% block kopf %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block inhalt %}
+    <div class="mx-auto max-w-4xl space-y-6">
+        {% include 'partials/meldungen.html.twig' %}
+
+        <div class="flex flex-wrap items-baseline justify-between gap-3">
+            <div>
+                <h1 class="text-xl font-semibold">{{ t('admin.weiterleitung.titel') }}</h1>
+                <p class="gedaempft">{{ t('admin.weiterleitung.erklaerung') }}</p>
+            </div>
+            <a class="text-sm underline" href="/admin/inhalte">{{ t('admin.inhalt.titel') }}</a>
+        </div>
+
+        {% if schleifen is not empty %}
+            {# Kann nur entstehen, wenn jemand von Hand in die Datenbank
+               geschrieben hat — der Dienst weist Schleifen ab. Sichtbar machen
+               statt still begradigen. #}
+            <div class="karte p-4 text-sm" role="alert">
+                <p class="font-semibold">{{ t('admin.weiterleitung.schleifen') }}</p>
+                <ul class="mt-2 space-y-1">
+                    {% for schleife in schleifen %}
+                        <li>{{ schleife.from }} ⇄ {{ schleife.to }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endif %}
+
+        <form method="post" action="/admin/weiterleitungen" class="karte flex flex-wrap items-end gap-3 p-4">
+            <input type="hidden" name="_csrf" value="{{ csrf }}">
+            <div class="grow">
+                <label class="text-sm" for="von">{{ t('admin.weiterleitung.von') }}</label>
+                <input class="feld" id="von" name="von" placeholder="/alter-pfad/" required>
+            </div>
+            <div class="grow">
+                <label class="text-sm" for="nach">{{ t('admin.weiterleitung.nach') }}</label>
+                <input class="feld" id="nach" name="nach" placeholder="/neuer-pfad/" required>
+            </div>
+            <div>
+                <label class="text-sm" for="code">{{ t('admin.weiterleitung.code') }}</label>
+                <select class="feld" id="code" name="code">
+                    <option value="301">301 — {{ t('admin.weiterleitung.dauerhaft') }}</option>
+                    <option value="302">302 — {{ t('admin.weiterleitung.voruebergehend') }}</option>
+                </select>
+            </div>
+            <button type="submit" class="knopf knopf-primaer">{{ t('admin.weiterleitung.anlegen') }}</button>
+        </form>
+
+        {% if weiterleitungen is empty %}
+            <p class="karte p-6 text-sm gedaempft">{{ t('admin.weiterleitung.leer') }}</p>
+        {% else %}
+            <div class="karte overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="text-left">
+                            <th class="px-4 py-3">{{ t('admin.weiterleitung.von') }}</th>
+                            <th class="px-4 py-3">{{ t('admin.weiterleitung.nach') }}</th>
+                            <th class="px-4 py-3">{{ t('admin.weiterleitung.code') }}</th>
+                            <th class="px-4 py-3">{{ t('admin.weiterleitung.treffer') }}</th>
+                            <th class="px-4 py-3">{{ t('admin.weiterleitung.herkunft') }}</th>
+                            <th class="px-4 py-3">{{ t('admin.inhalt.spalte_aktion') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for weiterleitung in weiterleitungen %}
+                            <tr class="border-t" style="border-color: var(--rand)">
+                                <td class="px-4 py-3">{{ weiterleitung.fromPath }}</td>
+                                <td class="px-4 py-3 gedaempft">{{ weiterleitung.toPath }}</td>
+                                <td class="px-4 py-3">{{ weiterleitung.code }}</td>
+                                <td class="px-4 py-3 gedaempft">
+                                    {{ weiterleitung.hits }}{% if weiterleitung.lastUsedAt %}
+                                        · {{ weiterleitung.lastUsedAt|date('d.m.Y') }}
+                                    {% endif %}
+                                </td>
+                                <td class="px-4 py-3 gedaempft">
+                                    {{ weiterleitung.isAuto ? t('admin.weiterleitung.automatisch') : t('admin.weiterleitung.von_hand') }}
+                                </td>
+                                <td class="px-4 py-3">
+                                    <form method="post" action="/admin/weiterleitungen/{{ weiterleitung.id }}/loeschen">
+                                        <input type="hidden" name="_csrf" value="{{ csrf }}">
+                                        <button type="submit" class="knopf text-xs">{{ t('allgemein.loeschen') }}</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}

@@ -9,7 +9,11 @@ declare(strict_types=1);
  * Ein einziger Cron-Eintrag reicht — der Zeitplan steht in JobScheduler und
  * damit im Code, nicht in der Crontab:
  *
- *   0 * * * * php /pfad/bin/cron.php
+ *   *\/15 * * * * php /pfad/bin/cron.php
+ *
+ * Viertelstuendlich, nicht stuendlich: Ein geplanter Beitrag soll nicht bis zu
+ * einer Stunde zu spaet erscheinen. Die stuendlichen und taeglichen Aufgaben
+ * werden deswegen nicht oefter eingeplant — JobScheduler kennt den Abstand.
  *
  * Ausgefuehrt werden die Auftraege danach von bin/worker.php.
  *
@@ -19,6 +23,7 @@ declare(strict_types=1);
  */
 
 use Reptilienmarkt\Domain\Job\JobException;
+use Reptilienmarkt\Domain\Job\JobInterval;
 use Reptilienmarkt\Domain\Job\JobScheduler;
 use Reptilienmarkt\Support\Container;
 use Reptilienmarkt\Support\Log\Logger;
@@ -32,10 +37,14 @@ $befehl = $argv[1] ?? 'einplanen';
 
 switch ($befehl) {
     case 'plan':
-        echo "Zeitplan (Stunde in UTC, — bedeutet stündlich):\n";
+        echo "Zeitplan (Stunde in UTC):\n";
 
-        foreach ($scheduler->plan() as $type => $hour) {
-            printf("  %-24s %s\n", $type, $hour === null ? '—' : sprintf('%02d:00', $hour));
+        foreach ($scheduler->plan() as $type => $takt) {
+            printf(
+                "  %-24s %s\n",
+                $type,
+                $takt instanceof JobInterval ? $takt->label() : sprintf('%02d:00', $takt),
+            );
         }
 
         break;

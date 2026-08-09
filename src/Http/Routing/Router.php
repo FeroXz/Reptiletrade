@@ -40,6 +40,21 @@ final class Router
         $this->routes[] = new Route($methods, $pattern, $controller, $action, $name);
     }
 
+    /**
+     * Die Auffangroute: greift, was bis dahin niemand beansprucht hat.
+     *
+     * Sie ist getrennt von get(), weil sie eine Eigenschaft hat, die keine
+     * andere Route hat — sie passt auf jeden Pfad. Fuer pathExists() ist das
+     * bedeutsam: Wer sie mitzaehlte, bekaeme auf ein POST an eine beliebige
+     * Adresse ein 405 statt eines 404, weil der Pfad ja "existiert".
+     *
+     * @param class-string $controller
+     */
+    public function fallback(string $pattern, string $controller, string $action, string $name): void
+    {
+        $this->routes[] = new Route(['GET', 'HEAD'], $pattern, $controller, $action, $name, fallback: true);
+    }
+
     public function match(Request $request): ?RouteMatch
     {
         foreach ($this->routes as $route) {
@@ -59,6 +74,10 @@ final class Router
     public function pathExists(string $path): bool
     {
         foreach ($this->routes as $route) {
+            if ($route->fallback) {
+                continue;
+            }
+
             if ($route->matchesPath($path)) {
                 return true;
             }

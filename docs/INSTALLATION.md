@@ -292,6 +292,13 @@ server {
         location ~ \.php$ { return 403; }
     }
 
+    # Dasselbe für die Mediathek der Redaktion.
+    location ^~ /media/ {
+        location ~ \.php$ { return 403; }
+        expires 30d;                       # eigener Dateiname je Bild, also unveränderlich
+        add_header Cache-Control "public, immutable";
+    }
+
     location ~ /\. { deny all; }
 
     ssl_certificate     /etc/letsencrypt/live/deine-domain.tld/fullchain.pem;
@@ -299,9 +306,20 @@ server {
 }
 ```
 
-Die Reihenfolge zählt: Der `uploads`-Block muss **vor** dem allgemeinen
-`\.php$`-Block greifen, sonst führt PHP-FPM eine als Bild hochgeladene
-Skriptdatei doch noch aus. Das `^~` sorgt genau dafür.
+Die Reihenfolge zählt: Die `uploads`- und `media`-Blöcke müssen **vor** dem
+allgemeinen `\.php$`-Block greifen, sonst führt PHP-FPM eine als Bild
+hochgeladene Skriptdatei doch noch aus. Das `^~` sorgt genau dafür.
+
+Bei Apache übernehmen das `public/uploads/.htaccess` und `public/media/.htaccess`
+— vorausgesetzt, der VirtualHost erlaubt `AllowOverride All`. Ob die Sperre
+tatsächlich greift, prüft `php bin/doctor.php`.
+
+Das Verzeichnis `public/media/` muss für den Webserver-Benutzer beschreibbar
+sein — dort legt die Redaktion ihre Bilder ab, nach Jahr und Monat gegliedert:
+
+```bash
+sudo install -d -o www-data -g www-data -m 775 /var/www/reptilienmarkt/public/media
+```
 
 ---
 
@@ -378,7 +396,7 @@ sudo crontab -u www-data -e
 ```
 
 ```cron
-0   * * * *  cd /var/www/reptilienmarkt && php bin/cron.php   >> storage/logs/cron.out 2>&1
+*/15 * * * * cd /var/www/reptilienmarkt && php bin/cron.php   >> storage/logs/cron.out 2>&1
 */5 * * * *  cd /var/www/reptilienmarkt && php bin/worker.php --einmal >> storage/logs/cron.out 2>&1
 30  2 * * *  cd /var/www/reptilienmarkt && php bin/backup.php >> storage/logs/cron.out 2>&1
 ```
@@ -386,6 +404,11 @@ sudo crontab -u www-data -e
 `cron.php` plant ein, was fällig ist; `worker.php` arbeitet ab. Der Zeitplan
 selbst steht im Code (`Reptilienmarkt\Domain\Job\JobScheduler`), nicht in der
 Crontab — `php bin/cron.php plan` zeigt ihn.
+
+Der Aufruf ist viertelstündlich, nicht stündlich: Ein geplanter Beitrag soll
+nicht bis zu einer Stunde zu spät erscheinen. Die stündlichen und täglichen
+Aufgaben laufen deswegen nicht öfter — `JobScheduler` kennt zu jedem Auftrag
+seinen Abstand und plant ihn erst wieder ein, wenn er verstrichen ist.
 
 Wichtig ist der Benutzer: Läuft der Cron als `root`, gehören die neu
 geschriebenen Dateien danach `root`, und der Webserver kann die Datenbank nicht
@@ -410,7 +433,7 @@ Danach von Hand:
 ```bash
 php bin/migrate.php status        # alles angewandt
 php bin/admin.php liste           # mindestens ein Admin
-php bin/cron.php plan             # sieben Aufgaben
+php bin/cron.php plan             # neun Aufgaben
 php bin/worker.php --einmal       # läuft ohne Fehler durch
 php bin/backup.php                # schreibt eine Sicherung
 ```

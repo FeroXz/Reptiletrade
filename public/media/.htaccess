@@ -1,0 +1,26 @@
+# Die Mediathek der Redaktion. Hier liegen ausschliesslich WebP-Dateien, die
+# die ImagePipeline neu gezeichnet hat. Nichts davon wird jemals ausgefuehrt.
+#
+# Der Upload-Pfad nimmt nur Bilder an, zeichnet sie auf eine frische Leinwand
+# neu (womit eingebetteter Code verschwindet) und vergibt eigene Dateinamen aus
+# Zufallsbytes. Das hier ist die zweite Linie — fuer den Fall, dass die erste
+# jemals faellt.
+#
+# Fuer nginx steht die entsprechende location-Regel in docs/INSTALLATION.md.
+
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>
+
+<IfModule mod_php7.c>
+    php_flag engine off
+</IfModule>
+
+# Bei PHP-FPM greift kein php_flag: Dort entscheidet der Handler, und der wird
+# hier fuer alle Skriptendungen abgeraeumt.
+RemoveHandler .php .phtml .php3 .php4 .php5 .php7 .php8 .phar
+RemoveType .php .phtml .php3 .php4 .php5 .php7 .php8 .phar
+
+<FilesMatch "\.(php|phtml|php[0-9]|phar|pl|py|cgi|sh|html?|svg)$">
+    Require all denied
+</FilesMatch>

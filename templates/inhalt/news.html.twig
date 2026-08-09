@@ -1,0 +1,86 @@
+{% extends 'layout/basis.html.twig' %}
+
+{% block titel %}
+    {{ kategorie ? kategorie.name ~ ' — ' ~ t('inhalt.news_titel') : t('inhalt.news_titel') }} — Reptilienmarkt
+{% endblock %}
+{% block beschreibung %}{{ kategorie and kategorie.description ? kategorie.description : t('inhalt.news_beschreibung') }}{% endblock %}
+
+{% block kopf %}
+    <link rel="canonical" href="{{ kategorie ? '/news/kategorie/' ~ kategorie.slug ~ '/' : '/news/' }}">
+    <link rel="alternate" type="application/rss+xml" title="{{ t('inhalt.news_titel') }}" href="/feed.xml">
+{% endblock %}
+
+{% block inhalt %}
+    <div class="mx-auto max-w-3xl space-y-6">
+        <header class="space-y-2">
+            <h1 class="text-2xl font-semibold">{{ kategorie ? kategorie.name : t('inhalt.news_titel') }}</h1>
+            {% if kategorie and kategorie.description %}
+                <p class="gedaempft">{{ kategorie.description }}</p>
+            {% elseif not kategorie %}
+                <p class="gedaempft">{{ t('inhalt.news_beschreibung') }}</p>
+            {% endif %}
+        </header>
+
+        {% if kategorien is not empty %}
+            <nav class="flex flex-wrap gap-3 text-sm" aria-label="{{ t('inhalt.kategorien') }}">
+                <a class="{{ kategorie ? 'underline' : 'font-semibold' }}" href="/news/">{{ t('inhalt.alle_beitraege') }}</a>
+                {% for eintrag in kategorien %}
+                    <a class="{{ kategorie and kategorie.id == eintrag.id ? 'font-semibold' : 'underline' }}"
+                       href="/news/kategorie/{{ eintrag.slug }}/">{{ eintrag.name }} ({{ eintrag.entryCount }})</a>
+                {% endfor %}
+            </nav>
+        {% endif %}
+
+        {# Ohne JavaScript: ein gewöhnliches GET-Formular. #}
+        <form method="get" action="/news/" class="karte flex flex-wrap items-end gap-3 p-4" role="search">
+            <div class="grow">
+                <label class="text-sm" for="news-suche">{{ t('inhalt.news_suche') }}</label>
+                <input class="feld" id="news-suche" type="search" name="q" value="{{ suche }}">
+            </div>
+            <button type="submit" class="knopf">{{ t('inhalt.suchen') }}</button>
+        </form>
+
+        {% if beitraege is empty %}
+            <p class="karte p-6 text-sm gedaempft">
+                {{ suche ? t('inhalt.keine_treffer') : t('inhalt.keine_beitraege') }}
+            </p>
+        {% else %}
+            <ul class="space-y-4">
+                {% for beitrag in beitraege %}
+                    <li class="karte p-6">
+                        <article class="space-y-2">
+                            {% if beitrag.publishedAt %}
+                                <p class="text-sm gedaempft">
+                                    <time datetime="{{ beitrag.publishedAt|date('Y-m-d') }}">{{ beitrag.publishedAt|date('d.m.Y') }}</time>
+                                </p>
+                            {% endif %}
+                            <h2 class="text-lg font-semibold">
+                                <a class="underline" href="{{ beitrag.path }}">{{ beitrag.title }}</a>
+                            </h2>
+                            {% if beitrag.excerpt %}<p class="gedaempft">{{ beitrag.excerpt }}</p>{% endif %}
+                        </article>
+                    </li>
+                {% endfor %}
+            </ul>
+
+            {% if not suche and gesamt > pro_seite %}
+                <nav class="flex items-center justify-between gap-4 pt-2" aria-label="{{ t('inhalt.blaettern') }}">
+                    {% set basis = kategorie ? '/news/kategorie/' ~ kategorie.slug ~ '/' : '/news/' %}
+                    {% if seite > 1 %}
+                        <a class="knopf" rel="prev" href="{{ basis }}?seite={{ seite - 1 }}">{{ t('allgemein.zurueck') }}</a>
+                    {% else %}<span></span>{% endif %}
+
+                    <span class="text-sm gedaempft">{{ seite }} / {{ (gesamt / pro_seite)|round(0, 'ceil') }}</span>
+
+                    {% if seite * pro_seite < gesamt %}
+                        <a class="knopf" rel="next" href="{{ basis }}?seite={{ seite + 1 }}">{{ t('allgemein.weiter') }}</a>
+                    {% endif %}
+                </nav>
+            {% endif %}
+        {% endif %}
+
+        <p class="text-sm gedaempft">
+            <a class="underline" href="/feed.xml">{{ t('inhalt.feed') }}</a>
+        </p>
+    </div>
+{% endblock %}

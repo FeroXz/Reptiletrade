@@ -3,14 +3,18 @@
 declare(strict_types=1);
 
 use Reptilienmarkt\Http\Controller\AccountController;
+use Reptilienmarkt\Http\Controller\AdminContentController;
 use Reptilienmarkt\Http\Controller\AdminController;
 use Reptilienmarkt\Http\Controller\AdminListingController;
+use Reptilienmarkt\Http\Controller\AdminMediaController;
+use Reptilienmarkt\Http\Controller\AdminStructureController;
 use Reptilienmarkt\Http\Controller\AdminUserController;
 use Reptilienmarkt\Http\Controller\AnnouncementController;
 use Reptilienmarkt\Http\Controller\ApiController;
 use Reptilienmarkt\Http\Controller\AuthController;
 use Reptilienmarkt\Http\Controller\BillingController;
 use Reptilienmarkt\Http\Controller\ContactController;
+use Reptilienmarkt\Http\Controller\ContentController;
 use Reptilienmarkt\Http\Controller\GeneticsController;
 use Reptilienmarkt\Http\Controller\LegalDocumentController;
 use Reptilienmarkt\Http\Controller\LegalPageController;
@@ -21,10 +25,12 @@ use Reptilienmarkt\Http\Controller\MarketController;
 use Reptilienmarkt\Http\Controller\MediaController;
 use Reptilienmarkt\Http\Controller\MessageController;
 use Reptilienmarkt\Http\Controller\ModerationController;
+use Reptilienmarkt\Http\Controller\NewsController;
 use Reptilienmarkt\Http\Controller\PasswordResetController;
 use Reptilienmarkt\Http\Controller\PrivacyController;
 use Reptilienmarkt\Http\Controller\ProfileController;
 use Reptilienmarkt\Http\Controller\ReportController;
+use Reptilienmarkt\Http\Controller\SitemapController;
 use Reptilienmarkt\Http\Controller\SpeciesController;
 use Reptilienmarkt\Http\Controller\StatsController;
 use Reptilienmarkt\Http\Routing\Router;
@@ -141,6 +147,37 @@ $router->get('/admin/artenstamm', AdminController::class, 'catalog', 'admin.arte
 $router->get('/admin/artenstamm/{art}/export', AdminController::class, 'exportCatalog', 'admin.artenstamm.export');
 $router->post('/admin/artenstamm/{art}/import', AdminController::class, 'importCatalog', 'admin.artenstamm.import');
 
+// Redaktion (Rolle admin oder Eintrag in content_editors — fehlt beides, gibt
+// es 404 statt 403, dieselbe Linie wie /admin/)
+$router->get('/admin/inhalte', AdminContentController::class, 'index', 'admin.inhalte');
+$router->get('/admin/inhalte/neu', AdminContentController::class, 'createForm', 'admin.inhalte.neu');
+$router->post('/admin/inhalte/neu', AdminContentController::class, 'create', 'admin.inhalte.anlegen');
+$router->get('/admin/inhalte/{id}/bearbeiten', AdminContentController::class, 'edit', 'admin.inhalte.bearbeiten');
+$router->post('/admin/inhalte/{id}/bearbeiten', AdminContentController::class, 'save', 'admin.inhalte.speichern');
+$router->post('/admin/inhalte/{id}/autosave', AdminContentController::class, 'autosave', 'admin.inhalte.autosave');
+$router->post('/admin/inhalte/{id}/veroeffentlichen', AdminContentController::class, 'publish', 'admin.inhalte.veroeffentlichen');
+$router->post('/admin/inhalte/{id}/zuruecknehmen', AdminContentController::class, 'unpublish', 'admin.inhalte.zuruecknehmen');
+$router->post('/admin/inhalte/{id}/archivieren', AdminContentController::class, 'archive', 'admin.inhalte.archivieren');
+$router->post('/admin/inhalte/{id}/loeschen', AdminContentController::class, 'delete', 'admin.inhalte.loeschen');
+$router->get('/admin/inhalte/{id}/versionen', AdminContentController::class, 'revisions', 'admin.inhalte.versionen');
+$router->post('/admin/inhalte/{id}/versionen/{nr}/zuruecksetzen', AdminContentController::class, 'restore', 'admin.inhalte.zuruecksetzen');
+$router->post('/admin/inhalte/{id}/vorschau', AdminContentController::class, 'preview', 'admin.inhalte.vorschau');
+
+// Mediathek. Loeschen ist zweistufig: erst die Verwendungen zeigen, dann loeschen.
+// Menues und Weiterleitungen
+$router->get('/admin/menues', AdminStructureController::class, 'menus', 'admin.menues');
+$router->post('/admin/menues', AdminStructureController::class, 'saveMenuItem', 'admin.menues.speichern');
+$router->post('/admin/menues/{id}/loeschen', AdminStructureController::class, 'deleteMenuItem', 'admin.menues.loeschen');
+$router->get('/admin/weiterleitungen', AdminStructureController::class, 'redirects', 'admin.weiterleitungen');
+$router->post('/admin/weiterleitungen', AdminStructureController::class, 'createRedirect', 'admin.weiterleitungen.anlegen');
+$router->post('/admin/weiterleitungen/{id}/loeschen', AdminStructureController::class, 'deleteRedirect', 'admin.weiterleitungen.loeschen');
+
+$router->get('/admin/medien', AdminMediaController::class, 'index', 'admin.medien');
+$router->post('/admin/medien', AdminMediaController::class, 'upload', 'admin.medien.hochladen');
+$router->post('/admin/medien/{id}/beschreiben', AdminMediaController::class, 'describe', 'admin.medien.beschreiben');
+$router->get('/admin/medien/{id}/loeschen', AdminMediaController::class, 'confirmDelete', 'admin.medien.loeschen.fragen');
+$router->post('/admin/medien/{id}/loeschen', AdminMediaController::class, 'delete', 'admin.medien.loeschen');
+
 // Moderation
 $router->get('/moderation/', ModerationController::class, 'queue', 'moderation');
 $router->post('/moderation/meldung/{id}', ModerationController::class, 'resolveReport', 'moderation.meldung');
@@ -180,5 +217,25 @@ $router->get('/api/v1/listings', ApiController::class, 'listings', 'api.listings
 $router->get('/api/v1/arten', ApiController::class, 'species', 'api.arten');
 $router->get('/api/v1/arten/{slug}/morphs', ApiController::class, 'morphs', 'api.arten.morphs');
 $router->get('/api/v1/orte', ApiController::class, 'places', 'api.orte');
+
+// Beitraege: Uebersicht, Kategoriearchiv, Feed. Die Einzelseite eines Beitrags
+// laeuft ueber die Auffangroute — sie ist eine Inhaltsseite wie jede andere,
+// nur mit einem Pfad, der das Jahr traegt.
+$router->get('/sitemap.xml', SitemapController::class, 'sitemap', 'sitemap');
+$router->get('/robots.txt', SitemapController::class, 'robots', 'robots');
+
+$router->get('/news/', NewsController::class, 'index', 'news');
+$router->get('/news/kategorie/{slug}/', NewsController::class, 'category', 'news.kategorie');
+$router->get('/feed.xml', NewsController::class, 'feed', 'news.feed');
+
+// Signierte Vorschau eines Entwurfs — 24 Stunden gueltig, fuer jemanden, der
+// sich nicht anmelden kann.
+$router->get('/vorschau/{token}', ContentController::class, 'preview', 'inhalt.vorschau');
+
+// Redaktionelle Seiten. Diese Route steht mit Absicht als LETZTE: Sie passt auf
+// jeden Pfad, den bis hierhin niemand beansprucht hat. Damit ein Redakteur
+// nicht in ein Schweigen hineinspeichert, prueft ReservedPaths beim Anlegen —
+// und tests/Http/ReservedPathsTest haelt die Liste gegen genau diese Datei.
+$router->fallback('/{pfad*}', ContentController::class, 'show', 'inhalt.seite');
 
 return $router;

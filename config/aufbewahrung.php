@@ -74,4 +74,21 @@ return [
      * Wann vor dem Ablauf einer Anzeige erinnert wird.
      */
     'ablauf_erinnerung_tage' => [7, 1],
+
+    /**
+     * Fassungen je redaktionellem Eintrag. Anders als alles darueber eine
+     * ANZAHL, keine Frist: Was zaehlt, ist "die letzten dreissig Staende", nicht
+     * "die Staende der letzten dreissig Tage" — ein Text, an dem ein halbes
+     * Jahr niemand gearbeitet hat, soll seine Vorgeschichte behalten.
+     *
+     * Mindestens 1. Eine 0 waere kein Abschalten, sondern der Verlust jeder
+     * Rueckkehrmoeglichkeit; wer keine Fassungen will, bekommt sie trotzdem —
+     * sie kosten wenig und retten viel.
+     */
+    'inhalt_fassungen_je_eintrag' => 30,
+
+    /**
+     * Abgelaufene Vorschaulinks.
+     */
+    'vorschau_tage' => 2,
 ];

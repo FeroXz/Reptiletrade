@@ -1,0 +1,4 @@
+{# Der Rumpf kommt aus dem MarkdownRenderer und ist dort bereits escapet
+   worden — deshalb |raw. Die Zusicherung haelt
+   tests/Domain/Content/MarkdownRendererTest mit Angriffsfaellen fest. #}
+<div class="fliesstext space-y-4">{{ block.html|raw }}</div>

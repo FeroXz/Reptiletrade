@@ -1,0 +1,22 @@
+{# Der SEO-Kopf. Zusammengestellt hat ihn SeoContext — hier wird nur ausgegeben.
+
+   Das JSON-LD kommt fertig kodiert an: JSON gehört von json_encode gebaut,
+   nicht von einer Templatesprache zusammengesetzt. |raw ist deshalb sicher und
+   nötig — jede Escape-Runde darüber machte das JSON kaputt. #}
+<link rel="canonical" href="{{ seo.canonical() }}">
+{% if eintrag.noindex %}<meta name="robots" content="noindex, follow">{% endif %}
+
+<meta property="og:type" content="{{ seo.ogType() }}">
+<meta property="og:title" content="{{ seo.title() }}">
+<meta property="og:url" content="{{ seo.canonical() }}">
+<meta property="og:site_name" content="Reptilienmarkt">
+<meta property="og:locale" content="{{ eintrag.locale|replace({'-': '_'}) }}">
+{% if seo.description() %}<meta property="og:description" content="{{ seo.description() }}">{% endif %}
+{% if seo.imageUrl() %}<meta property="og:image" content="{{ seo.imageUrl() }}">{% endif %}
+{% if eintrag.publishedAt %}<meta property="article:published_time" content="{{ eintrag.publishedAt|date('c') }}">{% endif %}
+
+<meta name="twitter:card" content="{{ seo.twitterCard() }}">
+
+{% if seo.jsonLd() %}
+    <script type="application/ld+json">{{ seo.jsonLd()|raw }}</script>
+{% endif %}

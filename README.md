@@ -594,6 +594,101 @@ Sitzungs-Cookie, und das ist nach § 25 Abs. 2 Nr. 2 TDDDG technisch erforderlic
 Analyse, keine Werbenetze, keine eingebetteten Fremdinhalte — nichts, wofür eine Einwilligung nötig
 wäre.
 
+## Redaktionssystem
+
+Ein eigener Inhaltsbereich für Seiten und Beiträge — kein Fremd-CMS, keine neue Laufzeitabhängigkeit,
+keine Aufweichung der Content-Security-Policy. Die Entscheidungen im Einzelnen stehen in
+[`docs/CMS.md`](docs/CMS.md).
+
+| Was | Wo |
+|---|---|
+| Seiten und Beiträge, Blockeditor | `/admin/inhalte` |
+| Mediathek | `/admin/medien` |
+| Menüs | `/admin/menues` |
+| Weiterleitungen | `/admin/weiterleitungen` |
+| Beiträge, Kategoriearchiv, Feed | `/news/`, `/news/kategorie/{slug}/`, `/feed.xml` |
+| Seiten | jeder freie Pfad — die Auffangroute steht als letzte im Router |
+
+**Der Rumpf ist eine geordnete Blockliste, kein HTML-Feld.** Ein HTML-Feld zwingt entweder zu einem
+Sanitizer, dem man auf ewig hinterherpflegt, oder zu `unsafe-inline` in der CSP. Der Textblock
+speichert **Markdown** und wird über einen bewusst kleinen Renderer ausgegeben: Überschriften h2–h4,
+Absatz, Liste, Link, fett, kursiv, Zitat, Inline-Code. Erst wird escapet, dann ausgezeichnet — damit
+kann kein Zeichen der Eingabe je zu Markup werden. Was der Renderer nicht kennt, bleibt **sichtbar
+stehen** statt zu verschwinden: Verschwindender Text fällt erst auf, wenn ihn jemand vermisst.
+
+**Der Editor braucht kein JavaScript.** Kopf und Blöcke stehen in einem Formular; jeder Knopf trägt
+seine Aktion im `name`/`value`-Paar. Hinzufügen, Verschieben und Löschen sind gewöhnliche
+Absendungen, bei denen kein ungespeicherter Text verlorengeht. `public/assets/inhalt.js` verbessert
+das nachträglich — ohne `eval`, ohne Inline-Handler, ohne aus Zeichenketten gebautes Markup.
+
+**Die Rechtsseiten bleiben, wo sie sind.** `/impressum`, `/datenschutz` und `/nutzungsbedingungen`
+speisen sich weiter aus `config/impressum.php` und stehen auf der Reservierungsliste — das CMS kann
+diese Pfade nicht belegen. Ein Impressum, das ein Redakteur versehentlich in den Entwurf zöge, wäre
+ein Rechtsverstoß; das gehört in eine Datei, die beim Deployment mitgeht. Damit die Liste nicht
+ausläuft, sobald jemand eine Route ergänzt, vergleicht ein Test sie gegen `config/routes.php`.
+
+**Wer darf?** Die Rolle `redakteur` liegt in der additiven Tabelle `content_editors`, nicht in
+`users.role`: Die Spalte trägt seit Migration 0001 einen `CHECK`-Constraint, und SQLite kann den nur
+über den Neubau der Tabelle ändern. Ernannt wird auf der Kommandozeile:
+
+```bash
+php bin/admin.php ernennen --email=redaktion@deine-domain.tld --rolle=redakteur
+php bin/admin.php entziehen --email=redaktion@deine-domain.tld
+```
+
+Die Redaktion darf Inhalte und Medien — **nicht** Nutzer, Moderation, Artenstamm oder Betrieb. Wer
+Texte schreibt, braucht keinen Zugriff auf Ausweisscans. Fehlende Berechtigung ergibt **404, nicht
+403**; dieselbe Linie wie `/admin/`.
+
+**Veröffentlichen und Planen.** Status `geplant` mit Termin in der Zukunft schaltet der Auftrag
+`content.publish` frei, viertelstündlich über den `JobScheduler` — nicht per Request-Hook: Eine
+Seite, die erst erscheint, wenn zufällig jemand vorbeikommt, erscheint auf einer leisen Website gar
+nicht. Zurücknehmen macht wieder einen Entwurf und legt **keine** Weiterleitung an (die Seite soll
+zurückkommen); `archiviert` antwortet mit **410** statt 404 — ein bewusst entfernter Inhalt ist etwas
+anderes als ein Tippfehler in der URL.
+
+**Fassungen.** Jedes Speichern und jede Veröffentlichung legt eine Fassung an, Kopf und Blöcke in
+einem Abbild. Zurücksetzen ändert Titel, Anriss und Blöcke — nicht Pfad und Status: Eine alte Fassung
+zurückzuspielen ist eine Aussage über den Inhalt, nicht darüber, wo er liegt oder ob er online ist.
+Aufbewahrt werden die letzten 30 je Eintrag (`config/aufbewahrung.php`).
+
+**Vorschau.** Ein signierter Link zeigt einen Entwurf 24 Stunden lang ohne Anmeldung — für jemanden,
+der sich nicht anmelden kann. Gespeichert wird nur der Hash; die Antwort trägt `noindex` und
+`no-store`.
+
+**Medien.** Dieselbe Pipeline wie bei den Anzeigenbildern: dekodieren, EXIF-Ausrichtung einrechnen,
+auf frische Leinwand kopieren, als WebP schreiben — damit überlebt kein Metadatenblock, und ein Test
+weist das an einem JPEG mit echten GPS-Koordinaten nach. 400/800/1600 px als `srcset`, `width` und
+`height` im Markup gegen Layout-Sprünge, Ablage unter `public/media/JJJJ/MM/`, Deduplizierung über
+`sha256`. `media_usages` hält fest, wo ein Bild steht; das Löschen zeigt erst die Verwendungen und
+verweigert, solange eine übrig ist. Die Bildbeschreibung ist am **Bildblock** Pflicht, am Medium nur
+ein Vorschlag: Beim Hochladen weiß noch niemand, wofür das Bild steht.
+
+**Weiterleitungen.** Ändert sich der Slug einer veröffentlichten Seite, entsteht die 301 von selbst —
+für die Seite und für jede Unterseite. Ketten werden beim Anlegen aufgelöst (`/a/ → /b/` und
+`/b/ → /c/` ergibt `/a/ → /c/`), Schleifen abgewiesen. Ein Entwurf bekommt keine: Er hatte nie eine
+Adresse, die jemand kennt.
+
+**Auslieferung.** `<title>`, `meta description`, absolutes `canonical`, OpenGraph, Twitter-Card und
+JSON-LD (`Article` für Beiträge, `BreadcrumbList` für Seiten) aus den Feldern des Eintrags, mit
+Rückfall auf Titel und Anriss. `noindex` setzt Meta-Tag **und** `X-Robots-Tag`. Öffentliche Seiten
+tragen ein ETag und beantworten `If-None-Match` mit 304. `sitemap.xml` und `robots.txt` werden
+erzeugt, nicht gespeichert.
+
+**Volltext.** Ein eigener FTS5-Index (`content_search`) neben dem der Anzeigen, mit derselben
+Tokenizer-Einstellung. Fortgeschrieben wird am Ende jeder schreibenden Aktion — ein Beitrag, der erst
+am nächsten Morgen auffindbar ist, ist am Tag seiner Veröffentlichung unauffindbar. Indiziert wird
+nur Veröffentlichtes. Neu aufbauen:
+
+```bash
+php bin/reindex.php --modul=inhalte
+```
+
+**Abnahme:** `php tools/smoke_cms.php` legt eine Seite an, füllt sie, bindet ein Bild ein,
+veröffentlicht, ruft öffentlich ab, ändert den Slug, prüft die Weiterleitung, plant einen Beitrag,
+lässt den Job laufen, holt Sitemap und Feed, setzt eine Fassung zurück und räumt auf.
+`php bin/doctor.php` prüft dasselbe an einer laufenden Installation.
+
 ## Texte der Oberfläche
 
 `/admin/texte` zeigt der Verwaltung **jede Beschriftung und jede Meldung der Oberfläche** — 274
@@ -679,11 +774,12 @@ Lizenzen und Genauigkeit stehen in [`data/README.md`](data/README.md).
 bin/          CLI: migrate, seed, import_postal_codes, admin, worker, cron, backup
 config/       .env-Laden, Container
 data/         Artenstamm, Merkmalskatalog, Postleitzahlen
-docs/         Architekturplan
+docs/         Architekturplan, Installation, Redaktionssystem
 migrations/   Versionierte Migrationen, eine Datei je Migration
 public/       Front-Controller und Assets
+public/media/ Mediathek der Redaktion (JJJJ/MM), PHP-Ausführung dort gesperrt
 src/Domain/   Entitäten, Value Objects, Repository-Interfaces (framework- und PDO-frei)
-              Auth, Genetics, Listing, Message, Moderation, Review, Trust, User, ...
+              Auth, Content, Genetics, Listing, Message, Moderation, Review, Trust, User, ...
 src/Infra/    PDO-Repositories, Importer
 src/Http/     Controller, Middleware
 src/Infra/Payment/  Zahlungsanbieter (Null und Stripe als Referenz)

@@ -1,0 +1,8 @@
+<a class="karte flex items-center justify-between gap-4 p-4" href="/art/{{ block.reference.slug }}/">
+    <span>
+        <span class="block text-xs uppercase tracking-wide gedaempft">{{ t('inhalt.artenprofil') }}</span>
+        <span class="block font-medium">{{ block.reference.commonNameDe }}</span>
+        <span class="block text-sm italic gedaempft">{{ block.reference.scientificName }}</span>
+    </span>
+    <span class="text-sm gedaempft">{{ block.reference.bnatschgStatus.label }}</span>
+</a>

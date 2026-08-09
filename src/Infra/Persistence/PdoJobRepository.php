@@ -151,6 +151,16 @@ final readonly class PdoJobRepository implements JobRepository
         return (int) (is_numeric($value) ? $value : 0) > 0;
     }
 
+    public function lastEnqueuedAt(string $type): ?DateTimeImmutable
+    {
+        $value = $this->database->scalar(
+            'SELECT MAX(created_at) FROM jobs WHERE type = :type',
+            ['type' => $type],
+        );
+
+        return \is_string($value) ? Timestamp::parse($value) : null;
+    }
+
     public function countsByStatus(): array
     {
         $counts = [];

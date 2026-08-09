@@ -13,10 +13,11 @@ declare(strict_types=1);
  * Zugriff auf die Datenbank — genau dort und nirgends sonst entsteht der erste
  * Administrator.
  *
- *   php bin/admin.php anlegen --email=… [--name=…]   Neues Konto mit Rolle admin
- *   php bin/admin.php ernennen --email=…             Vorhandenes Konto befoerdern
- *   php bin/admin.php passwort --email=…             Neues Passwort setzen
- *   php bin/admin.php liste                          Alle Verwaltungskonten
+ *   php bin/admin.php anlegen --email=… [--name=…]      Neues Konto mit Rolle admin
+ *   php bin/admin.php ernennen --email=… [--rolle=…]    Vorhandenes Konto befoerdern
+ *   php bin/admin.php entziehen --email=…               Redaktionsrecht zuruecknehmen
+ *   php bin/admin.php passwort --email=…                Neues Passwort setzen
+ *   php bin/admin.php liste                             Verwaltung und Redaktion
  *
  * Das Passwort wird abgefragt, nicht als Argument uebergeben: Argumente stehen
  * in der Shell-Historie und in der Prozessliste.
@@ -25,6 +26,7 @@ declare(strict_types=1);
 use Reptilienmarkt\Domain\Auth\AuthenticationService;
 use Reptilienmarkt\Domain\Auth\PasswordHasher;
 use Reptilienmarkt\Domain\Auth\RegistrationException;
+use Reptilienmarkt\Domain\Content\ContentEditorRepository;
 use Reptilienmarkt\Domain\User\Role;
 use Reptilienmarkt\Domain\User\UserRepository;
 use Reptilienmarkt\Domain\User\VerificationRepository;
@@ -53,6 +55,7 @@ $auth = $container->get(AuthenticationService::class);
 $hasher = $container->get(PasswordHasher::class);
 $clock = $container->get(Clock::class);
 $database = $container->get(Database::class);
+$editors = $container->get(ContentEditorRepository::class);
 
 switch ($befehl) {
     case 'anlegen':
@@ -89,6 +92,35 @@ switch ($befehl) {
             abbruch(sprintf('Kein Konto zu "%s".', $email));
         }
 
+        $rolle = trim($optionen['rolle'] ?? 'admin');
+
+        // Die Redaktion ist keine Rolle in users.role, sondern ein Eintrag in
+        // content_editors: Die Spalte traegt seit 0001 einen CHECK-Constraint,
+        // und SQLite kann den nur ueber den Neubau der Tabelle aendern — fuer
+        // eine Berechtigung ein zu hoher Preis. Begruendung: docs/CMS.md, E1.
+        if ($rolle === 'redakteur') {
+            if ($user->role === Role::Admin) {
+                printf("%s ist Administration und darf die Redaktion ohnehin bedienen.\n", $user->email);
+
+                break;
+            }
+
+            if ($editors->isEditor($user->id)) {
+                printf("%s darf die Redaktion bereits bedienen.\n", $user->email);
+
+                break;
+            }
+
+            $editors->grant($user->id, $clock->now(), null);
+            printf("%s darf jetzt die Redaktion bedienen (/admin/inhalte).\n", $user->email);
+
+            break;
+        }
+
+        if ($rolle !== 'admin') {
+            abbruch(sprintf('Unbekannte Rolle "%s". Moeglich sind: admin, redakteur.', $rolle));
+        }
+
         if ($user->role === Role::Admin) {
             printf("%s hat die Rolle admin bereits.\n", $user->email);
 
@@ -97,6 +129,28 @@ switch ($befehl) {
 
         $verification->setRole($user->id, Role::Admin);
         printf("%s hat jetzt die Rolle admin (vorher: %s).\n", $user->email, $user->role->value);
+
+        break;
+
+    case 'entziehen':
+        if ($email === '') {
+            abbruch('Bitte --email angeben.');
+        }
+
+        $user = $users->findByEmail($email);
+
+        if ($user === null || $user->id === null) {
+            abbruch(sprintf('Kein Konto zu "%s".', $email));
+        }
+
+        if (!$editors->isEditor($user->id)) {
+            printf("%s steht nicht in der Redaktion.\n", $user->email);
+
+            break;
+        }
+
+        $editors->revoke($user->id);
+        printf("%s darf die Redaktion nicht mehr bedienen.\n", $user->email);
 
         break;
 
@@ -156,12 +210,30 @@ switch ($befehl) {
             );
         }
 
+        $redaktion = $editors->all();
+
+        if ($redaktion !== []) {
+            echo "\nRedaktion (content_editors)\n";
+            printf("%-4s %-34s %-22s %s\n", 'ID', 'E-Mail', 'Name', 'Seit');
+
+            foreach ($redaktion as $eintrag) {
+                printf(
+                    "%-4d %-34s %-22s %s\n",
+                    $eintrag['user_id'],
+                    $eintrag['email'],
+                    $eintrag['display_name'],
+                    $eintrag['granted_at'],
+                );
+            }
+        }
+
         break;
 
     default:
         echo "Verwaltungskonten\n\n";
         echo "  php bin/admin.php anlegen --email=du@example.tld [--name=\"Vorname Nachname\"]\n";
-        echo "  php bin/admin.php ernennen --email=vorhandenes@konto.tld\n";
+        echo "  php bin/admin.php ernennen --email=vorhandenes@konto.tld [--rolle=admin|redakteur]\n";
+        echo "  php bin/admin.php entziehen --email=vorhandenes@konto.tld\n";
         echo "  php bin/admin.php passwort --email=du@example.tld\n";
         echo "  php bin/admin.php liste\n";
 

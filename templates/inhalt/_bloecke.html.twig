@@ -1,0 +1,16 @@
+{# Die Blockliste.
+
+   Jeder Typ hat eine eigene Vorlage; welche, sagt der Block selbst. So bleibt
+   diese Datei unveraendert, wenn ein Typ dazukommt — und ein unbekannter Typ
+   faellt beim Rendern auf, statt still zu verschwinden. #}
+{% for block in bloecke %}
+    {% if block.unresolved %}
+        {% if vorschau %}
+            {# Nur der Redaktion zeigen, dass hier etwas fehlt. Fuer den Besucher
+               entfaellt der Block — ein Platzhalter waere fuer ihn wertlos. #}
+            <p class="karte p-3 text-sm" role="status">{{ t('inhalt.verweis_fehlt', { 'typ': block.type.label }) }}</p>
+        {% endif %}
+    {% else %}
+        {% include block.template() %}
+    {% endif %}
+{% endfor %}

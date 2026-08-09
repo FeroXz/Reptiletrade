@@ -53,6 +53,30 @@ final readonly class RetentionPolicy
     }
 
     /**
+     * Wie viele Fassungen je redaktionellem Eintrag aufgehoben werden.
+     *
+     * Eine Anzahl, keine Frist — und deshalb eine eigene Methode statt eines
+     * weiteren Aufrufs von days(): Wer "30" hier als Tage laese, wuerfe die
+     * Vorgeschichte eines Textes weg, an dem einen Monat lang niemand
+     * gearbeitet hat.
+     *
+     * @throws RetentionConfigurationException
+     */
+    public function contentRevisions(): int
+    {
+        $value = $this->config['inhalt_fassungen_je_eintrag'] ?? null;
+
+        if (!\is_int($value) || $value < 1) {
+            throw new RetentionConfigurationException(
+                'In config/aufbewahrung.php fehlt "inhalt_fassungen_je_eintrag" oder es ist keine Zahl ab 1. '
+                . 'Eine 0 waere kein Abschalten, sondern der Verlust jeder Rueckkehrmoeglichkeit.',
+            );
+        }
+
+        return $value;
+    }
+
+    /**
      * Tage vor dem Ablauf, an denen erinnert wird — absteigend sortiert.
      *
      * @return list<int>

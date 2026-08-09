@@ -1,0 +1,9 @@
+{# Bezug auf eine aktive Anzeige. Pausierte und abgelaufene loest der
+   ContentRenderer gar nicht erst auf. #}
+<a class="karte flex items-center justify-between gap-4 p-4" href="/anzeige/{{ block.reference.id }}/">
+    <span>
+        <span class="block text-xs uppercase tracking-wide gedaempft">{{ t('inhalt.anzeige') }}</span>
+        <span class="block font-medium">{{ block.reference.title }}</span>
+    </span>
+    <span class="text-sm font-semibold">{{ block.reference.priceCents|preis(block.reference.currency) }}</span>
+</a>
