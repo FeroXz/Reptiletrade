@@ -1,0 +1,27 @@
+{% extends 'layout/basis.html.twig' %}
+{% block titel %}{{ t('benachrichtigung.abmelden.frage.titel') }} — Reptilienmarkt{% endblock %}
+{% block kopf %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block inhalt %}
+    <div class="mx-auto max-w-xl space-y-6">
+        <h1 class="text-xl font-semibold">{{ t('benachrichtigung.abmelden.frage.titel') }}</h1>
+
+        <section class="karte space-y-4 p-6">
+            <p class="text-sm">{{ t('benachrichtigung.abmelden.frage', {'kanal': t(kanal.labelKey())}) }}</p>
+            <p class="text-sm gedaempft">{{ t('benachrichtigung.abmelden.frage.hinweis') }}</p>
+
+            {# Ohne CSRF-Feld: Der Nachweis ist der Token im Pfad, und dieselbe
+               Adresse nimmt den Ein-Klick-POST des Mailanbieters entgegen — die
+               Begründung steht bei AccountController::unsubscribe(). #}
+            <form method="post" action="{{ ziel }}">
+                <button type="submit" class="knopf knopf-primaer">
+                    {{ t('benachrichtigung.abmelden.frage.knopf') }}
+                </button>
+            </form>
+
+            <a class="text-sm underline" href="/konto/benachrichtigungen">
+                {{ t('benachrichtigung.abmelden.einstellungen') }}
+            </a>
+        </section>
+    </div>
+{% endblock %}

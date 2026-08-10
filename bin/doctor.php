@@ -465,9 +465,15 @@ if ($transport === 'sendmail') {
     if ($smtpHost === '') {
         $befund->problem('Transport smtp, aber SMTP_HOST ist leer', 'Ohne Server geht keine Mail hinaus.');
     } elseif ($verschluesselung === 'keine' && Env::string('SMTP_USERNAME') !== '') {
+        // Auch mit der ausdruecklichen Ausnahme ein Fehler und kein Hinweis:
+        // Sie macht den Versand wieder moeglich, nicht die Leitung sicher.
         $befund->problem(
             'SMTP ohne Verschluesselung, aber mit Zugangsdaten',
-            'Das Passwort ginge im Klartext ueber die Leitung. SMTP_ENCRYPTION=starttls setzen.',
+            Env::bool('SMTP_ALLOW_INSECURE_AUTH')
+                ? 'SMTP_ALLOW_INSECURE_AUTH=true ist gesetzt: Benutzername und Passwort gehen als Base64 hinaus. '
+                    . 'Vertretbar nur bei einem Relay auf 127.0.0.1 — sonst SMTP_ENCRYPTION=starttls setzen.'
+                : 'Das Passwort ginge im Klartext ueber die Leitung. Der Versand bricht deshalb ab. '
+                    . 'SMTP_ENCRYPTION=starttls setzen.',
         );
     } else {
         $befund->ok(sprintf('Transport: smtp (%s:%d, %s)', $smtpHost, Env::int('SMTP_PORT', 587), $verschluesselung));
@@ -495,6 +501,20 @@ try {
             'Laeuft der Worker? Stimmt der Transport? php bin/worker.php --einmal zeigt den Fehlertext.',
         )
         : $befund->ok('Der Postausgang ist aktuell');
+
+    // Eine aufgegebene Mail wiederholt niemand mehr — sie ist nicht angekommen,
+    // und es sagt niemand von selbst Bescheid. Das ist der Unterschied zu einer
+    // wartenden Zeile und der Grund, warum es hier steht.
+    $aufgegeben = (int) (string) $container->get(Database::class)->scalar(
+        "SELECT COUNT(*) FROM mail_outbox WHERE status = 'fehlgeschlagen'",
+    );
+
+    $aufgegeben > 0
+        ? $befund->warnung(
+            $aufgegeben . ' Mails sind endgueltig gescheitert',
+            'Die Fehlertexte stehen im Dashboard unter /admin/. Sie werden nicht erneut versucht.',
+        )
+        : $befund->ok('Keine gescheiterten Mails');
 } catch (Throwable $exception) {
     $befund->problem('Der Postausgang ist nicht lesbar', $exception->getMessage());
 }

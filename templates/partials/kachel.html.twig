@@ -10,7 +10,7 @@
                    im sichtbaren Bereich, und ein verzögert geladenes Bild dort
                    kostet nur Zeit. #}
                 <img src="/uploads/{{ anzeige.imagePath }}"
-                     {% set srcset = bild_srcset(anzeige.imagePath) %}
+                     {% set srcset = bild_srcset(anzeige.imagePath, anzeige.imageVariantWidths) %}
                      {% if srcset %}srcset="{{ srcset }}" sizes="(min-width: 1024px) 20rem, (min-width: 640px) 45vw, 92vw"{% endif %}
                      alt="{{ anzeige.title }}"
                      {% if anzeige.imageWidth and anzeige.imageHeight %}

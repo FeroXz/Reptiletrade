@@ -162,6 +162,37 @@ final class RetentionHandlerTest extends DatabaseTestCase
         self::assertSame(0, $this->anzahl('SELECT COUNT(*) FROM listings WHERE id = ' . $ohneBewertung));
     }
 
+    /**
+     * Der Postausgang ist ein Zustellpuffer, kein Archiv — er traegt Adresse,
+     * Betreff und den vollstaendigen Text. Wartende Zeilen sind aber noch
+     * Vorgang: Sie wegzuraeumen hiesse, die Mail stillschweigend zu verlieren.
+     */
+    public function testDerPostausgangVerliertNurErledigteZeilen(): void
+    {
+        $userId = $this->createUser('halter@example.tld');
+
+        $wartend = $this->outboxEntry($userId, 'wartend', $this->vorTagen(400));
+        $gesendet = $this->outboxEntry($userId, 'gesendet', $this->vorTagen(400));
+        $aufgegeben = $this->outboxEntry($userId, 'fehlgeschlagen', $this->vorTagen(400));
+        $frisch = $this->outboxEntry($userId, 'gesendet', $this->vorTagen(2));
+
+        $this->handler(['postausgang_tage' => 30])->handle($this->job());
+
+        self::assertSame(1, $this->anzahl('SELECT COUNT(*) FROM mail_outbox WHERE id = ' . $wartend));
+        self::assertSame(0, $this->anzahl('SELECT COUNT(*) FROM mail_outbox WHERE id = ' . $gesendet));
+        self::assertSame(0, $this->anzahl('SELECT COUNT(*) FROM mail_outbox WHERE id = ' . $aufgegeben));
+        self::assertSame(1, $this->anzahl('SELECT COUNT(*) FROM mail_outbox WHERE id = ' . $frisch));
+    }
+
+    public function testDieFristNullLaesstDenPostausgangStehen(): void
+    {
+        $this->outboxEntry($this->createUser('halter@example.tld'), 'gesendet', $this->vorTagen(5000));
+
+        $this->handler(['postausgang_tage' => 0])->handle($this->job());
+
+        self::assertSame(1, $this->anzahl('SELECT COUNT(*) FROM mail_outbox'));
+    }
+
     public function testDerAuditTrailWirdNieAngefasst(): void
     {
         $this->database->execute(
@@ -211,6 +242,7 @@ final class RetentionHandlerTest extends DatabaseTestCase
         foreach ([
             'nachrichten_tage', 'rechtsnachweise_tage', 'identitaetsnachweise_tage', 'anzeigen_tage',
             'jobs_tage', 'rate_limits_tage', 'token_tage', 'sitzungen_tage', 'protokoll_tage',
+            'postausgang_tage',
         ] as $schluessel) {
             self::assertGreaterThanOrEqual(0, $policy->days($schluessel), $schluessel);
         }
@@ -237,6 +269,7 @@ final class RetentionHandlerTest extends DatabaseTestCase
             'rate_limits_tage' => 0,
             'token_tage' => 0,
             'sitzungen_tage' => 0,
+            'postausgang_tage' => 0,
         ], $fristen);
 
         return new RetentionHandler(
@@ -275,6 +308,30 @@ final class RetentionHandlerTest extends DatabaseTestCase
         );
 
         return $id;
+    }
+
+    /**
+     * @param string $status wartend | gesendet | fehlgeschlagen
+     */
+    private function outboxEntry(int $userId, string $status, string $fertigSeit): int
+    {
+        $this->database->execute(
+            'INSERT INTO mail_outbox (recipient, subject, body, purpose, user_id, status, created_at, updated_at,
+                                      sent_at)
+             VALUES (:empfaenger, :betreff, :text, :zweck, :id, :status, :zeit, :zeit, :gesendet)',
+            [
+                'empfaenger' => 'halter@example.tld',
+                'betreff' => 'Deine Anzeige läuft ab',
+                'text' => 'Text mit Abmeldelink',
+                'zweck' => 'anzeige.ablauf',
+                'id' => $userId,
+                'status' => $status,
+                'zeit' => $fertigSeit,
+                'gesendet' => $status === 'gesendet' ? $fertigSeit : null,
+            ],
+        );
+
+        return $this->database->lastInsertId();
     }
 
     private function vorTagen(int $tage): string

@@ -48,13 +48,18 @@ abstract class DatabaseTestCase extends TestCase
         $now = gmdate('Y-m-d\TH:i:s\Z');
 
         $this->database->execute(
-            'INSERT INTO users (email, email_canonical, password_hash, display_name, created_at, updated_at)
-             VALUES (:email, :canonical, :hash, :name, :now, :now)',
+            'INSERT INTO users (email, email_canonical, password_hash, display_name, unsubscribe_secret,
+                                unsubscribe_secret_at, created_at, updated_at)
+             VALUES (:email, :canonical, :hash, :name, :unsubscribe_secret, :now, :now, :now)',
             [
                 'email' => $email,
                 'canonical' => strtolower($email),
                 'hash' => 'argon2id$dummy',
                 'name' => 'Testnutzer',
+                // Wie in PdoUserRepository::create(): Das Konto bringt sein
+                // Abmelde-Geheimnis mit, sonst prueft kein Test den Zustand,
+                // den echte Konten haben.
+                'unsubscribe_secret' => bin2hex(random_bytes(32)),
                 'now' => $now,
             ],
         );

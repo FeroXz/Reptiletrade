@@ -44,28 +44,23 @@ final readonly class PdoNotificationPreferenceRepository implements Notification
         );
     }
 
-    public function storeUnsubscribeHash(int $userId, string $hash, DateTimeImmutable $at): void
+    public function unsubscribeSecret(int $userId): ?string
     {
-        $this->database->execute(
-            'UPDATE users SET unsubscribe_token = :hash, unsubscribe_token_at = :now WHERE id = :id',
-            ['hash' => $hash, 'now' => Timestamp::utc($at), 'id' => $userId],
+        $secret = $this->database->scalar(
+            'SELECT unsubscribe_secret FROM users WHERE id = :id',
+            ['id' => $userId],
         );
+
+        // Die leere Zeichenkette waere ein Geheimnis, das jeder kennt — sie
+        // zaehlt wie "keines", statt einen HMAC mit leerem Schluessel zu bilden.
+        return \is_string($secret) && $secret !== '' ? $secret : null;
     }
 
-    public function findUserIdByUnsubscribeHash(string $hash): ?int
+    public function storeUnsubscribeSecret(int $userId, string $secret, DateTimeImmutable $at): void
     {
-        // Der leere Hash faende sonst jedes Konto ohne Token — ein UNIQUE-Index
-        // laesst mehrere NULL zu, aber der Vergleich muss trotzdem ausgeschlossen
-        // bleiben.
-        if ($hash === '') {
-            return null;
-        }
-
-        $id = $this->database->scalar(
-            'SELECT id FROM users WHERE unsubscribe_token = :hash',
-            ['hash' => $hash],
+        $this->database->execute(
+            'UPDATE users SET unsubscribe_secret = :secret, unsubscribe_secret_at = :now WHERE id = :id',
+            ['secret' => $secret, 'now' => Timestamp::utc($at), 'id' => $userId],
         );
-
-        return is_numeric($id) ? (int) $id : null;
     }
 }

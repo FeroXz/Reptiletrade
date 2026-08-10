@@ -55,6 +55,15 @@ return [
     'rate_limits_tage' => 2,
 
     /**
+     * Der Postausgang. Kurz, weil er ein Zustellpuffer ist und kein Archiv:
+     * Die Zeilen tragen Adresse, Betreff und den vollstaendigen Text — bei
+     * Benachrichtigungen samt Abmelde- und Bestaetigungslink. Was zugestellt
+     * oder endgueltig aufgegeben ist, hat seinen Zweck erfuellt; wartende
+     * Mails bleiben unabhaengig von der Frist liegen, sie sind noch Vorgang.
+     */
+    'postausgang_tage' => 30,
+
+    /**
      * Verbrauchte und abgelaufene Einmal-Token.
      */
     'token_tage' => 30,

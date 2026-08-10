@@ -42,6 +42,12 @@ final readonly class ListingSummary
         public ?DateTimeImmutable $bumpedAt,
         public ?int $imageWidth = null,
         public ?int $imageHeight = null,
+        /**
+         * Die vorhandenen Bildbreiten fuer srcset, sortiert und kommagetrennt.
+         * Sie stehen in der Zeile, damit die Kachel sie nicht auf der Platte
+         * nachsehen muss.
+         */
+        public ?string $imageVariantWidths = null,
     ) {}
 
     public function hasPrice(): bool

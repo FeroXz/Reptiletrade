@@ -51,6 +51,15 @@ final readonly class RetentionHandler implements JobHandler
         // wortgleich "token" heisst — hier waere die Zahl damit unlesbar.
         $bilanz['zugangstoken'] = $this->purgeSimple('token_tage', 'DELETE FROM user_tokens WHERE expires_at < :vor');
         $bilanz['sitzungen'] = $this->purgeSimple('sitzungen_tage', 'DELETE FROM sessions WHERE expires_at < :vor');
+        // Nur erledigte Zeilen: "wartend" heisst, dass die Mail noch nicht raus
+        // ist — sie wegzuraeumen hiesse, sie stillschweigend zu verlieren, und
+        // zwar genau die, auf die jemand wartet. Gerechnet wird ab updated_at,
+        // denn das ist bei beiden Endzustaenden der Zeitpunkt, an dem die Zeile
+        // fertig wurde; sent_at gibt es nur bei den zugestellten.
+        $bilanz['postausgang'] = $this->purgeSimple(
+            'postausgang_tage',
+            "DELETE FROM mail_outbox WHERE status IN ('gesendet', 'fehlgeschlagen') AND updated_at < :vor",
+        );
 
         $this->logger->info('retention.enforced', $bilanz);
 

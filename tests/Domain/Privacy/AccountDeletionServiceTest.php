@@ -183,6 +183,84 @@ final class AccountDeletionServiceTest extends DatabaseTestCase
         self::assertStringContainsString('auskunft@example.tld', $json);
     }
 
+    /**
+     * Der Postausgang gehoert in die Auskunft — sein Text nicht. Die Auskunft
+     * ist eine Datei, die weitergereicht wird, und im Text stehen Abmelde- und
+     * Bestaetigungslinks des Kontos.
+     */
+    public function testDieAuskunftNenntVersendeteMailsAberNichtIhrenText(): void
+    {
+        $userId = $this->createUser('post@example.tld');
+        $this->queueMail($userId, 'post@example.tld');
+
+        $export = new DataExportService($this->database, new PdoAuditLog($this->database), $this->clock);
+        $json = $export->toJson($this->user($userId));
+
+        /** @var array<string, mixed> $daten */
+        $daten = json_decode($json, true, 512, \JSON_THROW_ON_ERROR);
+
+        self::assertArrayHasKey('versendete_mails', $daten);
+        self::assertStringContainsString('Deine Anzeige läuft ab', $json);
+        self::assertStringContainsString('anzeige.ablauf', $json);
+        self::assertStringNotContainsString('Hier abbestellen', $json);
+        self::assertStringNotContainsString('/abmelden/', $json);
+    }
+
+    /**
+     * ON DELETE SET NULL raeumt nur user_id weg — die Adresse steht in
+     * recipient und bliebe sonst stehen.
+     */
+    public function testNachDerLoeschungStehtKeineMailMitDerAdresseMehrImAusgang(): void
+    {
+        $userId = $this->createUser('weg@example.tld');
+        $this->queueMail($userId, 'weg@example.tld');
+        // Eine Mail ohne Kontobezug an dieselbe Adresse — etwa aus der Zeit vor
+        // der Bestaetigung.
+        $this->queueMail(null, 'weg@example.tld');
+        $fremd = $this->queueMail($this->createUser('bleibt@example.tld'), 'bleibt@example.tld');
+
+        $this->service()->delete($this->user($userId), $userId);
+
+        self::assertSame(
+            0,
+            $this->scalar("SELECT COUNT(*) FROM mail_outbox WHERE recipient = 'weg@example.tld'"),
+        );
+        self::assertSame(1, $this->scalar('SELECT COUNT(*) FROM mail_outbox WHERE id = ' . $fremd));
+    }
+
+    public function testAuchDasAnonymisierteKontoLaesstKeineMailZurueck(): void
+    {
+        $verkaeufer = $this->createUser('verkaeufer@example.tld');
+        $kaeufer = $this->createUser('kaeufer@example.tld');
+        $anzeigeId = $this->createListing($verkaeufer, $this->createSpecies());
+        $this->createReview($anzeigeId, $kaeufer, $verkaeufer, 'Alles bestens.');
+        $this->queueMail($verkaeufer, 'verkaeufer@example.tld');
+
+        $ergebnis = $this->service()->delete($this->user($verkaeufer), $verkaeufer);
+
+        self::assertTrue($ergebnis->anonymized);
+        self::assertSame(
+            0,
+            $this->scalar("SELECT COUNT(*) FROM mail_outbox WHERE recipient = 'verkaeufer@example.tld'"),
+        );
+    }
+
+    private function queueMail(?int $userId, string $empfaenger): int
+    {
+        $this->database->execute(
+            "INSERT INTO mail_outbox (recipient, subject, body, purpose, user_id, status, created_at, updated_at)
+             VALUES (:empfaenger, 'Deine Anzeige läuft ab', :text, 'anzeige.ablauf', :id, 'gesendet', :now, :now)",
+            [
+                'empfaenger' => $empfaenger,
+                'text' => "Deine Anzeige läuft ab.\n\nHier abbestellen: https://test.example/abmelden/7-abc?kanal=x",
+                'id' => $userId,
+                'now' => Timestamp::now(),
+            ],
+        );
+
+        return $this->database->lastInsertId();
+    }
+
     public function testDieAuskunftNenntDenDateinamenMitKontoUndDatum(): void
     {
         $userId = $this->createUser('name@example.tld');

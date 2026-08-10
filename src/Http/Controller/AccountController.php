@@ -353,12 +353,76 @@ final readonly class AccountController
     }
 
     /**
-     * Der Abmeldelink aus einer Mail.
+     * Macht alle Abmeldelinks des Kontos ungueltig.
+     *
+     * Der Abmeldelink gilt seit Phase 12 dauerhaft — er wird aus einem
+     * konto-eigenen Geheimnis abgeleitet, statt bei jedem Versand neu
+     * ausgestellt zu werden. Damit braucht es einen bewussten Weg, ihn zu
+     * entwerten: fuer den Fall, dass eine alte Mail in fremde Haende geraten
+     * ist. Hier, nicht bei jedem Versand — sonst waeren die Links wieder nach
+     * einer Mail tot.
+     */
+    public function resetUnsubscribeLinks(Request $request): Response
+    {
+        $user = $this->currentUser->require();
+        $this->guardCsrf($request);
+
+        $this->notifications->rotateUnsubscribeSecret($user->id ?? 0);
+        $this->session->flash('erfolg', $this->translator->translate('benachrichtigung.abmeldelinks.erneuert'));
+
+        return Response::redirect('/konto/benachrichtigungen');
+    }
+
+    /**
+     * Der Abmeldelink aus einer Mail — die Seite dazu, nicht die Wirkung.
+     *
+     * Sie aendert nichts. Ein GET auf einen Link in einer Mail ist keine
+     * Entscheidung des Nutzers: Outlook Safe Links, Gmail-Prefetch und die
+     * URL-Sandboxes von Firmenfiltern rufen ihn ungefragt auf, teils bevor die
+     * Mail ueberhaupt jemand gesehen hat. Was hier steht, ist deshalb eine
+     * Frage mit einem Knopf, und der Knopf schickt einen POST.
      *
      * Ohne Anmeldung, wie der Bestaetigungslink: Wer die Mail hat, hat den
      * Nachweis erbracht. Und ohne jede Wirkung auf die Sitzung — dieser Weg
-     * schaltet genau einen Kanal ab und meldet niemanden von irgendetwas
-     * anderem ab, obwohl der Pfad so heisst.
+     * betrifft genau einen Kanal und meldet niemanden von irgendetwas anderem
+     * ab, obwohl der Pfad so heisst.
+     */
+    public function confirmUnsubscribe(Request $request): Response
+    {
+        $kanal = NotificationChannel::tryFrom($request->queryString('kanal') ?? '');
+        $token = $request->attribute('token') ?? '';
+
+        if ($kanal === null) {
+            return $this->unsubscribeResult(null, $this->translator->translate('benachrichtigung.abmelden.unbekannt'));
+        }
+
+        // Geprueft wird hier nur, geaendert nichts — und mit demselben Wortlaut
+        // wie beim POST, damit ein erfundener Token nicht daran zu erkennen
+        // ist, dass die Seite anders antwortet als die Abmeldung.
+        try {
+            $this->notifications->requireAccountForToken($token, $kanal);
+        } catch (NotificationException $exception) {
+            return $this->unsubscribeResult(null, $exception->getMessage());
+        }
+
+        return Response::html($this->twig->render('konto/abmelden.html.twig', [
+            'kanal' => $kanal,
+            'ziel' => \sprintf('/abmelden/%s?kanal=%s', rawurlencode($token), rawurlencode($kanal->value)),
+        ]));
+    }
+
+    /**
+     * Fuehrt die Abmeldung aus.
+     *
+     * **Ohne CSRF-Token, und das mit Absicht.** Ein CSRF-Token schuetzt eine
+     * Sitzung davor, dass eine fremde Seite in ihrem Namen handelt. Hier gibt
+     * es keine Sitzung: Der Nachweis ist der Token im Pfad, den nur kennt, wer
+     * die Mail hat. Ein zusaetzlicher CSRF-Token wuerde daran nichts sichern —
+     * er wuerde nur den Ein-Klick-POST nach RFC 8058 unmoeglich machen, denn
+     * der kommt vom Mailanbieter (Gmail, Outlook) und nicht aus einem Browser
+     * mit unserer Sitzung. Deshalb darf hier nichts erwartet werden ausser dem
+     * Pfad: kein Formularfeld, kein Cookie, kein Referer. Der Rumpf des
+     * Ein-Klick-POST ist "List-Unsubscribe=One-Click" — gelesen wird er nicht.
      */
     public function unsubscribe(Request $request): Response
     {

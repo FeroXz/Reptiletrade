@@ -101,7 +101,13 @@ $router->post('/konto/sitzungen/{id}/beenden', AccountController::class, 'endSes
 // hat er nichts zu tun ausser dem Wortstamm; er beendet keine Sitzung.
 $router->get('/konto/benachrichtigungen', AccountController::class, 'notifications', 'konto.benachrichtigungen');
 $router->post('/konto/benachrichtigungen', AccountController::class, 'saveNotifications', 'konto.benachrichtigungen.speichern');
-$router->get('/abmelden/{token}', AccountController::class, 'unsubscribe', 'abmelden.kanal');
+$router->post('/konto/benachrichtigungen/abmeldelinks', AccountController::class, 'resetUnsubscribeLinks', 'konto.benachrichtigungen.abmeldelinks');
+// Der GET zeigt nur, was passieren wuerde; abgemeldet wird per POST. Outlook
+// Safe Links, Gmail-Prefetch und Firmen-URL-Sandboxes rufen Links in Mails
+// ungefragt auf — ein GET, der abmeldet, meldet Leute ab, die nie geklickt
+// haben. Der POST ist zugleich der Ein-Klick-Weg nach RFC 8058.
+$router->get('/abmelden/{token}', AccountController::class, 'confirmUnsubscribe', 'abmelden.kanal');
+$router->post('/abmelden/{token}', AccountController::class, 'unsubscribe', 'abmelden.kanal.ausfuehren');
 
 // Gemerkte Suchen
 $router->get('/konto/suchen', SavedSearchController::class, 'index', 'suchen');

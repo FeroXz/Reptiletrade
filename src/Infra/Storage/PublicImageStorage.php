@@ -79,20 +79,49 @@ final readonly class PublicImageStorage
     }
 
     /**
+     * Die vorhandenen Breiten als Spaltenwert: sortiert, kommagetrennt.
+     *
+     * @param list<int> $widths
+     */
+    public static function widthList(array $widths): string
+    {
+        $vorhanden = array_values(array_filter($widths, static fn(int $breite): bool => \in_array($breite, self::WIDTHS, true)));
+        sort($vorhanden);
+
+        return implode(',', $vorhanden);
+    }
+
+    /**
      * Das srcset-Attribut zu einem Bild.
      *
-     * Nur die Fassungen, die es tatsaechlich gibt: Bestandsbilder haben ihre
-     * kleinen Groessen erst, wenn bin/reimage.php gelaufen ist, und ein
-     * Verweis auf eine fehlende Datei waere ein 404 in jeder Trefferliste.
+     * Die Breiten kommen aus listing_media.variant_widths und werden **nicht**
+     * auf der Platte nachgesehen: Die Frage "welche Fassungen gibt es?" aendert
+     * ihre Antwort nur beim Upload und beim Nachrechnen, das Beantworten kostete
+     * aber je Treffer drei Dateisystemzugriffe.
+     *
+     * Fehlt der Wert — ein Bestandsbild vor dem Lauf von bin/reimage.php —,
+     * bleibt das Ergebnis leer und das img faellt auf sein src zurueck. Ein
+     * Verweis auf eine Datei, die es nicht gibt, waere ein 404 in jeder
+     * Trefferliste.
      */
-    public function srcset(string $relativePath): string
+    public function srcset(string $relativePath, ?string $variantWidths): string
     {
+        if ($variantWidths === null || trim($variantWidths) === '') {
+            return '';
+        }
+
         $teile = [];
 
-        foreach (self::variantsFor($relativePath) as $breite => $pfad) {
-            if (is_file($this->basePath . '/' . $pfad)) {
-                $teile[] = '/uploads/' . $pfad . ' ' . $breite . 'w';
+        foreach (explode(',', $variantWidths) as $wert) {
+            $breite = (int) trim($wert);
+
+            // Nur bekannte Breiten: Ein Wert, den WIDTHS nicht kennt, hat
+            // keinen Pfad, unter dem eine Datei laege.
+            if (!\in_array($breite, self::WIDTHS, true)) {
+                continue;
             }
+
+            $teile[] = '/uploads/' . self::variantFor($relativePath, $breite) . ' ' . $breite . 'w';
         }
 
         return implode(', ', $teile);

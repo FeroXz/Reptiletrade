@@ -19,9 +19,14 @@ interface NotificationPreferenceRepository
     public function set(int $userId, NotificationChannel $channel, bool $enabled, DateTimeImmutable $at): void;
 
     /**
-     * Legt den Hash des Abmeldetokens ab und entwertet damit den vorigen.
+     * Das konto-eigene Geheimnis, aus dem der Abmeldelink abgeleitet wird —
+     * oder null, wenn das Konto keines hat.
      */
-    public function storeUnsubscribeHash(int $userId, string $hash, DateTimeImmutable $at): void;
+    public function unsubscribeSecret(int $userId): ?string;
 
-    public function findUserIdByUnsubscribeHash(string $hash): ?int;
+    /**
+     * Legt ein neues Geheimnis ab und entwertet damit **alle** bisherigen
+     * Abmeldelinks des Kontos auf einen Schlag.
+     */
+    public function storeUnsubscribeSecret(int $userId, string $secret, DateTimeImmutable $at): void;
 }

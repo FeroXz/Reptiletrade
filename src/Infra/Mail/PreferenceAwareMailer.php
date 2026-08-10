@@ -25,11 +25,19 @@ use Reptilienmarkt\Support\Translator;
  */
 final readonly class PreferenceAwareMailer implements Mailer
 {
+    /**
+     * @param string $unsubscribeMailbox Postfach fuer Abmeldungen per Mail —
+     *                                   leer, wenn keines betreut wird. Ein
+     *                                   toter mailto: waere schlechter als
+     *                                   keiner: Der Nutzer schriebe ins Leere
+     *                                   und hielte sich fuer abgemeldet.
+     */
     public function __construct(
         private Mailer $inner,
         private NotificationPreferenceService $preferences,
         private Translator $translator,
         private string $appUrl = 'https://example.tld',
+        private string $unsubscribeMailbox = '',
     ) {}
 
     public function send(MailMessage $message): bool
@@ -57,9 +65,27 @@ final readonly class PreferenceAwareMailer implements Mailer
             rawurlencode($kanal->value),
         );
 
+        $adressen = ['<' . $link . '>'];
+
+        if ($this->unsubscribeMailbox !== '') {
+            $adressen[] = \sprintf(
+                '<mailto:%s?subject=%s>',
+                $this->unsubscribeMailbox,
+                rawurlencode('Abmelden: ' . $kanal->value),
+            );
+        }
+
         return $this->inner->send($message->with(
             $message->body . "\n\n" . $this->translator->translate('mail.abmelden.hinweis', ['link' => $link]),
-            ['List-Unsubscribe' => '<' . $link . '>'],
+            [
+                'List-Unsubscribe' => implode(', ', $adressen),
+                // RFC 8058: Ohne diese Kopfzeile darf ein Mailprogramm gar
+                // keinen Ein-Klick-Knopf anbieten — es oeffnet stattdessen die
+                // Seite. Sie sagt zu, dass dieselbe Adresse einen POST
+                // entgegennimmt und dass der auch wirklich abmeldet; deshalb
+                // steht sie erst hier, seit /abmelden/{token} den POST kennt.
+                'List-Unsubscribe-Post' => 'List-Unsubscribe=One-Click',
+            ],
         ));
     }
 }

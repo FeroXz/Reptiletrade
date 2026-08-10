@@ -88,6 +88,9 @@ final readonly class MediaController
             $processed->width,
             $processed->height,
             $processed->byteSize,
+            // Was tatsaechlich auf der Platte gelandet ist, nicht was gewuenscht
+            // war: Nur so muss srcset spaeter nicht nachsehen.
+            PublicImageStorage::widthList(array_keys($varianten)),
         ));
 
         if ($isFirst) {
