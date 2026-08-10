@@ -32,6 +32,7 @@ use Reptilienmarkt\Http\Message\Request;
 use Reptilienmarkt\Infra\Persistence\Database;
 use Reptilienmarkt\Legal\LegalPageService;
 use Reptilienmarkt\Support\Container;
+use Reptilienmarkt\Support\Demo\DemoListingGenerator;
 use Reptilienmarkt\Support\Env;
 
 if (\PHP_SAPI !== 'cli') {
@@ -265,6 +266,22 @@ try {
     $admins > 0
         ? $befund->ok(sprintf('%d Verwaltungskonto(en)', $admins))
         : $befund->warnung('Es gibt kein Administratorkonto', 'php bin/admin.php anlegen --email=du@example.tld');
+
+    // Beispielanzeigen sind erfundene Angebote. In der Entwicklung sind sie der
+    // Sinn der Sache, im Produktivbetrieb eine Entscheidung, die man nach ein
+    // paar Wochen vergessen hat — also hier nachfragen.
+    $beispiele = $container->get(DemoListingGenerator::class)->inventory();
+
+    if ($beispiele['listings'] === 0) {
+        $befund->ok('Keine Beispielanzeigen im Bestand');
+    } elseif (Env::string('APP_ENV', 'production') === 'production') {
+        $befund->warnung(
+            sprintf('%d Beispielanzeigen im Produktivbetrieb', $beispiele['listings']),
+            'Erfundene Angebote, oeffentlich sichtbar. Zurueckbauen: php tools/generate_demo_listings_produktion.php --entfernen',
+        );
+    } else {
+        $befund->ok(sprintf('%d Beispielanzeigen (%s)', $beispiele['listings'], Env::string('APP_ENV', 'production')));
+    }
 } catch (Throwable $exception) {
     $befund->problem('Die Datenbank ist nicht ansprechbar', $exception->getMessage());
 }

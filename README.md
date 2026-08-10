@@ -77,7 +77,9 @@ npm install && npm run build
 | `php bin/import_postal_codes.php [--geonames=DE.txt]` | Postleitzahlen einspielen bzw. durch exakte GeoNames-Zentroide ersetzen |
 | `php bin/reindex.php` | Volltextindex vollständig neu aufbauen |
 | `php bin/reimage.php [--pruefen] [--alle]` | Fehlende Bildgrößen (400/800/1600) für Bestandsanzeigen nachrechnen |
-| `php tools/generate_demo_listings.php --anzahl=50000` | Demo-Anzeigen für Messungen (nicht in Produktion) |
+| `php tools/generate_demo_listings.php --anzahl=50000` | Demo-Anzeigen für Messungen (in `APP_ENV=production` gesperrt) |
+| `php tools/generate_demo_listings_produktion.php --anzahl=50000` | Dieselben Anzeigen **auch im Produktivbetrieb** anlegen |
+| `php tools/generate_demo_listings_produktion.php --entfernen` | Alle Beispielanzeigen restlos wieder abräumen |
 | `php tools/benchmark_search.php --schreiben` | Suche messen und `docs/SUCHE.md` schreiben |
 | `php tools/smoke_wizard.php [--behalten]` | Abnahme Phase 4: Anzeige komplett anlegen und veröffentlichen |
 | `php bin/billing.php status` | Tarife, Boosts und Schalterstellung anzeigen |
@@ -521,6 +523,43 @@ Protokolle sind JSON-Zeilen unter `LOG_DIRECTORY`, eine Datei je Tag. Bekannte G
 in der Datenbank ist etwas anderes: Er ist per Trigger append-only, dokumentiert
 Rechtsentscheidungen und Moderationsvorgänge und wird **nie** rotiert.
 
+### Beispielanzeigen im Produktivbetrieb
+
+Ein frisch aufgesetzter Marktplatz ist leer, und ein leerer Marktplatz zeigt weder, wie Filter,
+Umkreissuche und Trefferliste sich anfühlen, noch lädt er zum Einstellen der ersten echten Anzeige
+ein. Dafür gibt es einen zweiten, bewusst getrennten Befehl:
+
+```bash
+php tools/generate_demo_listings_produktion.php --anzahl=50000   # anlegen
+php tools/generate_demo_listings_produktion.php --bestand        # nachsehen, was liegt
+php tools/generate_demo_listings_produktion.php --entfernen      # restlos abräumen
+```
+
+`tools/generate_demo_listings.php` bleibt in `APP_ENV=production` gesperrt — ein versehentlicher
+Aufruf auf dem Server soll folgenlos bleiben. Wer die Daten dort wirklich will, tippt den anderen
+Namen und weiß damit, was er tut. Beide Befehle erzeugen denselben Datensatz über dieselbe Klasse
+`Reptilienmarkt\Support\Demo\DemoListingGenerator`; sie unterscheiden sich nur darin, wie behutsam
+sie mit einer Datenbank umgehen, an der gerade Besucher hängen:
+
+* **Stapelweise Transaktionen** (`--stapel=500`). Eine einzige Transaktion über 50 000 Anzeigen
+  hielte die Schreibsperre minutenlang und ließe jeden warten, der in dieser Zeit etwas speichert.
+* **Der Volltextindex wird ergänzt, nicht neu gebaut.** Vorhandene Anzeigen bleiben unberührt.
+* **Bilder nur, wenn es sie gibt.** Gesucht wird in `STORAGE_PUBLIC/demo/` (`--bilder=…`,
+  `--ohne-bilder`). Fehlt der Ordner, entstehen Anzeigen ohne Bild — eine Kachel mit „Kein Bild“
+  sieht besser aus als eine mit totem Bildverweis.
+
+Jede Anzeige trägt `Beispielanzeige` im Titel und in der Beschreibung den Hinweis, dass es das Tier
+nicht gibt. Sie hängen an den Konten `demo001..demo200@example.tld`, deren Passwort-Hash keiner ist
+— an ihnen meldet sich niemand an. `--entfernen` löscht genau diese Konten samt Anzeigen,
+Merkmalen, Bildzeilen und Suchindexeinträgen; echte Daten bleiben unberührt (siehe
+`tests/Support/Demo/DemoListingGeneratorTest.php`). Beide Läufe stehen im Audit-Trail, und
+`php bin/doctor.php` meldet liegengebliebene Beispieldaten im Produktivbetrieb als Hinweis.
+
+> Erfundene Angebote auf einem echten Marktplatz sind eine Entscheidung des Betreibers, keine
+> technische: Besucher sehen Tiere, die es nicht gibt, und schreiben Verkäufer an, die nicht
+> antworten. Wer sie einsetzt, sollte wissen, wie lange sie stehen bleiben sollen — und den Befehl
+> zum Abräumen griffbereit haben.
+
 ## Mailversand
 
 Mails werden **nie im Request verschickt**, sondern in die Tabelle `mail_outbox` geschrieben; der
@@ -943,10 +982,11 @@ src/Infra/    PDO-Repositories, Importer
 src/Http/     Controller, Middleware
 src/Infra/Payment/  Zahlungsanbieter (Null und Stripe als Referenz)
 src/Legal/    LegalGuard und Regelwerk
-src/Support/  Env, Container
+src/Support/  Env, Container, Demo/ (Beispielanzeigen anlegen und abräumen)
 lang/         Sprachkataloge, de-DE als Basis
 storage/      db/, private/ (Rechts- und Identitätsnachweise, außerhalb des Webroots), mail/
 templates/    Twig
 tests/
 tools/        Werkzeuge für Datensätze, Messungen und Abnahme (laufen nicht im Betrieb)
+              Ausnahme: generate_demo_listings_produktion.php darf bewusst in Produktion laufen
 ```
