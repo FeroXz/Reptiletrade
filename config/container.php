@@ -228,6 +228,7 @@ use Reptilienmarkt\Legal\LegalTextResolver;
 use Reptilienmarkt\Legal\LegalTextReview;
 use Reptilienmarkt\Support\Clock;
 use Reptilienmarkt\Support\Container;
+use Reptilienmarkt\Support\Demo\DemoListingGenerator;
 use Reptilienmarkt\Support\Env;
 use Reptilienmarkt\Support\Log\JsonLogger;
 use Reptilienmarkt\Support\Log\Logger;
@@ -373,6 +374,15 @@ $container->set(SearchIndex::class, static fn(Container $c): SearchIndex => new 
 $container->set(ListingIndexer::class, static fn(Container $c): ListingIndexer => new ListingIndexer(
     $c->get(Database::class),
     $c->get(SearchIndex::class),
+));
+
+// Beispielanzeigen. Steht hier und nicht nur im Werkzeug, weil bin/doctor.php
+// denselben Bestand meldet, den die beiden Werkzeuge anlegen und abraeumen.
+$container->set(DemoListingGenerator::class, static fn(Container $c): DemoListingGenerator => new DemoListingGenerator(
+    $c->get(Database::class),
+    $c->get(ListingIndexer::class),
+    $c->get(SearchIndex::class),
+    $c->get(AuditLog::class),
 ));
 
 $container->set(ListingQuery::class, static fn(Container $c): ListingQuery => new ListingQuery($c->get(Clock::class)));
