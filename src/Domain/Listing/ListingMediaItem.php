@@ -18,6 +18,12 @@ final readonly class ListingMediaItem
         public ?int $width = null,
         public ?int $height = null,
         public ?int $byteSize = null,
+        /**
+         * Die tatsaechlich erzeugten Breiten, sortiert und kommagetrennt
+         * ('400,800,1600'). NULL heisst "noch nicht erzeugt" — ein Bestandsbild
+         * vor dem Lauf von bin/reimage.php.
+         */
+        public ?string $variantWidths = null,
     ) {}
 
     public function isImage(): bool

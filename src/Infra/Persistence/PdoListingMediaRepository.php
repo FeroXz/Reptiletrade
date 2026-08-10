@@ -9,7 +9,8 @@ use Reptilienmarkt\Domain\Listing\ListingMediaRepository;
 
 final readonly class PdoListingMediaRepository implements ListingMediaRepository
 {
-    private const string COLUMNS = 'id, listing_id, media_type, path, sort_order, is_primary, width, height, byte_size';
+    private const string COLUMNS = 'id, listing_id, media_type, path, sort_order, is_primary, width, height, '
+        . 'byte_size, variant_widths';
 
     public function __construct(private Database $database) {}
 
@@ -33,8 +34,9 @@ final readonly class PdoListingMediaRepository implements ListingMediaRepository
     public function add(ListingMediaItem $item): int
     {
         $this->database->execute(
-            'INSERT INTO listing_media (listing_id, media_type, path, sort_order, is_primary, width, height, byte_size, created_at)
-             VALUES (:listing_id, :type, :path, :sort, :primary, :width, :height, :bytes, :now)',
+            'INSERT INTO listing_media (listing_id, media_type, path, sort_order, is_primary, width, height, byte_size,
+                                        variant_widths, created_at)
+             VALUES (:listing_id, :type, :path, :sort, :primary, :width, :height, :bytes, :breiten, :now)',
             [
                 'listing_id' => $item->listingId,
                 'type' => $item->mediaType,
@@ -44,6 +46,7 @@ final readonly class PdoListingMediaRepository implements ListingMediaRepository
                 'width' => $item->width,
                 'height' => $item->height,
                 'bytes' => $item->byteSize,
+                'breiten' => $item->variantWidths,
                 'now' => gmdate('Y-m-d\TH:i:s\Z'),
             ],
         );
@@ -108,6 +111,7 @@ final readonly class PdoListingMediaRepository implements ListingMediaRepository
             $row['width'] === null ? null : (int) $row['width'],
             $row['height'] === null ? null : (int) $row['height'],
             $row['byte_size'] === null ? null : (int) $row['byte_size'],
+            ($row['variant_widths'] ?? null) === null ? null : (string) $row['variant_widths'],
         );
     }
 }

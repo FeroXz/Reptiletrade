@@ -37,12 +37,17 @@ final class TwigFactory
             static fn(SearchCriteria $criteria, SearchUrlContext $context): string => SearchUrlBuilder::build($criteria, $context),
         ));
 
-        // srcset fuer Anzeigenbilder. Ohne Ablage — etwa in einem Test, der nur
-        // ein Template uebersetzt — bleibt es leer, und das img faellt auf sein
-        // src zurueck. Eine fehlende Ablage soll kein kaputtes Markup ergeben.
+        // srcset fuer Anzeigenbilder. Die vorhandenen Breiten kommen aus der
+        // Zeile (listing_media.variant_widths) und werden nicht auf der Platte
+        // nachgesehen — sonst kostete jede Trefferliste drei Dateisystem-
+        // zugriffe je Kachel. Ohne Ablage — etwa in einem Test, der nur ein
+        // Template uebersetzt — bleibt es leer, und das img faellt auf sein src
+        // zurueck. Eine fehlende Ablage soll kein kaputtes Markup ergeben.
         $twig->addFunction(new TwigFunction(
             'bild_srcset',
-            static fn(?string $path): string => $path === null || $images === null ? '' : $images->srcset($path),
+            static fn(?string $path, ?string $widths = null): string => $path === null || $images === null
+                ? ''
+                : $images->srcset($path, $widths),
         ));
 
         $twig->addFilter(new TwigFilter('slug', static fn(string $value): string => Slugger::slug($value)));

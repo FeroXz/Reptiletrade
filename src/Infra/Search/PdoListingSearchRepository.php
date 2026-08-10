@@ -166,7 +166,8 @@ final readonly class PdoListingSearchRepository implements ListingSearchReposito
         $sql = 'SELECT l.id, l.title, l.type, l.species_id, l.price_cents, l.currency, l.negotiable,
                        l.sex, l.cb_status, l.postal_code, l.country, l.is_featured, l.bumped_at, l.created_at,
                        s.common_name_de, s.slug AS species_slug, s.common_slug,
-                       pm.path AS image_path, pm.width AS image_width, pm.height AS image_height'
+                       pm.path AS image_path, pm.width AS image_width, pm.height AS image_height,
+                       pm.variant_widths AS image_variant_widths'
             . $distanceColumn . '
                   FROM listings l
                   JOIN species s ON s.id = l.species_id
@@ -377,6 +378,9 @@ final readonly class PdoListingSearchRepository implements ListingSearchReposito
             // das Bild ankommt.
             ($row['image_width'] ?? null) === null ? null : (int) $row['image_width'],
             ($row['image_height'] ?? null) === null ? null : (int) $row['image_height'],
+            // Denormalisiert wie is_featured: Ohne diese Spalte muesste srcset
+            // je Kachel drei Dateien auf der Platte suchen.
+            ($row['image_variant_widths'] ?? null) === null ? null : (string) $row['image_variant_widths'],
         );
     }
 }
