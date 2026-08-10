@@ -861,6 +861,7 @@ $container->set('mail.transport', static function (Container $c) use ($root): Ma
             Env::string('SMTP_PASSWORD'),
             Env::string('SMTP_ENCRYPTION', SmtpMailer::ENCRYPTION_STARTTLS),
             Env::int('SMTP_TIMEOUT', 10),
+            Env::bool('SMTP_ALLOW_INSECURE_AUTH'),
         ),
         default => new FileMailer($root . '/' . ltrim(Env::string('MAIL_DIRECTORY', 'storage/mail'), '/')),
     };

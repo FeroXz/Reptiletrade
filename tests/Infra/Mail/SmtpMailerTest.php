@@ -36,7 +36,10 @@ final class SmtpMailerTest extends TestCase
             '250 2.0.0 Angenommen',
         ]);
 
-        $erfolg = $this->mailer($client, 'benutzer', 'geheim')->send(new MailMessage(
+        // Ein Socket-Paar kennt kein TLS. Damit der Dialog trotzdem bis zum
+        // AUTH kommt, steht hier die ausdrueckliche Ausnahme — dieselbe, die
+        // im Betrieb nur ein Relay auf 127.0.0.1 bekommt.
+        $erfolg = $this->mailer($client, 'benutzer', 'geheim', true)->send(new MailMessage(
             'kaeufer@example.tld',
             'Grüße vom Reptilienmarkt',
             "Hallo,\n.Punktzeile\nBis bald.",
@@ -75,6 +78,79 @@ final class SmtpMailerTest extends TestCase
         ]);
 
         self::assertTrue($this->mailer($client)->send(new MailMessage('kaeufer@example.tld', 'Betreff', 'Text')));
+        self::assertStringNotContainsString('AUTH', $this->mitschnitt($server));
+    }
+
+    /**
+     * Base64 ist keine Verschluesselung. Ohne TLS gehen Benutzername und
+     * Passwort lesbar ueber die Leitung — der Versand bricht deshalb ab, statt
+     * sie preiszugeben, und die Mail bleibt im Postausgang.
+     */
+    public function testOhneVerschluesselungGehenZugangsdatenNichtHinaus(): void
+    {
+        [$client, $server] = $this->socketPaar([
+            '220 mail.example.tld ESMTP bereit',
+            '250-mail.example.tld',
+            '250 AUTH PLAIN LOGIN',
+        ]);
+
+        $erfolg = $this->mailer($client, 'benutzer', 'geheim')->send(
+            new MailMessage('kaeufer@example.tld', 'Betreff', 'Text'),
+        );
+
+        self::assertFalse($erfolg);
+
+        $protokoll = $this->mitschnitt($server);
+
+        self::assertStringNotContainsString('AUTH', $protokoll);
+        self::assertStringNotContainsString(base64_encode('geheim'), $protokoll);
+        self::assertStringNotContainsString(base64_encode("\0benutzer\0geheim"), $protokoll);
+        // Und auch sonst nichts: Kein MAIL FROM, kein DATA.
+        self::assertStringNotContainsString('MAIL FROM', $protokoll);
+    }
+
+    /**
+     * Die Ausnahme fuer den Relay auf 127.0.0.1 — ausdruecklich gesetzt.
+     */
+    public function testDieAusdrueckicheAusnahmeLaesstDieAnmeldungZu(): void
+    {
+        [$client, $server] = $this->socketPaar([
+            '220 mail.example.tld ESMTP bereit',
+            '250-mail.example.tld',
+            '250 AUTH PLAIN LOGIN',
+            '235 2.7.0 Authentifiziert',
+            '250 2.1.0 Absender angenommen',
+            '250 2.1.5 Empfaenger angenommen',
+            '354 Text senden',
+            '250 2.0.0 Angenommen',
+        ]);
+
+        $erfolg = $this->mailer($client, 'benutzer', 'geheim', true)->send(
+            new MailMessage('kaeufer@example.tld', 'Betreff', 'Text'),
+        );
+
+        self::assertTrue($erfolg);
+        self::assertStringContainsString('AUTH PLAIN ' . base64_encode("\0benutzer\0geheim"), $this->mitschnitt($server));
+    }
+
+    /**
+     * Die Faehigkeitsliste liegt nach dem EHLO vor — ein AUTH ins Blaue
+     * bekaeme bei einem nachlaessigen Server die Zugangsdaten trotzdem aus dem
+     * Haus.
+     */
+    public function testOhneAngebotenesAuthWirdEsNichtVersucht(): void
+    {
+        [$client, $server] = $this->socketPaar([
+            '220 mail.example.tld ESMTP bereit',
+            '250-mail.example.tld',
+            '250 SIZE 10240000',
+        ]);
+
+        $erfolg = $this->mailer($client, 'benutzer', 'geheim', true)->send(
+            new MailMessage('kaeufer@example.tld', 'Betreff', 'Text'),
+        );
+
+        self::assertFalse($erfolg);
         self::assertStringNotContainsString('AUTH', $this->mitschnitt($server));
     }
 
@@ -120,8 +196,12 @@ final class SmtpMailerTest extends TestCase
     /**
      * @param resource $client
      */
-    private function mailer($client, string $benutzer = '', string $passwort = ''): SmtpMailer
-    {
+    private function mailer(
+        $client,
+        string $benutzer = '',
+        string $passwort = '',
+        bool $unverschluesseltErlaubt = false,
+    ): SmtpMailer {
         return new SmtpMailer(
             'mail.example.tld',
             25,
@@ -133,6 +213,7 @@ final class SmtpMailerTest extends TestCase
             // Ein Socket-Paar kennt kein TLS; geprueft wird der Dialog.
             SmtpMailer::ENCRYPTION_NONE,
             5,
+            $unverschluesseltErlaubt,
             static fn(): mixed => $client,
         );
     }

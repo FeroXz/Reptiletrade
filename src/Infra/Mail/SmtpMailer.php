@@ -30,9 +30,11 @@ final readonly class SmtpMailer implements Mailer
     public const string ENCRYPTION_TLS = 'tls';
 
     /**
-     * @param (Closure(): (resource|null))|null $connector Ersetzt den Aufbau der
-     *                                                     Verbindung — im Test steht dort ein Socket-Paar
-     *                                                     statt eines echten Servers
+     * @param bool                              $allowInsecureAuth Zugangsdaten auch ohne Verschluesselung senden.
+     *                                                             Nur fuer einen Relay auf 127.0.0.1 gedacht
+     * @param (Closure(): (resource|null))|null $connector         Ersetzt den Aufbau der
+     *                                                             Verbindung — im Test steht dort ein Socket-Paar
+     *                                                             statt eines echten Servers
      */
     public function __construct(
         private string $host,
@@ -44,6 +46,7 @@ final readonly class SmtpMailer implements Mailer
         private string $password = '',
         private string $encryption = self::ENCRYPTION_STARTTLS,
         private int $timeout = 10,
+        private bool $allowInsecureAuth = false,
         private ?Closure $connector = null,
     ) {}
 
@@ -153,6 +156,7 @@ final readonly class SmtpMailer implements Mailer
         }
 
         if ($this->username !== '') {
+            $this->guardAuthentication($this->encryption !== self::ENCRYPTION_NONE, $faehigkeiten);
             $this->authenticate($socket, $faehigkeiten);
         }
 
@@ -160,6 +164,47 @@ final readonly class SmtpMailer implements Mailer
         $this->command($socket, \sprintf('RCPT TO:<%s>', $to), 250, 251);
         $this->command($socket, 'DATA', 354);
         $this->command($socket, $this->payload($to, $message) . "\r\n.", 250);
+    }
+
+    /**
+     * Darf ueberhaupt authentifiziert werden?
+     *
+     * Ohne Verschluesselung gehen Benutzername und Passwort als Base64 ueber
+     * die Leitung — Base64 ist keine Verschluesselung, sondern eine
+     * Schreibweise. Deshalb bricht der Versand hier ab, statt still zu
+     * senden: Die Mail bleibt im Postausgang und wird spaeter wiederholt,
+     * die Zugangsdaten bleiben drinnen. Ein stiller Versand waere der
+     * schlechtere Tausch — er kostet die Zugangsdaten dauerhaft und faellt
+     * niemandem auf.
+     *
+     * Die Ausnahme muss ausdruecklich gesetzt werden (SMTP_ALLOW_INSECURE_AUTH)
+     * und ist fuer den einen Fall gedacht, in dem sie vertretbar ist: ein
+     * Relay auf 127.0.0.1, bei dem es keine Leitung gibt, auf der jemand
+     * mithoeren koennte.
+     *
+     * Und wenn der Server AUTH gar nicht anbietet, wird es erst nicht
+     * versucht: Die Faehigkeitsliste liegt nach dem EHLO vor, und ein
+     * "AUTH LOGIN" ins Blaue bekaeme entweder eine Ablehnung oder — bei einem
+     * nachlaessigen Server — die Zugangsdaten trotzdem aus dem Haus.
+     */
+    private function guardAuthentication(bool $encrypted, string $capabilities): void
+    {
+        if (!$encrypted && !$this->allowInsecureAuth) {
+            throw new RuntimeException(
+                'SMTP: Zugangsdaten ohne Verschluesselung. Der Versand bricht ab, statt Benutzername und '
+                . 'Passwort im Klartext zu senden. SMTP_ENCRYPTION=starttls setzen — oder, nur fuer einen '
+                . 'Relay auf 127.0.0.1, SMTP_ALLOW_INSECURE_AUTH=true.',
+            );
+        }
+
+        // Auf eine eigene Zeile gebunden: "250-AUTH PLAIN LOGIN" zaehlt,
+        // ein Server-Text, in dem das Wort zufaellig vorkommt, nicht.
+        if (preg_match('/^\d{3}[ -]AUTH[ =]/mi', $capabilities) !== 1) {
+            throw new RuntimeException(
+                'SMTP: Der Server bietet kein AUTH an, es sind aber Zugangsdaten eingestellt. '
+                . 'Entweder ist der falsche Port eingestellt oder der Server erwartet gar keine Anmeldung.',
+            );
+        }
     }
 
     /**
