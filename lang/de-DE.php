@@ -417,6 +417,12 @@ return [
     'benachrichtigung.abmeldelinks.erneuert' => 'Die bisherigen Abmeldelinks sind ungültig. '
         . 'Neue E-Mails tragen einen neuen Link.',
 
+    'benachrichtigung.abmelden.frage.titel' => 'Benachrichtigung abbestellen',
+    'benachrichtigung.abmelden.frage' => 'Möchtest du keine E-Mails mehr zu „{kanal}“ bekommen?',
+    'benachrichtigung.abmelden.frage.hinweis' => 'Erst mit dem Knopf wird abbestellt. Alle anderen '
+        . 'Benachrichtigungen bleiben unverändert, und deine Anmeldung bleibt bestehen.',
+    'benachrichtigung.abmelden.frage.knopf' => 'Ja, abbestellen',
+
     'benachrichtigung.abmelden.titel' => 'Benachrichtigung abbestellt',
     'benachrichtigung.abmelden.erfolg' => 'Du bekommst keine E-Mails mehr zu: {kanal}.',
     'benachrichtigung.abmelden.rest_laeuft_weiter' => 'Alle anderen Benachrichtigungen bleiben unverändert, '

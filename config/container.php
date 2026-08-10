@@ -884,6 +884,7 @@ $container->set(Mailer::class, static fn(Container $c): Mailer => new Preference
     $c->get(NotificationPreferenceService::class),
     $c->get(Translator::class),
     Env::string('APP_URL', 'https://example.tld'),
+    Env::string('MAIL_UNSUBSCRIBE_MAILBOX'),
 ));
 
 // -------------------------------------------------- Benachrichtigungen

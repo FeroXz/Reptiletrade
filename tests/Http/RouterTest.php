@@ -135,12 +135,21 @@ final class RouterTest extends TestCase
         self::assertSame('abmelden', $abmelden->route->name);
         self::assertSame('logout', $abmelden->route->action);
 
+        // Der GET auf den Abmeldelink fragt nur; abgemeldet wird per POST auf
+        // dieselbe Adresse. Ein GET, der abmeldet, waere von Mailfiltern und
+        // Prefetch ausgeloest worden und nicht vom Nutzer.
         $kanal = $this->router()->match($this->request('/abmelden/aabbccdd'));
 
         self::assertNotNull($kanal);
         self::assertSame('abmelden.kanal', $kanal->route->name);
-        self::assertSame('unsubscribe', $kanal->route->action);
+        self::assertSame('confirmUnsubscribe', $kanal->route->action);
         self::assertSame(['token' => 'aabbccdd'], $kanal->attributes);
+
+        $ausfuehren = $this->router()->match($this->request('/abmelden/aabbccdd', 'POST'));
+
+        self::assertNotNull($ausfuehren);
+        self::assertSame('abmelden.kanal.ausfuehren', $ausfuehren->route->name);
+        self::assertSame('unsubscribe', $ausfuehren->route->action);
 
         // Und ein GET auf /abmelden ist kein Ausloggen: Es faellt auf die
         // CMS-Auffangroute, wo es hoechstens eine Seite findet.

@@ -148,13 +148,17 @@ final readonly class NotificationPreferenceService
     }
 
     /**
-     * Schaltet genau einen Kanal ab — ohne Anmeldung, allein ueber den Token.
+     * Prueft Token und Kanal, **ohne etwas zu aendern**.
+     *
+     * Fuer die Bestaetigungsseite, die der Abmeldelink zeigt: Sie muss den
+     * Kanal nennen duerfen und dieselben Meldungen geben wie die Abmeldung
+     * selbst — deshalb steht der Wortlaut hier und nicht zweimal.
      *
      * @return int das betroffene Konto
      *
      * @throws NotificationException
      */
-    public function unsubscribe(string $plainToken, NotificationChannel $channel): int
+    public function requireAccountForToken(string $plainToken, NotificationChannel $channel): int
     {
         if ($channel->isMandatory()) {
             throw new NotificationException(
@@ -164,13 +168,27 @@ final readonly class NotificationPreferenceService
 
         $userId = $this->accountForToken($plainToken);
 
-        // Eine gemeinsame Meldung fuer "gibt es nicht" und "ueberholt": Der
+        // Eine gemeinsame Meldung fuer "gibt es nicht" und "entwertet": Der
         // Unterschied hilft nur dem, der Token durchprobiert.
         if ($userId === null) {
             throw new NotificationException(
                 'Dieser Abmeldelink ist nicht mehr gültig. Melde dich an, um deine Benachrichtigungen einzustellen.',
             );
         }
+
+        return $userId;
+    }
+
+    /**
+     * Schaltet genau einen Kanal ab — ohne Anmeldung, allein ueber den Token.
+     *
+     * @return int das betroffene Konto
+     *
+     * @throws NotificationException
+     */
+    public function unsubscribe(string $plainToken, NotificationChannel $channel): int
+    {
+        $userId = $this->requireAccountForToken($plainToken, $channel);
 
         $this->preferences->set($userId, $channel, false, $this->clock->now());
 
