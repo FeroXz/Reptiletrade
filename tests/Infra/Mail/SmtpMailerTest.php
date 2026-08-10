@@ -177,6 +177,95 @@ final class SmtpMailerTest extends TestCase
         self::assertFalse($this->mailer($client)->send(new MailMessage('kaeufer@example.tld', 'Betreff', 'Text')));
     }
 
+    /**
+     * Die Zertifikatspruefung steht im Code und nicht in der php.ini: Ohne
+     * eigenen Kontext entschiede die Einrichtung des Servers darueber, ob
+     * ueberhaupt geprueft wird — und eine Zusage, die von einer Datei
+     * ausserhalb des Verzeichnisses abhaengt, ist keine.
+     */
+    public function testDerVerbindungsaufbauBringtDiePruefoptionenMit(): void
+    {
+        [$client, $server] = $this->socketPaar([
+            '220 mail.example.tld ESMTP bereit',
+            '250 mail.example.tld',
+            '250 2.1.0 Absender angenommen',
+            '250 2.1.5 Empfaenger angenommen',
+            '354 Text senden',
+            '250 2.0.0 Angenommen',
+        ]);
+
+        $gesehen = [];
+
+        $mailer = new SmtpMailer(
+            'mail.example.tld',
+            25,
+            'noreply@example.tld',
+            'Reptilienmarkt',
+            new NullLogger(),
+            encryption: SmtpMailer::ENCRYPTION_NONE,
+            connector: static function ($kontext) use (&$gesehen, $client): mixed {
+                /** @var resource $kontext */
+                $optionen = stream_context_get_options($kontext);
+                /** @var array<string, mixed> $gesehen */
+                $gesehen = \is_array($optionen['ssl'] ?? null) ? $optionen['ssl'] : [];
+
+                return $client;
+            },
+        );
+
+        self::assertTrue($mailer->send(new MailMessage('kaeufer@example.tld', 'Betreff', 'Text')));
+        fclose($server);
+
+        self::assertTrue($gesehen['verify_peer'] ?? null);
+        self::assertTrue($gesehen['verify_peer_name'] ?? null);
+        self::assertFalse($gesehen['allow_self_signed'] ?? null);
+        self::assertTrue($gesehen['SNI_enabled'] ?? null);
+        // Der konfigurierte Name, nicht eine aufgeloeste Adresse: Hinter einem
+        // Lastverteiler antwortet sonst eine IP, auf die kein Zertifikat
+        // ausgestellt ist.
+        self::assertSame('mail.example.tld', $gesehen['peer_name'] ?? null);
+    }
+
+    /**
+     * Scheitert der Handschlag, scheitert der Versand — es geht kein einziges
+     * Byte der Mail im Klartext hinaus. Die Zeile bleibt im Postausgang, und
+     * der Auftrag wiederholt sie.
+     */
+    public function testEinGescheiterterHandschlagVersendetNichtsImKlartext(): void
+    {
+        // Ein Socket-Paar kann kein TLS: stream_socket_enable_crypto scheitert,
+        // und genau das ist hier der Fall, der geprueft wird.
+        [$client, $server] = $this->socketPaar([
+            '220 mail.example.tld ESMTP bereit',
+            '250-mail.example.tld',
+            '250 STARTTLS',
+            '220 2.0.0 Bereit fuer TLS',
+        ]);
+
+        $mailer = new SmtpMailer(
+            'mail.example.tld',
+            587,
+            'noreply@example.tld',
+            'Reptilienmarkt',
+            new NullLogger(),
+            'benutzer',
+            'geheim',
+            SmtpMailer::ENCRYPTION_STARTTLS,
+            5,
+            connector: static fn(): mixed => $client,
+        );
+
+        self::assertFalse($mailer->send(new MailMessage('kaeufer@example.tld', 'Betreff', 'Text')));
+
+        $protokoll = $this->mitschnitt($server);
+
+        self::assertStringContainsString('STARTTLS', $protokoll);
+        self::assertStringNotContainsString('AUTH', $protokoll);
+        self::assertStringNotContainsString(base64_encode("\0benutzer\0geheim"), $protokoll);
+        self::assertStringNotContainsString('MAIL FROM', $protokoll);
+        self::assertStringNotContainsString("DATA\r\n", $protokoll);
+    }
+
     public function testEineUnbrauchbareAdresseOeffnetKeineVerbindung(): void
     {
         $mailer = new SmtpMailer(

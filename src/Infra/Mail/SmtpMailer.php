@@ -32,9 +32,11 @@ final readonly class SmtpMailer implements Mailer
     /**
      * @param bool                              $allowInsecureAuth Zugangsdaten auch ohne Verschluesselung senden.
      *                                                             Nur fuer einen Relay auf 127.0.0.1 gedacht
-     * @param (Closure(): (resource|null))|null $connector         Ersetzt den Aufbau der
+     * @param (Closure(resource): (resource|null))|null $connector Ersetzt den Aufbau der
      *                                                             Verbindung — im Test steht dort ein Socket-Paar
-     *                                                             statt eines echten Servers
+     *                                                             statt eines echten Servers. Er bekommt den
+     *                                                             fertigen Stream-Kontext, damit sich pruefen
+     *                                                             laesst, womit verbunden wuerde
      */
     public function __construct(
         private string $host,
@@ -95,8 +97,13 @@ final readonly class SmtpMailer implements Mailer
      */
     private function connect()
     {
+        // Der Kontext steht vor der Weiche: Ein Test soll sehen koennen, mit
+        // welchen Pruefoptionen verbunden wuerde, ohne dafuer einen echten
+        // Server mit Zertifikat zu brauchen.
+        $kontext = stream_context_create(['ssl' => self::tlsOptions($this->host)]);
+
         if ($this->connector !== null) {
-            return ($this->connector)();
+            return ($this->connector)($kontext);
         }
 
         $schema = $this->encryption === self::ENCRYPTION_TLS ? 'ssl' : 'tcp';
@@ -108,6 +115,8 @@ final readonly class SmtpMailer implements Mailer
             $fehlerNummer,
             $fehlerText,
             $this->timeout,
+            \STREAM_CLIENT_CONNECT,
+            $kontext,
         );
 
         if ($socket === false) {
@@ -126,6 +135,34 @@ final readonly class SmtpMailer implements Mailer
     }
 
     /**
+     * Die TLS-Pruefung — im Code und nicht in der php.ini.
+     *
+     * Ohne eigenen Kontext entscheiden openssl.cafile, verify_peer und
+     * Verwandte des Servers darueber, ob das Zertifikat des Mailservers
+     * ueberhaupt geprueft wird. Auf einem sauber eingerichteten Debian geht das
+     * gut, auf einem Server mit abweichender php.ini schweigend nicht — und
+     * eine Sicherheitszusage, die von einer Datei ausserhalb dieses
+     * Verzeichnisses abhaengt, ist keine.
+     *
+     * peer_name ist der **konfigurierte** Hostname, nicht eine aufgeloeste
+     * Adresse: Hinter einem Lastverteiler antwortet sonst eine IP, auf die kein
+     * Zertifikat ausgestellt ist, und die Pruefung schlaege bei jedem
+     * ordentlichen Server fehl.
+     *
+     * @return array<string, string|bool>
+     */
+    private static function tlsOptions(string $host): array
+    {
+        return [
+            'verify_peer' => true,
+            'verify_peer_name' => true,
+            'allow_self_signed' => false,
+            'peer_name' => $host,
+            'SNI_enabled' => true,
+        ];
+    }
+
+    /**
      * @param resource $socket
      */
     private function dialogue($socket, string $to, MailMessage $message): void
@@ -138,6 +175,11 @@ final readonly class SmtpMailer implements Mailer
         if ($this->encryption === self::ENCRYPTION_STARTTLS) {
             $this->command($socket, 'STARTTLS', 220);
 
+            // Die Pruefoptionen noch einmal auf den Socket: Der Kontext des
+            // Verbindungsaufbaus gilt fuer die Sitzung, aber der Handschlag
+            // findet hier statt — und ohne peer_name pruefte er gegen nichts.
+            stream_context_set_options($socket, ['ssl' => self::tlsOptions($this->host)]);
+
             $erfolg = @stream_socket_enable_crypto(
                 $socket,
                 true,
@@ -146,7 +188,10 @@ final readonly class SmtpMailer implements Mailer
 
             if ($erfolg !== true) {
                 // Kein Rueckfall auf Klartext: Wer STARTTLS eingestellt hat,
-                // will keine Zugangsdaten im Klartext ueber die Leitung.
+                // will keine Zugangsdaten im Klartext ueber die Leitung. Das
+                // gilt auch fuer ein Zertifikat, das die Pruefung nicht
+                // besteht — die Mail bleibt dann im Postausgang, und der
+                // Auftrag wiederholt sie, wenn der Server wieder in Ordnung ist.
                 throw new RuntimeException('STARTTLS ist fehlgeschlagen.');
             }
 
