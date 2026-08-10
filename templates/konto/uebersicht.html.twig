@@ -140,17 +140,36 @@
             </div>
         </section>
 
-        <nav class="flex flex-wrap gap-4 text-sm">
-            <a class="underline" href="/konto/profil">{{ t('profil.bearbeiten') }}</a>
-            <a class="underline" href="/konto/statistik">{{ t('statistik.titel') }}</a>
-            <a class="underline" href="/konto/nachzuchten">{{ t('nachzucht.titel') }}</a>
-            <a class="underline" href="/paarung/simulator">{{ t('genetik.titel') }}</a>
-            <a class="underline" href="/konto/abrechnung">{{ t('abrechnung.titel') }}</a>
-            <a class="underline" href="/konto/sitzungen">{{ t('sitzungen.titel') }}</a>
-            <a class="underline" href="/konto/merkliste">{{ t('merkliste.titel') }}</a>
-            <a class="underline" href="/konto/suchen">{{ t('suchen.titel') }}</a>
-            <a class="underline" href="/konto/benachrichtigungen">{{ t('benachrichtigung.titel') }}</a>
-            <a class="underline" href="/konto/daten">{{ t('daten.titel') }}</a>
+        {# Zehn unterstrichene Woerter in einer umbrechenden Zeile waren als
+           Liste kaum zu ueberfliegen — welcher Link wohin fuehrt, stand nur im
+           Wort selbst. Als Kachelraster hat jeder Eintrag eine eigene Flaeche
+           und eine Zeile Erklaerung. Die Ziele sind unveraendert. #}
+        <nav aria-label="{{ t('konto.titel') }}">
+            <ul class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {% for eintrag in [
+                    { pfad: '/konto/profil', titel: t('profil.bearbeiten'), text: 'Anzeigename, Beschreibung und öffentliches Züchterprofil.' },
+                    { pfad: '/konto/statistik', titel: t('statistik.titel'), text: 'Aufrufe und Nachfragen zu deinen Anzeigen.' },
+                    { pfad: '/konto/nachzuchten', titel: t('nachzucht.titel'), text: 'Erwartete und gemeldete Nachzuchten.' },
+                    { pfad: '/paarung/simulator', titel: t('genetik.titel'), text: 'Vererbung einer geplanten Verpaarung durchrechnen.' },
+                    { pfad: '/konto/abrechnung', titel: t('abrechnung.titel'), text: 'Tarif, Zahlungen und Rechnungen.' },
+                    { pfad: '/konto/sitzungen', titel: t('sitzungen.titel'), text: 'Angemeldete Geräte einsehen und abmelden.' },
+                    { pfad: '/konto/merkliste', titel: t('merkliste.titel'), text: 'Gemerkte Anzeigen.' },
+                    { pfad: '/konto/suchen', titel: t('suchen.titel'), text: 'Gespeicherte Suchen und ihre Benachrichtigungen.' },
+                    { pfad: '/konto/benachrichtigungen', titel: t('benachrichtigung.titel'), text: 'Wann dich eine E-Mail erreichen soll.' },
+                    { pfad: '/konto/daten', titel: t('daten.titel'), text: 'Auskunft, Export und Löschung deines Kontos.' }
+                ] %}
+                    <li>
+                        {# Die ganze Kachel ist der Link — ein Ziel, eine
+                           Trefferflaeche. Zwei verschachtelte Links waeren fuer
+                           die Tastaturbedienung zwei Stationen fuer denselben
+                           Weg. #}
+                        <a class="karte karte-interaktiv konto-kachel" href="{{ eintrag.pfad }}">
+                            <span class="font-medium">{{ eintrag.titel }}</span>
+                            <span class="text-xs gedaempft">{{ eintrag.text }}</span>
+                        </a>
+                    </li>
+                {% endfor %}
+            </ul>
         </nav>
     </div>
 {% endblock %}

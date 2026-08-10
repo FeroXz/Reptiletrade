@@ -3,16 +3,19 @@
 {% block kopf %}<meta name="robots" content="noindex">{% endblock %}
 
 {% block inhalt %}
-    <div class="mx-auto max-w-sm space-y-4">
+    {# Auth-Flows stehen fuer sich: keine Navigation im Blick, eine Karte
+       in der Mitte. min-h rechnet Kopfleiste und Innenabstand des main
+       heraus, damit die Karte optisch mittig sitzt und nicht oben klebt. #}
+    <div class="mx-auto flex min-h-[calc(100dvh-14rem)] max-w-sm flex-col justify-center gap-4 py-4">
         {% include 'partials/meldungen.html.twig' %}
 
-        <form method="post" action="/passwort/neu" class="karte space-y-3 p-6">
-            <h1 class="text-lg font-semibold">Neues Passwort vergeben</h1>
+        <form method="post" action="/passwort/neu" class="karte karte-gross space-y-4 p-6 sm:p-8">
+            <h1 class="text-xl font-semibold tracking-tight">Neues Passwort vergeben</h1>
             <input type="hidden" name="_csrf" value="{{ csrf }}">
             <input type="hidden" name="token" value="{{ token }}">
 
             <div>
-                <label class="text-sm" for="passwort">Neues Passwort</label>
+                <label class="feld-marke" for="passwort">Neues Passwort</label>
                 <input class="feld" id="passwort" type="password" name="passwort" required minlength="10"
                        autocomplete="new-password">
                 <p class="mt-1 text-xs gedaempft">Mindestens zehn Zeichen.</p>

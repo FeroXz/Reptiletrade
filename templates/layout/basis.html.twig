@@ -9,30 +9,46 @@
     <link rel="stylesheet" href="/assets/app.css">
 </head>
 <body class="min-h-screen">
-<header class="border-b" style="background: var(--flaeche); border-color: var(--rand)">
-    <div class="mx-auto flex max-w-7xl items-center gap-6 px-4 py-3">
-        <a href="/markt/" class="text-lg font-semibold tracking-tight">Reptilienmarkt</a>
-        <form action="/markt/" method="get" class="flex flex-1 items-center gap-2" role="search">
+<a class="knopf sprungmarke" href="#inhalt">Zum Inhalt springen</a>
+
+{# Die Leiste bleibt beim Scrollen stehen: Suche und Kontonavigation sind auf
+   langen Trefferlisten sonst nur ueber den Weg nach ganz oben erreichbar.
+   Flaeche und Unschaerfe stecken in .kopfleiste — der Rueckfall ohne
+   backdrop-filter ist dort mitgeregelt. #}
+<header class="kopfleiste sticky top-0 z-40 border-b" style="border-color: var(--rand)">
+    {# flex-wrap ist hier kein Feinschliff, sondern eine Reparatur: Logo,
+       Suchfeld und die Kontolinks brauchen zusammen mehr als 360 Pixel. Ohne
+       Umbruch schob die Leiste die ganze Seite in die Waagerechte, und bei
+       einem angemeldeten Moderator mit fuenf Links noch deutlicher. Jetzt
+       rutscht die Navigation auf eine zweite Zeile — die Reihenfolge im
+       Markup bleibt die, in der man sie sieht und antabbt. #}
+    <div class="mx-auto flex max-w-7xl flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5 sm:py-3 lg:gap-x-6">
+        <a href="/markt/" class="shrink-0 text-base font-semibold tracking-tight sm:text-lg">Reptilienmarkt</a>
+
+        {# min-w-0 auf Formular und Feld: Ohne das weigert sich ein Flex-Kind,
+           unter seine Inhaltsbreite zu schrumpfen, und die Kontonavigation
+           wird auf schmalen Geraeten aus der Leiste gedraengt. #}
+        <form action="/markt/" method="get" class="kopf-suche flex min-w-0 flex-1 items-center gap-2" role="search">
             <label for="suchfeld" class="sr-only">Suchbegriff</label>
-            <input id="suchfeld" type="search" name="q" class="feld" placeholder="Art, Morph oder Stichwort"
+            <input id="suchfeld" type="search" name="q" class="feld min-w-0" placeholder="Art, Morph oder Stichwort"
                    value="{{ kriterien is defined and kriterien.query ? kriterien.query : '' }}">
-            <button type="submit" class="knopf knopf-primaer">Suchen</button>
+            <button type="submit" class="knopf knopf-primaer shrink-0">Suchen</button>
         </form>
 
         {# Das Hauptmenü wird von der Redaktion gepflegt. Ist es leer, fehlt
            hier schlicht nichts — die Kontonavigation daneben bleibt. #}
         {% if betrachter is defined and betrachter.menu('hauptmenu') is not empty %}
-            <nav class="hidden items-center gap-4 text-sm lg:flex" aria-label="{{ t('inhalt.hauptmenu') }}">
+            <nav class="hidden shrink-0 items-center gap-4 text-sm lg:flex" aria-label="{{ t('inhalt.hauptmenu') }}">
                 {% for eintrag in betrachter.menu('hauptmenu') %}
-                    <a href="{{ eintrag.resolvedPath }}"
+                    <a class="kopf-link" href="{{ eintrag.resolvedPath }}"
                        {% if eintrag.isExternal %}rel="noopener noreferrer"{% endif %}>{{ eintrag.label }}</a>
                 {% endfor %}
             </nav>
         {% endif %}
 
-        <nav class="flex items-center gap-4 text-sm" aria-label="Konto">
+        <nav class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm lg:gap-x-4" aria-label="Konto">
             {% if betrachter is defined and betrachter.isAuthenticated %}
-                <a href="/postfach/" class="flex items-center gap-1">
+                <a href="/postfach/" class="kopf-link flex items-center gap-1">
                     {{ t('postfach.titel') }}
                     {% if betrachter.unreadMessages > 0 %}
                         <span class="rounded-full px-2 py-0.5 text-xs font-semibold"
@@ -42,53 +58,57 @@
                         </span>
                     {% endif %}
                 </a>
-                <a href="/meine-anzeigen/">Meine Anzeigen</a>
-                <a href="/konto/">{{ t('konto.titel') }}</a>
+                <a class="kopf-link" href="/meine-anzeigen/">Meine Anzeigen</a>
+                <a class="kopf-link" href="/konto/">{{ t('konto.titel') }}</a>
                 {% if betrachter.isModerator %}
-                    <a href="/moderation/">Moderation</a>
+                    <a class="kopf-link" href="/moderation/">Moderation</a>
                 {% endif %}
                 {% if betrachter.isEditor %}
-                    <a href="/admin/inhalte">{{ t('admin.inhalt.titel') }}</a>
+                    <a class="kopf-link" href="/admin/inhalte">{{ t('admin.inhalt.titel') }}</a>
                 {% endif %}
                 {% if betrachter.isAdmin %}
-                    <a href="/admin/">{{ t('admin.titel') }}</a>
+                    <a class="kopf-link" href="/admin/">{{ t('admin.titel') }}</a>
                 {% endif %}
             {% else %}
-                <a href="/anmelden">Anmelden</a>
+                <a class="kopf-link" href="/anmelden">Anmelden</a>
                 <a href="/registrieren" class="knopf">Registrieren</a>
             {% endif %}
         </nav>
     </div>
 </header>
 
-<main class="mx-auto max-w-7xl px-4 py-6">
+<main id="inhalt" class="mx-auto max-w-7xl px-4 py-6">
     {% block inhalt %}{% endblock %}
 </main>
 
-<footer class="mx-auto max-w-7xl space-y-3 px-4 py-10 text-sm gedaempft">
-    <p>
-        Angaben zu Schutzstatus und Nachweispflichten sind Hinweise, keine Rechtsberatung.
-        Prüfe vor Kauf und Abgabe die für dich geltenden Vorschriften.
-    </p>
-    {# Impressum und Datenschutz gehoeren auf jede Seite und muessen mit
-       hoechstens zwei Klicks erreichbar sein. #}
-    {# Impressum und Datenschutz stehen fest verdrahtet hier — sie muessen mit
-       hoechstens zwei Klicks erreichbar sein, und das darf nicht davon
-       abhaengen, dass jemand ein Menue pflegt. Was die Redaktion ergaenzt,
-       kommt dahinter. #}
-    <nav class="flex flex-wrap gap-4">
-        <a class="underline" href="/impressum">Impressum</a>
-        <a class="underline" href="/datenschutz">Datenschutz</a>
-        <a class="underline" href="/nutzungsbedingungen">Nutzungsbedingungen</a>
-        <a class="underline" href="/kontakt">Kontakt</a>
-        <a class="underline" href="/news/">{{ t('inhalt.news_titel') }}</a>
-        {% if betrachter is defined %}
-            {% for eintrag in betrachter.menu('fussbereich') %}
-                <a class="underline" href="{{ eintrag.resolvedPath }}"
-                   {% if eintrag.isExternal %}rel="noopener noreferrer"{% endif %}>{{ eintrag.label }}</a>
-            {% endfor %}
-        {% endif %}
-    </nav>
+{# Eine Linie trennt den Fussbereich vom Inhalt. Vorher stand er ohne Absetzung
+   im selben Fluss und las sich wie ein letzter Absatz der Seite. #}
+<footer class="mt-10 border-t" style="border-color: var(--rand)">
+    <div class="mx-auto grid max-w-7xl gap-6 px-4 py-10 text-sm md:grid-cols-[minmax(0,32rem)_1fr]">
+        <p class="gedaempft">
+            Angaben zu Schutzstatus und Nachweispflichten sind Hinweise, keine Rechtsberatung.
+            Prüfe vor Kauf und Abgabe die für dich geltenden Vorschriften.
+        </p>
+        {# Impressum und Datenschutz gehoeren auf jede Seite und muessen mit
+           hoechstens zwei Klicks erreichbar sein. #}
+        {# Impressum und Datenschutz stehen fest verdrahtet hier — sie muessen mit
+           hoechstens zwei Klicks erreichbar sein, und das darf nicht davon
+           abhaengen, dass jemand ein Menue pflegt. Was die Redaktion ergaenzt,
+           kommt dahinter. #}
+        <nav class="flex flex-wrap gap-x-5 gap-y-2 md:justify-end" aria-label="Rechtliches und Service">
+            <a class="fuss-link" href="/impressum">Impressum</a>
+            <a class="fuss-link" href="/datenschutz">Datenschutz</a>
+            <a class="fuss-link" href="/nutzungsbedingungen">Nutzungsbedingungen</a>
+            <a class="fuss-link" href="/kontakt">Kontakt</a>
+            <a class="fuss-link" href="/news/">{{ t('inhalt.news_titel') }}</a>
+            {% if betrachter is defined %}
+                {% for eintrag in betrachter.menu('fussbereich') %}
+                    <a class="fuss-link" href="{{ eintrag.resolvedPath }}"
+                       {% if eintrag.isExternal %}rel="noopener noreferrer"{% endif %}>{{ eintrag.label }}</a>
+                {% endfor %}
+            {% endif %}
+        </nav>
+    </div>
 </footer>
 {% block skripte %}{% endblock %}
 </body>

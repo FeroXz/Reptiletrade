@@ -2,11 +2,14 @@
 {% block titel %}Passwort vergessen — Reptilienmarkt{% endblock %}
 
 {% block inhalt %}
-    <div class="mx-auto max-w-sm space-y-4">
+    {# Auth-Flows stehen fuer sich: keine Navigation im Blick, eine Karte
+       in der Mitte. min-h rechnet Kopfleiste und Innenabstand des main
+       heraus, damit die Karte optisch mittig sitzt und nicht oben klebt. #}
+    <div class="mx-auto flex min-h-[calc(100dvh-14rem)] max-w-sm flex-col justify-center gap-4 py-4">
         {% include 'partials/meldungen.html.twig' %}
 
-        <form method="post" action="/passwort/vergessen" class="karte space-y-3 p-6">
-            <h1 class="text-lg font-semibold">Passwort vergessen</h1>
+        <form method="post" action="/passwort/vergessen" class="karte karte-gross space-y-4 p-6 sm:p-8">
+            <h1 class="text-xl font-semibold tracking-tight">Passwort vergessen</h1>
             <input type="hidden" name="_csrf" value="{{ csrf }}">
 
             <p class="text-sm gedaempft">
@@ -15,7 +18,7 @@
             </p>
 
             <div>
-                <label class="text-sm" for="email">E-Mail</label>
+                <label class="feld-marke" for="email">E-Mail</label>
                 <input class="feld" id="email" type="email" name="email" required autocomplete="email">
             </div>
 

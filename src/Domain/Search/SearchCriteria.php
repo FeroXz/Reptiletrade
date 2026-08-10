@@ -112,6 +112,62 @@ final readonly class SearchCriteria
     }
 
     /**
+     * Nimmt einzelne Filter wieder heraus.
+     *
+     * Das kann with() nicht, und es soll es auch nicht koennen: Dort heisst
+     * ein ausgelassenes Argument "unveraendert lassen" — genau davon leben die
+     * Facettenlinks, die einen Wert ergaenzen, ohne die uebrigen zu kennen.
+     * Ein null waere dort nicht von "nicht angegeben" zu unterscheiden.
+     *
+     * Die Filterchips ueber der Trefferliste brauchen das Gegenteil: einen
+     * gesetzten Wert loswerden. Deshalb eine zweite Methode mit Schaltern
+     * statt Werten. Sie setzt immer auf Seite 1 zurueck — nach dem Entfernen
+     * eines Filters gibt es mehr Treffer, und die alte Seitenzahl zeigt dann
+     * auf eine andere Stelle der Liste als die, von der man kam.
+     */
+    public function without(
+        bool $query = false,
+        bool $species = false,
+        bool $morphs = false,
+        bool $sexes = false,
+        bool $types = false,
+        bool $cbStatuses = false,
+        bool $countries = false,
+        bool $handovers = false,
+        bool $price = false,
+        bool $age = false,
+        bool $imageOnly = false,
+        bool $radius = false,
+        bool $region = false,
+    ): self {
+        return new self(
+            $query ? null : $this->query,
+            $species ? null : $this->speciesId,
+            // Merkmale haengen an der Art. Faellt die Art weg, bezeichnet eine
+            // Morph-Id nichts mehr, was der Nutzer ausgewaehlt haette — die
+            // Facettenliste zeigt sie dann gar nicht mehr an.
+            $morphs || $species ? [] : $this->morphs,
+            $sexes ? [] : $this->sexes,
+            $types ? [] : $this->types,
+            $cbStatuses ? [] : $this->cbStatuses,
+            $countries ? [] : $this->countries,
+            $handovers ? [] : $this->handovers,
+            $price ? null : $this->priceMinCents,
+            $price ? null : $this->priceMaxCents,
+            $age ? null : $this->ageMinMonths,
+            $age ? null : $this->ageMaxMonths,
+            !$imageOnly && $this->withImageOnly,
+            $radius ? null : $this->radius,
+            $region ? null : $this->admin1,
+            // Die Sortierung bleibt stehen. Faellt mit dem Umkreis ihre
+            // Grundlage weg, faengt effectiveSort() das ohnehin ab.
+            $this->sort,
+            1,
+            $this->perPage,
+        );
+    }
+
+    /**
      * Kopiert die Kriterien mit einzelnen Aenderungen. Nicht angegebene
      * Parameter behalten ihren Wert.
      *

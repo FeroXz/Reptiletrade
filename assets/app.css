@@ -22,9 +22,50 @@
     --color-sand-200: oklch(0.91 0.03 80);
     --color-sand-300: oklch(0.84 0.04 80);
 
+    /*
+     * Neutrale Graustufen. Eine einzige Achse fuer Flaechen, Raender und Text,
+     * minimal ins Kuehle gezogen (Hue 250) — dieselbe Richtung wie die
+     * Textfarbe. Ohne diese Skala wurden Grautoene bisher an drei Stellen
+     * einzeln gemischt; wer eine davon aendert, verstimmt den Rest.
+     */
+    --color-grau-50: oklch(0.985 0.002 250);
+    --color-grau-100: oklch(0.968 0.003 250);
+    --color-grau-200: oklch(0.928 0.005 250);
+    --color-grau-300: oklch(0.872 0.007 250);
+    --color-grau-400: oklch(0.715 0.009 250);
+    --color-grau-500: oklch(0.582 0.011 250);
+    --color-grau-600: oklch(0.472 0.012 250);
+    --color-grau-700: oklch(0.378 0.012 250);
+    --color-grau-800: oklch(0.281 0.011 250);
+    --color-grau-900: oklch(0.212 0.009 250);
+    --color-grau-950: oklch(0.158 0.007 250);
+
     --radius-token-sm: 0.375rem;
     --radius-token-md: 0.625rem;
     --radius-token-lg: 1rem;
+
+    /*
+     * Schatten. Zwei Lagen je Stufe — eine enge Kontaktschatten-Lage und eine
+     * weiche darunter; eine Lage allein sieht entweder hart oder schmutzig aus.
+     * Sehr niedrige Deckkraft: Der Schatten soll die Kante ablesbar machen,
+     * nicht die Karte anheben. Die Dunkelvariante steht weiter unten separat,
+     * dort traegt derselbe Wert deutlich zu dick auf.
+     */
+    --shadow-sm: 0 1px 2px -1px oklch(0.212 0.009 250 / 0.08);
+    --shadow-md: 0 1px 2px -1px oklch(0.212 0.009 250 / 0.06),
+                 0 6px 14px -6px oklch(0.212 0.009 250 / 0.12);
+    --shadow-lg: 0 2px 4px -2px oklch(0.212 0.009 250 / 0.06),
+                 0 16px 32px -12px oklch(0.212 0.009 250 / 0.16);
+
+    /*
+     * Bewegung. Die Kurve startet sofort und laeuft weich aus — das liest sich
+     * als Reaktion auf den Zeiger, waehrend ein symmetrisches ease-in-out
+     * traege wirkt. Zwei Dauern reichen: fast fuer Farb- und Randwechsel,
+     * base fuer alles, was sich bewegt oder seine Groesse aendert.
+     */
+    --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+    --duration-fast: 120ms;
+    --duration-base: 220ms;
 
     --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
@@ -32,19 +73,62 @@
 @layer base {
     :root {
         --flaeche: var(--color-white);
-        --flaeche-gedaempft: var(--color-sand-50);
-        --rand: var(--color-sand-200);
-        --text: oklch(0.22 0.01 250);
-        --text-gedaempft: oklch(0.52 0.01 250);
+        --flaeche-gedaempft: var(--color-grau-50);
+        /* Dritte Flaechenstufe fuer eingelassene Bereiche — Codeblocks,
+           Bildplatzhalter. Templates fragten sie bisher mit hartem Hex als
+           Rueckfallwert ab (var(--flaeche-2, #f3f4f6)); undefiniert blieb sie
+           im Dunkelmodus hell. */
+        --flaeche-2: var(--color-grau-100);
+        --rand: var(--color-grau-200);
+        --text: var(--color-grau-900);
+        --text-gedaempft: var(--color-grau-500);
+
+        /* Hinweisfarbe fuer Zaehler und Marken, ebenfalls bisher nur als
+           Hex-Rueckfall im Markup vorhanden. */
+        --warnung-flaeche: oklch(0.92 0.09 85);
+        --warnung-text: oklch(0.38 0.09 62);
+
+        /*
+         * Fokusring. Eigenes Token, nicht primary-600: Der Ring muss auf der
+         * hellen Flaeche *und* auf dem primaeren Knopf stehen, dessen
+         * Hintergrund genau diese Farbe hat. Etwas dunkler und gesaettigter
+         * loest das ohne Sonderfall.
+         */
+        --ring-fokus: oklch(0.48 0.14 150);
+        --ring-fokus-breite: 2px;
+        --ring-fokus-abstand: 2px;
     }
 
     @media (prefers-color-scheme: dark) {
         :root {
-            --flaeche: oklch(0.21 0.01 250);
-            --flaeche-gedaempft: oklch(0.26 0.01 250);
-            --rand: oklch(0.34 0.01 250);
-            --text: oklch(0.95 0.01 250);
-            --text-gedaempft: oklch(0.72 0.01 250);
+            --flaeche: var(--color-grau-900);
+            --flaeche-gedaempft: var(--color-grau-950);
+            --flaeche-2: var(--color-grau-800);
+            --rand: oklch(0.34 0.011 250);
+            --text: var(--color-grau-50);
+            --text-gedaempft: oklch(0.72 0.011 250);
+
+            --warnung-flaeche: oklch(0.42 0.08 75);
+            --warnung-text: oklch(0.94 0.05 85);
+
+            /* Heller als im Hellmodus: Ein dunkler Ring auf dunklem Grund
+               waere genau dort unsichtbar, wo er gebraucht wird. */
+            --ring-fokus: oklch(0.8 0.13 150);
+
+            /*
+             * Schatten im Dunkelmodus. Auf dunklem Grund traegt ein
+             * abgedunkelter Schatten nichts bei — man sieht Schwarz auf
+             * Schwarz. Die Kante entsteht hier ueber einen hellen Innenrand,
+             * die Tiefe ueber eine deutlich dichtere, aber engere Aussenlage.
+             */
+            --shadow-sm: 0 1px 2px -1px oklch(0 0 0 / 0.5),
+                         inset 0 1px 0 0 oklch(1 0 0 / 0.03);
+            --shadow-md: 0 2px 4px -2px oklch(0 0 0 / 0.5),
+                         0 6px 14px -8px oklch(0 0 0 / 0.6),
+                         inset 0 1px 0 0 oklch(1 0 0 / 0.04);
+            --shadow-lg: 0 4px 8px -4px oklch(0 0 0 / 0.5),
+                         0 16px 32px -16px oklch(0 0 0 / 0.7),
+                         inset 0 1px 0 0 oklch(1 0 0 / 0.05);
         }
     }
 
@@ -52,6 +136,35 @@
         background: var(--flaeche-gedaempft);
         color: var(--text);
         font-family: var(--font-sans);
+        -webkit-text-size-adjust: 100%;
+    }
+
+    /*
+     * Ein sichtbarer Fokusring auf allem, was den Fokus per Tastatur bekommt —
+     * Links im Fliesstext eingeschlossen. :focus-visible statt :focus, damit
+     * der Ring beim Mausklick nicht stehen bleibt. Komponenten unten
+     * ueberschreiben nur den Abstand, nicht das Vorhandensein.
+     */
+    :focus-visible {
+        outline: var(--ring-fokus-breite) solid var(--ring-fokus);
+        outline-offset: var(--ring-fokus-abstand);
+    }
+
+    /*
+     * Wer Bewegung abbestellt hat, bekommt keine. Das gilt global und nicht je
+     * Komponente: Sonst rutscht bei der naechsten Ergaenzung eine Animation
+     * durch, an die niemand gedacht hat. Nicht auf 0 gesetzt, sondern auf
+     * 1ms — Uebergaenge feuern weiterhin ihr transitionend-Ereignis.
+     */
+    @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+            animation-duration: 1ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 1ms !important;
+            scroll-behavior: auto !important;
+        }
     }
 }
 
@@ -60,6 +173,57 @@
         background: var(--flaeche);
         border: 1px solid var(--rand);
         border-radius: var(--radius-token-md);
+        box-shadow: var(--shadow-sm);
+    }
+
+    /* Grosse Flaechen — Anmeldekarten, Hero, leere Trefferliste. Bei viel
+       Weissraum wirkt der mittlere Radius knapp; bei einer Zeile Text wirkt
+       der grosse aufgeblasen. Deshalb zwei Stufen statt einer. */
+    .karte-gross {
+        border-radius: var(--radius-token-lg);
+    }
+
+    /*
+     * Elevation beim Zeigen — bewusst *nicht* auf .karte selbst.
+     * Die Klasse sitzt auf Dutzenden Kaesten, die nur Text tragen; ein
+     * Anheben unter dem Zeiger verspricht dort eine Reaktion, die es nicht
+     * gibt. Diese Utility kommt nur dazu, wo die ganze Karte anklickbar ist.
+     */
+    .karte-interaktiv {
+        transition:
+            box-shadow var(--duration-base) var(--ease-standard),
+            border-color var(--duration-base) var(--ease-standard),
+            transform var(--duration-base) var(--ease-standard);
+    }
+
+    /* :focus-within, damit die Karte auch bei Tastaturnavigation antwortet —
+       der Fokus sitzt dann auf dem Link darin, nicht auf der Karte. */
+    .karte-interaktiv:hover,
+    .karte-interaktiv:focus-within {
+        box-shadow: var(--shadow-lg);
+        border-color: var(--color-grau-300);
+        transform: translateY(-2px);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .karte-interaktiv:hover,
+        .karte-interaktiv:focus-within {
+            transform: none;
+        }
+    }
+
+    /*
+     * Der Fokusring eines Links *in* der Kachel wird vom overflow-hidden des
+     * Rahmens abgeschnitten — beim Bild ist der Beschnitt gewollt, beim Ring
+     * nicht. Also zeichnet ihn die Kachel selbst, ausserhalb ihres Beschnitts.
+     *
+     * :has() statt :focus-within, damit der Ring der Tastatur vorbehalten
+     * bleibt. Kennt ein Browser :has() nicht, faellt die Regel als Ganzes weg
+     * und es bleibt beim inneren Ring — sichtbar ist der Fokus so oder so.
+     */
+    .karte-interaktiv:has(:focus-visible) {
+        outline: var(--ring-fokus-breite) solid var(--ring-fokus);
+        outline-offset: var(--ring-fokus-abstand);
     }
 
     .knopf {
@@ -70,16 +234,62 @@
         line-height: 1.25rem;
         display: inline-flex;
         align-items: center;
+        justify-content: center;
         gap: 0.4rem;
         border: 1px solid var(--rand);
         background: var(--flaeche);
         color: var(--text);
+        box-shadow: var(--shadow-sm);
+        cursor: pointer;
+        /* Ein Knopf ist eine Beschriftung, kein Satz: Umbrechen soll er nur,
+           wenn er sonst aus dem Raster liefe. */
+        text-align: center;
+        transition:
+            background-color var(--duration-fast) var(--ease-standard),
+            border-color var(--duration-fast) var(--ease-standard),
+            box-shadow var(--duration-fast) var(--ease-standard),
+            color var(--duration-fast) var(--ease-standard),
+            transform var(--duration-fast) var(--ease-standard);
+    }
+
+    .knopf:hover {
+        background: var(--flaeche-2);
+        border-color: var(--color-grau-300);
+        box-shadow: var(--shadow-md);
+    }
+
+    /* Der Druckpunkt: einen Pixel tiefer, Schatten weg. Das ist die einzige
+       Rueckmeldung, die der Knopf zwischen Klick und Serverantwort geben kann. */
+    .knopf:active {
+        transform: translateY(1px);
+        box-shadow: none;
+    }
+
+    .knopf:disabled,
+    .knopf[disabled],
+    .knopf[aria-disabled='true'] {
+        opacity: 0.55;
+        cursor: not-allowed;
+        box-shadow: none;
+    }
+
+    .knopf:disabled:hover,
+    .knopf[disabled]:hover,
+    .knopf[aria-disabled='true']:hover {
+        background: var(--flaeche);
+        border-color: var(--rand);
+        box-shadow: none;
     }
 
     .knopf-primaer {
         background: var(--color-primary-600);
         border-color: var(--color-primary-600);
         color: white;
+    }
+
+    .knopf-primaer:hover {
+        background: var(--color-primary-700);
+        border-color: var(--color-primary-700);
     }
 
     /* Fuer Handlungen, die sich nicht zuruecknehmen lassen — Kontoloeschung,
@@ -90,10 +300,123 @@
         color: white;
     }
 
+    .knopf-warnung:hover {
+        background: oklch(0.48 0.18 25);
+        border-color: oklch(0.48 0.18 25);
+    }
+
+    /* Wo der Fokusring auf gefaerbtem Grund steht, braucht er einen Absatz zur
+       Flaeche — sonst verschwimmt Ring und Knopfrand zu einem dicken Balken. */
+    .knopf:focus-visible {
+        outline-offset: var(--ring-fokus-abstand);
+    }
+
+    /*
+     * Eine Zeile in der Facettenspalte: Beschriftung links, Trefferzahl
+     * rechts. Der Rand ist von Anfang an da, nur durchsichtig — sonst waechst
+     * die Zeile beim Aktivieren um zwei Pixel und die ganze Spalte ruckt.
+     *
+     * Steht bewusst vor .facette-aktiv: Beide sind einklassige Selektoren,
+     * bei gleicher Spezifitaet gewinnt der spaetere. Andersherum wuerde
+     * border-color: transparent den aktiven Rand ueberschreiben.
+     */
+    .facette {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        border: 1px solid transparent;
+        border-radius: var(--radius-token-sm);
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+        line-height: 1.25rem;
+        transition:
+            background-color var(--duration-fast) var(--ease-standard),
+            border-color var(--duration-fast) var(--ease-standard);
+    }
+
+    /* :not(.facette-aktiv), weil .facette:hover mit zwei Klassen spezifischer
+       waere als .facette-aktiv und der aktiven Zeile ihre Farbe naehme. */
+    .facette:not(.facette-aktiv):hover {
+        background: var(--flaeche-2);
+    }
+
     .facette-aktiv {
         background: var(--color-primary-50);
         border-color: var(--color-primary-300);
         color: var(--color-primary-800);
+    }
+
+    @media (prefers-color-scheme: dark) {
+        .facette-aktiv {
+            background: oklch(0.32 0.06 150);
+            border-color: oklch(0.44 0.09 150);
+            color: var(--color-primary-100);
+        }
+    }
+
+    /*
+     * Chip — ein gesetzter Filter, den man wieder loswird. Als Link gebaut,
+     * nicht als Knopf: Er fuehrt auf dieselbe Suche ohne diesen einen Wert.
+     */
+    .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        /* Ein Chip bricht in sich nicht um — sonst zerfaellt die Pillenform.
+           Damit ein langer Suchbegriff die Zeile trotzdem nicht aus dem
+           Fenster schiebt, ist er auf die Zeilenbreite gedeckelt und wird
+           beschnitten; der volle Wert steht weiterhin im Suchfeld. */
+        max-width: 100%;
+        border-radius: 9999px;
+        border: 1px solid var(--color-primary-300);
+        background: var(--color-primary-50);
+        color: var(--color-primary-800);
+        padding: 0.15rem 0.6rem;
+        font-size: 0.75rem;
+        line-height: 1.25rem;
+        white-space: nowrap;
+        transition:
+            background-color var(--duration-fast) var(--ease-standard),
+            border-color var(--duration-fast) var(--ease-standard);
+    }
+
+    /* Die Beschriftung ist das erste span; das Kreuz dahinter darf nie
+       weggekuerzt werden, sonst fehlt der Hinweis aufs Entfernen. */
+    .chip > span:first-child {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .chip:hover {
+        background: var(--color-primary-100);
+        border-color: var(--color-primary-400);
+    }
+
+    /* Das Kreuz traegt keine eigene Bedeutung — der Linktext nennt den Filter,
+       den es entfernt. Deshalb aria-hidden im Markup und hier nur Optik. */
+    .chip-kreuz {
+        font-size: 0.9rem;
+        line-height: 1;
+        opacity: 0.65;
+    }
+
+    .chip:hover .chip-kreuz {
+        opacity: 1;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        .chip {
+            background: oklch(0.32 0.06 150);
+            border-color: oklch(0.44 0.09 150);
+            color: var(--color-primary-100);
+        }
+
+        .chip:hover {
+            background: oklch(0.37 0.07 150);
+            border-color: oklch(0.52 0.11 150);
+        }
     }
 
     .feld {
@@ -104,9 +427,307 @@
         padding: 0.45rem 0.65rem;
         font-size: 0.875rem;
         width: 100%;
+        transition:
+            border-color var(--duration-fast) var(--ease-standard),
+            background-color var(--duration-fast) var(--ease-standard);
+    }
+
+    .feld:hover:not(:disabled):not([readonly]) {
+        border-color: var(--color-grau-300);
+    }
+
+    /*
+     * Der Rand faerbt sich zusaetzlich zum Ring. Der Ring allein sagt "hier
+     * steht der Fokus", der gefaerbte Rand sagt "und hier endet das Feld" —
+     * bei mehreren Feldern nebeneinander ist das der Unterschied zwischen
+     * Suchen und Sehen.
+     */
+    .feld:focus,
+    .feld:focus-visible {
+        border-color: var(--ring-fokus);
+    }
+
+    .feld:focus-visible {
+        outline: var(--ring-fokus-breite) solid var(--ring-fokus);
+        outline-offset: 1px;
+    }
+
+    .feld:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+        background: var(--flaeche-gedaempft);
+    }
+
+    .feld::placeholder {
+        color: var(--text-gedaempft);
+        opacity: 1;
     }
 
     .gedaempft {
         color: var(--text-gedaempft);
+    }
+
+    /*
+     * Die Kopfleiste bleibt beim Scrollen stehen. Damit liegt Inhalt
+     * darunter, und eine deckende Flaeche wuerde ihn hart abschneiden — die
+     * Leiste saehe aus, als klebe sie auf dem Text. Mit leicht durchlaessigem
+     * Grund und Unschaerfe bleibt erkennbar, dass darunter etwas weiterlaeuft.
+     *
+     * Die Durchlaessigkeit haengt an backdrop-filter: Ohne Unschaerfe waere
+     * eine halbtransparente Leiste kein Effekt, sondern ein Lesefehler. Wo der
+     * Browser sie nicht kennt, bleibt es deshalb bei der deckenden Flaeche.
+     */
+    .kopfleiste {
+        background: var(--flaeche);
+    }
+
+    @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+        .kopfleiste {
+            background: color-mix(in oklab, var(--flaeche) 82%, transparent);
+            -webkit-backdrop-filter: blur(12px) saturate(140%);
+            backdrop-filter: blur(12px) saturate(140%);
+        }
+    }
+
+    /* Das Suchfeld ist das meistbenutzte Bedienelement der Seite. In der
+       Leiste steht es auf gleicher Flaeche wie alles andere; im Fokus darf es
+       deutlicher heraustreten als ein Feld im Formular. */
+    .kopf-suche .feld:focus-visible {
+        outline-offset: 2px;
+        box-shadow: var(--shadow-md);
+    }
+
+    /*
+     * Sprungmarke zum Inhalt. Sie liegt ausserhalb des Bildes, bis sie den
+     * Fokus bekommt — mit stehender Kopfleiste ist der Weg an der Navigation
+     * vorbei sonst bei jedem Seitenaufruf derselbe.
+     */
+    .sprungmarke {
+        position: absolute;
+        left: 0.75rem;
+        top: 0.75rem;
+        z-index: 60;
+        transform: translateY(-200%);
+        transition: transform var(--duration-fast) var(--ease-standard);
+    }
+
+    .sprungmarke:focus {
+        transform: translateY(0);
+    }
+
+    .kopf-link {
+        color: var(--text);
+        text-underline-offset: 0.25em;
+        transition: color var(--duration-fast) var(--ease-standard);
+    }
+
+    .kopf-link:hover {
+        color: var(--color-primary-700);
+        text-decoration: underline;
+    }
+
+    /*
+     * Fussnotenlinks bleiben unterstrichen: Sie stehen ohne umgebenden Text,
+     * und die Unterstreichung ist das Einzige, was sie als Link ausweist.
+     * Zurueckgenommen wird die Farbe, nicht die Kennzeichnung.
+     */
+    .fuss-link {
+        color: var(--text-gedaempft);
+        text-decoration: underline;
+        text-decoration-thickness: 1px;
+        text-underline-offset: 0.25em;
+        transition: color var(--duration-fast) var(--ease-standard);
+    }
+
+    .fuss-link:hover {
+        color: var(--text);
+    }
+
+    @media (prefers-color-scheme: dark) {
+        .kopf-link:hover {
+            color: var(--color-primary-300);
+        }
+    }
+
+    /*
+     * Bild einer Trefferkachel. Der Zoom sitzt am Bild, der Beschnitt am
+     * Rahmen — deshalb overflow-hidden im Markup. Ein transform statt einer
+     * Breitenaenderung: Das laeuft auf der Grafikkarte und loest kein neues
+     * Layout der ganzen Trefferliste aus.
+     */
+    .kachel-bild img {
+        transition: transform var(--duration-base) var(--ease-standard);
+    }
+
+    .karte-interaktiv:hover .kachel-bild img,
+    .karte-interaktiv:focus-within .kachel-bild img {
+        transform: scale(1.04);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .karte-interaktiv:hover .kachel-bild img,
+        .karte-interaktiv:focus-within .kachel-bild img {
+            transform: none;
+        }
+    }
+
+    /*
+     * "Top" — eine bezahlte Hervorhebung. Vorher ein blasses Rechteck in
+     * primary-100, das neben der Ueberschrift kaum auffiel; wer dafuer zahlt,
+     * darf gesehen werden. Volle Primaerfarbe, Pillenform, eigener Schatten.
+     */
+    .marke-top {
+        display: inline-flex;
+        flex-shrink: 0;
+        align-items: center;
+        gap: 0.2rem;
+        border-radius: 9999px;
+        background: var(--color-primary-600);
+        color: white;
+        padding: 0.1rem 0.45rem;
+        font-size: 11px;
+        font-weight: 600;
+        line-height: 1rem;
+        letter-spacing: 0.02em;
+        box-shadow: var(--shadow-sm);
+    }
+
+    /*
+     * Der Facetten-Umschalter bekommt seinen Pfeil aus CSS, nicht aus dem
+     * Markup. Grund: markt.js setzt beim Umschalten schalter.textContent —
+     * ein <svg> im Knopf waere danach weg. Ein ::after ueberlebt das, und die
+     * Drehung haengt an aria-expanded, das dieselbe Zeile ohnehin pflegt.
+     */
+    .facetten-schalter::after {
+        content: '';
+        width: 0.45rem;
+        height: 0.45rem;
+        border-right: 2px solid currentColor;
+        border-bottom: 2px solid currentColor;
+        transform: translateY(-1px) rotate(45deg);
+        transition: transform var(--duration-base) var(--ease-standard);
+    }
+
+    .facetten-schalter[aria-expanded='true']::after {
+        transform: translateY(2px) rotate(-135deg);
+    }
+
+    /*
+     * Neutrale Marke — Pruefstufe, "Gewerblicher Anbieter", "diese Sitzung".
+     * Traegt keine Wertung, deshalb die Randfarbe als Flaeche und nicht
+     * primary. Bisher stand dieselbe Kombination als style-Attribut in
+     * mehreren Templates.
+     */
+    .marke {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 9999px;
+        background: var(--flaeche-2);
+        border: 1px solid var(--rand);
+        padding: 0.05rem 0.5rem;
+        font-size: 0.75rem;
+        line-height: 1.1rem;
+        white-space: nowrap;
+    }
+
+    /*
+     * Hinweiskasten fuer Sicherheitshinweise. Kein Rot: Es ist keine
+     * Fehlermeldung, sondern eine Regel, die man einmal lesen soll. Der
+     * senkrechte Balken traegt die Aufmerksamkeit, ohne die Zeile zu
+     * ueberfaerben.
+     */
+    .hinweis {
+        border-left: 3px solid var(--color-primary-400);
+        background: var(--flaeche-gedaempft);
+        border-radius: 0 var(--radius-token-sm) var(--radius-token-sm) 0;
+        color: var(--text-gedaempft);
+        padding: 0.6rem 0.8rem;
+    }
+
+    /*
+     * Beschriftung und Wert in den Stammdaten einer Anzeige. Die eingelassene
+     * Flaeche fasst beide zusammen — im blossen Raster liefen bei acht Feldern
+     * in drei Spalten die Zeilen optisch ineinander.
+     */
+    .datenpaar {
+        background: var(--flaeche-gedaempft);
+        border-radius: var(--radius-token-sm);
+        padding: 0.5rem 0.7rem;
+    }
+
+    /*
+     * Rueckmeldung nach einer Aktion. Eigene Komponente statt .karte mit
+     * Tailwind-Randfarben: Die roten und gruenen Utilities kannten den
+     * Dunkelmodus nicht — border-red-300 mit text-red-800 auf dunkler Flaeche
+     * war dort kaum zu lesen.
+     */
+    /*
+     * Beschriftung ueber einem Eingabefeld. Als block mit eigenem Abstand:
+     * Vorher war das Label ein Inline-Element direkt vor dem Feld, und der
+     * einzige Abstand kam vom Zeilenumbruch — bei zwei Feldern untereinander
+     * lag die Beschriftung optisch naeher am Feld darueber als am eigenen.
+     */
+    /* Eine Kachel der Kontouebersicht. h-full, damit ungleich lange
+       Beschreibungen die Kacheln einer Zeile nicht unterschiedlich hoch
+       machen. */
+    .konto-kachel {
+        display: flex;
+        height: 100%;
+        flex-direction: column;
+        gap: 0.25rem;
+        padding: 0.9rem 1rem;
+    }
+
+    .feld-marke {
+        display: block;
+        margin-bottom: 0.3rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        line-height: 1.25rem;
+    }
+
+    .meldung {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.6rem;
+        border: 1px solid var(--rand);
+        border-left-width: 3px;
+        border-radius: var(--radius-token-md);
+        background: var(--flaeche);
+        box-shadow: var(--shadow-sm);
+        padding: 0.6rem 0.9rem;
+        font-size: 0.875rem;
+    }
+
+    .meldung-zeichen {
+        flex-shrink: 0;
+        font-weight: 700;
+        line-height: 1.25rem;
+    }
+
+    .meldung-erfolg {
+        border-left-color: var(--color-primary-500);
+    }
+
+    .meldung-erfolg .meldung-zeichen {
+        color: var(--color-primary-700);
+    }
+
+    .meldung-fehler {
+        border-left-color: oklch(0.58 0.19 25);
+    }
+
+    .meldung-fehler .meldung-zeichen {
+        color: oklch(0.52 0.19 25);
+    }
+
+    @media (prefers-color-scheme: dark) {
+        .meldung-erfolg .meldung-zeichen {
+            color: var(--color-primary-300);
+        }
+
+        .meldung-fehler .meldung-zeichen {
+            color: oklch(0.75 0.15 25);
+        }
     }
 }

@@ -18,17 +18,23 @@
             </p>
         {% endif %}
 
+        {# Galerie. Das erste Bild laeuft ueber beide Spalten und ist damit das
+           Hero — es traegt den grossen Radius, die uebrigen bleiben Kacheln.
+           Das overflow-hidden sitzt am Rahmen, damit der abgerundete Ausschnitt
+           auch das Bild beschneidet. #}
         {% if medien is not empty %}
             <div class="grid gap-2 sm:grid-cols-2">
                 {% for bild in medien %}
-                    <img src="/uploads/{{ bild.path }}" alt="{{ listing.title }}" loading="lazy"
-                         class="karte w-full object-cover {{ loop.first ? 'sm:col-span-2 aspect-video' : 'aspect-4/3' }}">
+                    <div class="karte overflow-hidden {{ loop.first ? 'karte-gross sm:col-span-2' : '' }}">
+                        <img src="/uploads/{{ bild.path }}" alt="{{ listing.title }}" loading="lazy"
+                             class="w-full object-cover {{ loop.first ? 'aspect-video' : 'aspect-4/3' }}">
+                    </div>
                 {% endfor %}
             </div>
         {% endif %}
 
-        <header class="karte space-y-1 p-6">
-            <h1 class="text-2xl font-semibold">{{ listing.title }}</h1>
+        <header class="karte karte-gross space-y-1 p-6">
+            <h1 class="text-2xl font-semibold sm:text-3xl">{{ listing.title }}</h1>
             <p class="gedaempft">
                 <a class="underline" href="/art/{{ art.slug }}/">{{ art.commonNameDe }}</a>
                 <span class="italic">({{ art.scientificName }})</span>
@@ -38,11 +44,13 @@
                 <p class="text-xs gedaempft">Genotyp: {{ genotyp }}</p>
             {% endif %}
 
-            <p class="pt-2 text-xl font-semibold">
+            {# Der Preis ist die eine Zahl, wegen der die Seite aufgerufen wird.
+               Er stand bisher in derselben Groesse wie der Rest des Kopfes. #}
+            <p class="pt-3 text-2xl font-semibold tracking-tight">
                 {% if listing.priceCents %}
                     {{ (listing.priceCents / 100)|number_format(2, ',', '.') }} {{ listing.currency }}{{ listing.negotiable ? ' VB' : '' }}
                 {% else %}
-                    {{ listing.type.value == 'tausch' ? 'Nur Tausch' : 'Preis auf Anfrage' }}
+                    <span class="gedaempft">{{ listing.type.value == 'tausch' ? 'Nur Tausch' : 'Preis auf Anfrage' }}</span>
                 {% endif %}
             </p>
         </header>
@@ -60,9 +68,9 @@
                     { t: 'Übergabe', w: listing.handover.label },
                     { t: 'Standort', w: listing.postalCode ? (listing.country.value ~ '-' ~ listing.postalCode) : '—' }
                 ] %}
-                    <div>
+                    <div class="datenpaar">
                         <dt class="text-xs uppercase tracking-wide gedaempft">{{ feld.t }}</dt>
-                        <dd class="text-sm font-medium">{{ feld.w }}</dd>
+                        <dd class="mt-0.5 text-sm font-medium">{{ feld.w }}</dd>
                     </div>
                 {% endfor %}
             </dl>
@@ -84,7 +92,10 @@
 
         {# ------------------------------------------------------------- Anbieter #}
         {% if anbieter %}
-            <section class="karte space-y-3 p-6">
+            {# Die Handlungsaufforderung der Seite. karte-gross und der grosse
+               Innenabstand heben sie aus der Reihe der Textkaesten heraus —
+               dieser Kasten ist der Grund, warum die Seite existiert. #}
+            <section class="karte karte-gross space-y-4 p-6 sm:p-8">
                 <h2 class="text-base font-semibold">Anbieter</h2>
 
                 <div class="flex flex-wrap items-baseline justify-between gap-3">
@@ -97,19 +108,18 @@
                             <span class="font-medium">{{ anbieter.displayName }}</span>
                         {% endif %}
 
-                        <span class="ml-1 rounded-full px-2 py-0.5 text-xs" style="background: var(--rand)">
-                            {{ anbieter.verificationLevel.badge }}
-                        </span>
+                        <span class="marke ml-1">{{ anbieter.verificationLevel.badge }}</span>
 
                         {% if anbieter.isCommercial %}
-                            <span class="ml-1 rounded-full px-2 py-0.5 text-xs" style="background: var(--rand)">
-                                Gewerblicher Anbieter
-                            </span>
+                            <span class="marke ml-1">Gewerblicher Anbieter</span>
                         {% endif %}
                     </p>
 
+                    {# flex-wrap: Auf 360 Pixeln standen "Anbieter schreiben",
+                       "Merken" und "Melden" bisher nebeneinander in einer
+                       Zeile, die nicht umbrechen konnte. #}
                     {% if not ist_eigene %}
-                        <span class="flex items-center gap-3">
+                        <span class="flex flex-wrap items-center gap-3">
                             {% if betrachter.isAuthenticated %}
                                 <form method="post" action="/anzeige/{{ listing.id }}/nachricht">
                                     <input type="hidden" name="_csrf" value="{{ csrf }}">
@@ -146,7 +156,12 @@
                     </p>
                 {% endif %}
 
-                <p class="text-xs gedaempft">
+                {# Der Betrugshinweis stand als graue Kleinschrift unter dem
+                   Kasten und las sich wie ein Nachsatz. Er warnt vor genau der
+                   Masche, auf die Kaeufer hier hereinfallen — also bekommt er
+                   eine eigene Flaeche direkt neben dem Knopf, der zur Zahlung
+                   fuehrt. #}
+                <p class="hinweis text-xs">
                     Bezahlt wird bei der Übergabe. Wer Vorkasse verlangt oder das Tier verschicken will,
                     gehört gemeldet — Versand über Paketdienste ist nicht zulässig.
                 </p>
