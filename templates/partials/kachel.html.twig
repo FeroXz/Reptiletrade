@@ -1,7 +1,10 @@
 {# Eine Anzeige in der Trefferliste. #}
-<article class="karte overflow-hidden transition hover:shadow-md">
+{# karte-interaktiv statt hover:shadow-md: Der Schatten kommt damit aus den
+   Tokens und stimmt im Dunkelmodus mit; die Tailwind-Utility haette den
+   Hellwert fest eingebacken. #}
+<article class="karte karte-interaktiv overflow-hidden">
     <a href="/anzeige/{{ anzeige.id }}/" class="block">
-        <div class="aspect-4/3 w-full overflow-hidden" style="background: var(--flaeche-gedaempft)">
+        <div class="kachel-bild aspect-4/3 w-full overflow-hidden" style="background: var(--flaeche-gedaempft)">
             {% if anzeige.imagePath %}
                 {# srcset statt einer Größe für alle: Auf dem Telefon lädt sonst
                    jede Kachel das Bild in voller Breite. sizes beschreibt die
@@ -27,7 +30,15 @@
             <div class="flex items-start justify-between gap-2">
                 <h3 class="line-clamp-2 text-sm font-medium">{{ anzeige.title }}</h3>
                 {% if anzeige.isFeatured %}
-                    <span class="shrink-0 rounded-sm bg-primary-100 px-1.5 py-0.5 text-[11px] font-medium text-primary-800">Top</span>
+                    {# Der Stern traegt keine eigene Aussage — daneben steht
+                       "Top". Deshalb aria-hidden, sonst liest der Screenreader
+                       dieselbe Information zweimal. #}
+                    <span class="marke-top">
+                        <svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor" aria-hidden="true">
+                            <path d="M12 2.6l2.9 5.9 6.5.95-4.7 4.6 1.1 6.45L12 17.45 6.2 20.5l1.1-6.45-4.7-4.6 6.5-.95z"/>
+                        </svg>
+                        Top
+                    </span>
                 {% endif %}
             </div>
 

@@ -33,10 +33,13 @@
            Markup: Die werden zur Laufzeit aus Zeichenketten gebaut, und dafuer
            braeuchte die Content-Security-Policy 'unsafe-eval' — womit sie
            gegen eingeschleuste Skripte kaum noch schuetzt. #}
-        <aside class="karte h-fit p-4" data-facetten>
+        {# Auf breiten Bildschirmen laeuft die Filterspalte mit: Wer weit unten
+           in der Trefferliste steht, soll nicht erst nach oben scrollen. top-20
+           haelt Abstand zur stehenden Kopfleiste. #}
+        <aside class="karte h-fit p-4 lg:sticky lg:top-20" data-facetten>
             <div class="flex items-center justify-between lg:block">
                 <h2 class="text-sm font-semibold">Filter</h2>
-                <button type="button" class="knopf lg:hidden" data-facetten-schalter
+                <button type="button" class="knopf facetten-schalter lg:hidden" data-facetten-schalter
                         aria-expanded="false" aria-controls="facetten-inhalt">Anzeigen</button>
             </div>
 
@@ -101,8 +104,14 @@
                         <h3 class="text-xs font-semibold uppercase tracking-wide gedaempft">Art</h3>
                         {% for wert, anzahl in artzahlen|slice(0, 12) %}
                             {% set aktiv = kriterien.speciesId == wert %}
-                            <a class="flex items-center justify-between rounded px-2 py-1 text-sm {{ aktiv ? 'facette-aktiv' : '' }}"
-                               href="{{ markt_url(kriterien.with(speciesId: aktiv ? null : wert, morphs: [], page: 1), url_kontext) }}">
+                            {# Beim Abwaehlen ueber without(): with(speciesId: null)
+                               bedeutet dort "unveraendert lassen" und liess die
+                               Art stehen — der Klick auf die aktive Art hat
+                               bisher nur die Merkmale geleert. #}
+                            <a class="facette {{ aktiv ? 'facette-aktiv' : '' }}"
+                               href="{{ markt_url(aktiv
+                                   ? kriterien.without(species: true)
+                                   : kriterien.with(speciesId: wert, morphs: [], page: 1), url_kontext) }}">
                                 <span>{{ facetten.label(wert, 'Art ' ~ wert) }}</span>
                                 <span class="text-xs gedaempft">{{ anzahl }}</span>
                             </a>
@@ -115,7 +124,7 @@
                     <section class="space-y-1">
                         <h3 class="text-xs font-semibold uppercase tracking-wide gedaempft">Merkmale</h3>
                         {% for eintrag in morph_facette|slice(0, 15) %}
-                            <a class="flex items-center justify-between rounded px-2 py-1 text-sm"
+                            <a class="facette"
                                href="/markt/?{{ art ? 'art_id=' ~ art.id ~ '&' : '' }}morph={{ eintrag.morph_id }}:{{ eintrag.zygosity }}">
                                 <span>
                                     {{ eintrag.name }}
@@ -137,6 +146,14 @@
                     { titel: 'Land', dim: dimension.land, faelle: laender, gewaehlt: kriterien.countries, feld: 'countries' },
                     { titel: 'Übergabe', dim: dimension.uebergabe, faelle: uebergaben, gewaehlt: kriterien.handovers, feld: 'handovers' }
                 ] %}
+                    {# Erst zaehlen, dann ueberschreiben. Sonst steht bei einer
+                       engen Suche eine Reihe blosser Ueberschriften da —
+                       "Geschlecht", "Herkunft", "Land" ohne eine einzige Zeile
+                       darunter, weil jeder Wert null Treffer hat. #}
+                    {% set sichtbare = block.faelle|filter(
+                        fall => facetten.count(block.dim, fall.value) > 0 or fall in block.gewaehlt
+                    ) %}
+                    {% if sichtbare is not empty %}
                     <section class="space-y-1">
                         <h3 class="text-xs font-semibold uppercase tracking-wide gedaempft">{{ block.titel }}</h3>
                         {% for fall in block.faelle %}
@@ -146,7 +163,7 @@
                                 {% set neu = aktiv
                                     ? block.gewaehlt|filter(v => v != fall)|werte
                                     : block.gewaehlt|merge([fall]) %}
-                                <a class="flex items-center justify-between rounded px-2 py-1 text-sm {{ aktiv ? 'facette-aktiv' : '' }}"
+                                <a class="facette {{ aktiv ? 'facette-aktiv' : '' }}"
                                    href="{{ markt_url(
                                        block.feld == 'types' ? kriterien.with(types: neu, page: 1)
                                        : block.feld == 'sexes' ? kriterien.with(sexes: neu, page: 1)
@@ -159,6 +176,7 @@
                             {% endif %}
                         {% endfor %}
                     </section>
+                    {% endif %}
                 {% endfor %}
 
                 {# Preis, Alter, Bild #}
@@ -217,11 +235,141 @@
                 </form>
             </div>
 
+            {# ------------------------------------------- Aktive Filter als Chips #}
+            {# Die Facettenspalte klappt auf dem Telefon zu. Ohne diese Zeile
+               ist dort nicht zu sehen, warum nur elf Treffer uebrig sind —
+               und der Weg zurueck fuehrt ueber das Aufklappen und Suchen des
+               gesetzten Werts. Jeder Chip ist ein Link auf dieselbe Suche
+               ohne genau diesen Filter. #}
+            {% if kriterien.isFiltered %}
+                <div class="mb-4 flex flex-wrap items-center gap-2" aria-label="Aktive Filter">
+                    <span class="text-xs font-semibold uppercase tracking-wide gedaempft">Aktiv</span>
+
+                    {% if kriterien.hasQuery %}
+                        <a class="chip" href="{{ markt_url(kriterien.without(query: true), url_kontext) }}">
+                            <span>„{{ kriterien.query }}“</span>
+                            <span class="sr-only">entfernen</span>
+                            <span class="chip-kreuz" aria-hidden="true">×</span>
+                        </a>
+                    {% endif %}
+
+                    {% if kriterien.speciesId %}
+                        <a class="chip" href="{{ markt_url(kriterien.without(species: true), url_kontext) }}">
+                            <span>{{ art ? art.commonNameDe : facetten.label(kriterien.speciesId, 'Art ' ~ kriterien.speciesId) }}</span>
+                            <span class="sr-only">entfernen</span>
+                            <span class="chip-kreuz" aria-hidden="true">×</span>
+                        </a>
+                    {% endif %}
+
+                    {# Merkmale gesammelt statt einzeln: Der Name eines Morphs
+                       steht im Template nur zur Verfuegung, solange er in der
+                       Facettenliste auftaucht — und die zeigt nur, was in den
+                       aktuellen Treffern noch vorkommt. Ein Chip ohne
+                       verlaesslichen Namen waere schlechter als keiner. #}
+                    {% if kriterien.morphs is not empty %}
+                        <a class="chip" href="{{ markt_url(kriterien.without(morphs: true), url_kontext) }}">
+                            <span>{{ kriterien.morphs|length }} Merkmal{{ kriterien.morphs|length == 1 ? '' : 'e' }}</span>
+                            <span class="sr-only">entfernen</span>
+                            <span class="chip-kreuz" aria-hidden="true">×</span>
+                        </a>
+                    {% endif %}
+
+                    {# Aufzaehlungsfilter einzeln — hier traegt jeder Fall sein
+                       eigenes Label, und die Liste laesst sich wertweise
+                       verkuerzen. #}
+                    {% for block in [
+                        { faelle: kriterien.types, feld: 'types' },
+                        { faelle: kriterien.sexes, feld: 'sexes' },
+                        { faelle: kriterien.cbStatuses, feld: 'cbStatuses' },
+                        { faelle: kriterien.countries, feld: 'countries' },
+                        { faelle: kriterien.handovers, feld: 'handovers' }
+                    ] %}
+                        {% for fall in block.faelle %}
+                            {% set rest = block.faelle|filter(v => v != fall)|werte %}
+                            <a class="chip" href="{{ markt_url(
+                                block.feld == 'types' ? kriterien.with(types: rest, page: 1)
+                                : block.feld == 'sexes' ? kriterien.with(sexes: rest, page: 1)
+                                : block.feld == 'cbStatuses' ? kriterien.with(cbStatuses: rest, page: 1)
+                                : block.feld == 'countries' ? kriterien.with(countries: rest, page: 1)
+                                : kriterien.with(handovers: rest, page: 1), url_kontext) }}">
+                                <span>{{ fall.label }}</span>
+                                <span class="sr-only">entfernen</span>
+                                <span class="chip-kreuz" aria-hidden="true">×</span>
+                            </a>
+                        {% endfor %}
+                    {% endfor %}
+
+                    {% if kriterien.radius %}
+                        <a class="chip" href="{{ markt_url(kriterien.without(radius: true), url_kontext) }}">
+                            <span>{{ kriterien.radius.label }}</span>
+                            <span class="sr-only">entfernen</span>
+                            <span class="chip-kreuz" aria-hidden="true">×</span>
+                        </a>
+                    {% endif %}
+
+                    {% if kriterien.admin1 %}
+                        <a class="chip" href="{{ markt_url(kriterien.without(region: true), url_kontext) }}">
+                            <span>{{ kriterien.admin1 }}</span>
+                            <span class="sr-only">entfernen</span>
+                            <span class="chip-kreuz" aria-hidden="true">×</span>
+                        </a>
+                    {% endif %}
+
+                    {# Preis- und Altersgrenze gehoeren je zusammen: Wer "von"
+                       gesetzt hat, meint eine Spanne, auch wenn nur ein Ende
+                       ausgefuellt ist. #}
+                    {% if kriterien.priceMinCents or kriterien.priceMaxCents %}
+                        <a class="chip" href="{{ markt_url(kriterien.without(price: true), url_kontext) }}">
+                            <span>
+                                {%- if kriterien.priceMinCents and kriterien.priceMaxCents -%}
+                                    {{ kriterien.priceMinCents // 100 }}–{{ kriterien.priceMaxCents // 100 }} EUR
+                                {%- elseif kriterien.priceMinCents -%}
+                                    ab {{ kriterien.priceMinCents // 100 }} EUR
+                                {%- else -%}
+                                    bis {{ kriterien.priceMaxCents // 100 }} EUR
+                                {%- endif -%}
+                            </span>
+                            <span class="sr-only">entfernen</span>
+                            <span class="chip-kreuz" aria-hidden="true">×</span>
+                        </a>
+                    {% endif %}
+
+                    {% if kriterien.ageMinMonths or kriterien.ageMaxMonths %}
+                        <a class="chip" href="{{ markt_url(kriterien.without(age: true), url_kontext) }}">
+                            <span>
+                                {%- if kriterien.ageMinMonths and kriterien.ageMaxMonths -%}
+                                    {{ kriterien.ageMinMonths }}–{{ kriterien.ageMaxMonths }} Mon.
+                                {%- elseif kriterien.ageMinMonths -%}
+                                    ab {{ kriterien.ageMinMonths }} Mon.
+                                {%- else -%}
+                                    bis {{ kriterien.ageMaxMonths }} Mon.
+                                {%- endif -%}
+                            </span>
+                            <span class="sr-only">entfernen</span>
+                            <span class="chip-kreuz" aria-hidden="true">×</span>
+                        </a>
+                    {% endif %}
+
+                    {% if kriterien.withImageOnly %}
+                        <a class="chip" href="{{ markt_url(kriterien.without(imageOnly: true), url_kontext) }}">
+                            <span>Nur mit Bild</span>
+                            <span class="sr-only">entfernen</span>
+                            <span class="chip-kreuz" aria-hidden="true">×</span>
+                        </a>
+                    {% endif %}
+
+                    <a class="text-xs underline gedaempft" href="/markt/">Alle zurücksetzen</a>
+                </div>
+            {% endif %}
+
             <div data-treffer>
                 {% if ergebnis.isEmpty %}
-                    <div class="karte p-8 text-center">
+                    <div class="karte karte-gross p-8 text-center sm:p-12">
                         <p class="font-medium">Keine Anzeigen gefunden.</p>
-                        <p class="mt-1 text-sm gedaempft">Weniger Filter oder ein größerer Umkreis bringen meist mehr Treffer.</p>
+                        <p class="mx-auto mt-1 max-w-sm text-sm gedaempft">Weniger Filter oder ein größerer Umkreis bringen meist mehr Treffer.</p>
+                        {% if kriterien.isFiltered %}
+                            <a class="knopf mt-4" href="/markt/">Alle Filter zurücksetzen</a>
+                        {% endif %}
                     </div>
                 {% else %}
                     <div class="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
@@ -238,5 +386,9 @@
 {% endblock %}
 
 {% block skripte %}
+    {# Reihenfolge zaehlt: Beide laufen mit defer und damit in Dokumentreihen-
+       folge. uebergang.js muss seine Funktion gesetzt haben, bevor markt.js
+       den ersten Austausch durchfuehrt. #}
+    <script src="/assets/uebergang.js" defer></script>
     <script src="/assets/markt.js" defer></script>
 {% endblock %}

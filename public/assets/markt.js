@@ -28,12 +28,24 @@
             return;
         }
 
-        wurzel.replaceWith(neu);
-        wurzel = neu;
+        function anwenden() {
+            wurzel.replaceWith(neu);
+            wurzel = neu;
 
-        var titel = geparst.querySelector('title');
-        if (titel) {
-            document.title = titel.textContent;
+            var titel = geparst.querySelector('title');
+            if (titel) {
+                document.title = titel.textContent;
+            }
+        }
+
+        // uebergang.js blendet den Austausch ueber, wenn der Browser die View
+        // Transitions API kennt. Fehlt die Datei — oder wurde sie bewusst
+        // weggelassen —, wird direkt getauscht. Der Filterwechsel darf von
+        // dieser Zugabe nicht abhaengen.
+        if (typeof window.reptilienUebergang === 'function') {
+            window.reptilienUebergang(anwenden);
+        } else {
+            anwenden();
         }
 
         window.scrollTo({ top: 0, behavior: 'smooth' });
