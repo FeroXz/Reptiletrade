@@ -24,6 +24,7 @@ Architekturentscheidungen (Router, SQLite vs. PostgreSQL, Migrationsstrategie, K
 | 9 | Kontosperren, Kontaktformular, Rechtsseiten | umgesetzt |
 | 10 | Vererbungsrechnung, Redaktionssystem, Mediathek, Menüs, Weiterleitungen, Textverwaltung | umgesetzt |
 | 11 | Postausgang und SMTP, Benachrichtigungen, gemerkte Suchen, Merkliste, Sitzungsverwaltung, strukturierte Daten | umgesetzt |
+| 12 | Nacharbeit zu Phase 11: dauerhafter Abmeldelink mit Ein-Klick per POST, Postausgang in Auskunft und Aufbewahrung, Bildbreiten in der Zeile statt auf der Platte, SMTP ohne Klartext-Anmeldung und mit eigener TLS-Prüfung | umgesetzt |
 
 ## Voraussetzungen
 
