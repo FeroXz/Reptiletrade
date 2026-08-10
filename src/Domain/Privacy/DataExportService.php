@@ -106,6 +106,17 @@ final readonly class DataExportService
                    FROM notification_preferences WHERE user_id = :id ORDER BY channel_key',
                 ['id' => $userId],
             ),
+            // Ohne "body", und das ist kein Versehen: Der Text enthaelt
+            // Abmelde- und Bestaetigungslinks, und ein Auskunftsdownload ist
+            // eine Datei, die weitergereicht wird — per Mail an den Anwalt, in
+            // die Cloud, auf den USB-Stick. Wer die Auskunft bekommt, haette
+            // damit die Links des Kontos in der Hand. Was in der Mail stand,
+            // steht ohnehin im Postfach des Empfaengers.
+            'versendete_mails' => $this->rows(
+                'SELECT created_at, sent_at, purpose, subject, status
+                   FROM mail_outbox WHERE user_id = :id ORDER BY id',
+                ['id' => $userId],
+            ),
             'gespeicherte_suchen' => $this->rows(
                 'SELECT id, name, filter_json, alert_frequency, last_alert_at, created_at
                    FROM saved_searches WHERE user_id = :id ORDER BY id',

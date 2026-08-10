@@ -79,8 +79,11 @@ final readonly class AccountDeletionService
 
         $anonymisieren = $this->requiresAnonymization($userId);
         $dateien = $this->removeFiles($userId);
+        // Vor der Transaktion gelesen: Danach traegt das anonymisierte Konto
+        // eine Platzhalteradresse, und die alte waere nicht mehr zu bekommen.
+        $emailCanonical = $user->emailCanonical();
 
-        $this->database->transaction(function (Database $database) use ($userId, $anonymisieren): void {
+        $this->database->transaction(function (Database $database) use ($userId, $anonymisieren, $emailCanonical): void {
             // Immer weg, unabhaengig vom Weg: Zugangsmittel, Nachweise,
             // Sitzungen, Token. Sie haben nach der Loeschung keinen Zweck mehr.
             $database->execute('DELETE FROM sessions WHERE user_id = :id', ['id' => $userId]);
@@ -94,6 +97,18 @@ final readonly class AccountDeletionService
             // Was jemand gemerkt hat, ist eine Aussage ueber seine Interessen —
             // und fuer die Anbieter nur eine Zahl, die um eins kleiner wird.
             $database->execute('DELETE FROM listing_favorites WHERE user_id = :id', ['id' => $userId]);
+            // Der Postausgang, auch beim anonymisierten Konto: Die Adresse
+            // steht in recipient und nicht nur in user_id — das
+            // ON DELETE SET NULL des Fremdschluessels raeumt die Zeile also
+            // nicht, es macht sie nur herrenlos. Deshalb zusaetzlich ueber die
+            // Adresse: Mails ohne Konto (etwa an eine noch unbestaetigte
+            // Anmeldung) haetten sonst keinen Bezug, ueber den sie mitgingen.
+            // Wartende Mails gehen mit — eine Bestaetigung an ein geloeschtes
+            // Konto zuzustellen waere schlimmer, als sie nicht zuzustellen.
+            $database->execute(
+                'DELETE FROM mail_outbox WHERE user_id = :id OR lower(recipient) = :email',
+                ['id' => $userId, 'email' => $emailCanonical],
+            );
             $database->execute('DELETE FROM breeder_profiles WHERE user_id = :id', ['id' => $userId]);
             $database->execute('DELETE FROM breeding_announcements WHERE user_id = :id', ['id' => $userId]);
             // Genetik-Berichte sind Angaben zum eigenen Zuchtbestand. Sie

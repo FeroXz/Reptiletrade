@@ -495,6 +495,20 @@ try {
             'Laeuft der Worker? Stimmt der Transport? php bin/worker.php --einmal zeigt den Fehlertext.',
         )
         : $befund->ok('Der Postausgang ist aktuell');
+
+    // Eine aufgegebene Mail wiederholt niemand mehr — sie ist nicht angekommen,
+    // und es sagt niemand von selbst Bescheid. Das ist der Unterschied zu einer
+    // wartenden Zeile und der Grund, warum es hier steht.
+    $aufgegeben = (int) (string) $container->get(Database::class)->scalar(
+        "SELECT COUNT(*) FROM mail_outbox WHERE status = 'fehlgeschlagen'",
+    );
+
+    $aufgegeben > 0
+        ? $befund->warnung(
+            $aufgegeben . ' Mails sind endgueltig gescheitert',
+            'Die Fehlertexte stehen im Dashboard unter /admin/. Sie werden nicht erneut versucht.',
+        )
+        : $befund->ok('Keine gescheiterten Mails');
 } catch (Throwable $exception) {
     $befund->problem('Der Postausgang ist nicht lesbar', $exception->getMessage());
 }
