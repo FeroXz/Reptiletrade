@@ -52,9 +52,11 @@ final readonly class PdoUserRepository implements UserRepository
 
         $this->database->execute(
             'INSERT INTO users (email, email_canonical, password_hash, display_name, role, status,
-                                is_commercial, postal_code, country, created_at, updated_at)
+                                is_commercial, postal_code, country, unsubscribe_secret, unsubscribe_secret_at,
+                                created_at, updated_at)
              VALUES (:email, :canonical, :hash, :name, :role, :status,
-                     :commercial, :postal_code, :country, :now, :now)',
+                     :commercial, :postal_code, :country, :unsubscribe_secret, :now,
+                     :now, :now)',
             [
                 'email' => trim($user->email),
                 'canonical' => $user->emailCanonical(),
@@ -65,6 +67,11 @@ final readonly class PdoUserRepository implements UserRepository
                 'commercial' => $user->isCommercial ? 1 : 0,
                 'postal_code' => $user->postalCode,
                 'country' => $user->country?->value,
+                // Das Geheimnis, aus dem der Abmeldelink abgeleitet wird,
+                // entsteht mit dem Konto. Es erst beim ersten Versand
+                // nachzuziehen hiesse, dass ausgerechnet die erste Mail eines
+                // Kontos doch wieder in users schreibt.
+                'unsubscribe_secret' => bin2hex(random_bytes(32)),
                 'now' => $now,
             ],
         );

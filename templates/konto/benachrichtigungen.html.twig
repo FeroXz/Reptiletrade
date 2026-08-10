@@ -43,5 +43,18 @@
                 <button type="submit" class="knopf knopf-primaer">{{ t('benachrichtigung.speichern') }}</button>
             </form>
         </section>
+
+        {# Eigener Abschnitt und eigenes Formular: Ein Formular lässt sich nicht
+           in ein anderes schachteln, und der Knopf gehört auch inhaltlich nicht
+           neben „speichern" — er wirft nichts um, was oben eingestellt wurde. #}
+        <section class="karte space-y-3 p-6">
+            <h2 class="text-base font-semibold">{{ t('benachrichtigung.abmeldelinks.titel') }}</h2>
+            <p class="text-sm gedaempft">{{ t('benachrichtigung.abmeldelinks.erklaerung') }}</p>
+
+            <form method="post" action="/konto/benachrichtigungen/abmeldelinks">
+                <input type="hidden" name="_csrf" value="{{ csrf }}">
+                <button type="submit" class="knopf">{{ t('benachrichtigung.abmeldelinks.knopf') }}</button>
+            </form>
+        </section>
     </div>
 {% endblock %}

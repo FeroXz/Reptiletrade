@@ -158,32 +158,188 @@ final class NotificationPreferenceServiceTest extends DatabaseTestCase
         self::assertSame(0, (int) (string) $this->database->scalar('SELECT COUNT(*) FROM notification_preferences'));
     }
 
-    public function testEinUeberholterTokenVeraendertNichts(): void
+    /**
+     * Der Kern von Weg (a): Wer die Kontonummer kennt — sie steht im Link —,
+     * kommt ohne das Geheimnis des Kontos trotzdem nicht weiter.
+     */
+    public function testEineVerfaelschteSignaturVeraendertNichts(): void
+    {
+        $dienst = $this->service();
+        $token = $dienst->issueUnsubscribeToken($this->userId);
+
+        // Ein einziges Zeichen der Signatur gedreht, die Kontonummer bleibt.
+        $verfaelscht = substr($token, 0, -1) . (str_ends_with($token, 'a') ? 'b' : 'a');
+
+        try {
+            $dienst->unsubscribe($verfaelscht, NotificationChannel::AnzeigeAblauf);
+            self::fail('Eine verfälschte Signatur darf nichts abschalten.');
+        } catch (NotificationException) {
+            // erwartet
+        }
+
+        self::assertNull($dienst->accountForToken($verfaelscht));
+        self::assertTrue($dienst->mayNotify($this->userId, NotificationChannel::AnzeigeAblauf));
+        self::assertSame(0, (int) (string) $this->database->scalar('SELECT COUNT(*) FROM notification_preferences'));
+    }
+
+    /**
+     * Die Signatur eines Kontos vor die Nummer eines anderen gesetzt.
+     */
+    public function testDieSignaturEinesKontosGiltNichtFuerEinAnderes(): void
+    {
+        $dienst = $this->service();
+        $zweiter = $this->createUser('zweiter@example.tld');
+        $signatur = explode('-', $dienst->issueUnsubscribeToken($this->userId), 2)[1];
+
+        try {
+            $dienst->unsubscribe($zweiter . '-' . $signatur, NotificationChannel::AnzeigeAblauf);
+            self::fail('Eine fremde Signatur darf nichts abschalten.');
+        } catch (NotificationException) {
+            // erwartet
+        }
+
+        self::assertTrue($dienst->mayNotify($zweiter, NotificationChannel::AnzeigeAblauf));
+        self::assertTrue($dienst->mayNotify($this->userId, NotificationChannel::AnzeigeAblauf));
+    }
+
+    public function testDerTokenBleibtUeberMehrereAusstellungenHinwegDerselbe(): void
+    {
+        $dienst = $this->service();
+
+        self::assertSame(
+            $dienst->issueUnsubscribeToken($this->userId),
+            $dienst->issueUnsubscribeToken($this->userId),
+        );
+    }
+
+    /**
+     * Der Befund aus Phase 12: Frueher trug jede Mail einen eigenen Token und
+     * entwertete damit den Link der vorigen.
+     */
+    public function testZweiMailsTragenDenselbenAbmeldelinkUndBeideWirken(): void
+    {
+        $mailer = $this->mailer();
+
+        $mailer->send(new MailMessage(
+            'halter@example.tld',
+            'Deine Anzeige läuft ab',
+            'Erste',
+            'Halter',
+            NotificationChannel::AnzeigeAblauf->value,
+            $this->userId,
+        ));
+        $mailer->send(new MailMessage(
+            'halter@example.tld',
+            'Neue Nachricht',
+            'Zweite',
+            'Halter',
+            NotificationChannel::NachrichtNeu->value,
+            $this->userId,
+        ));
+
+        $token = $this->tokensAusDemPostausgang();
+
+        self::assertCount(2, $token);
+        self::assertSame($token[0], $token[1]);
+
+        $dienst = $this->service();
+
+        // Der Link der *aelteren* Mail zuerst — genau der war frueher tot.
+        self::assertSame($this->userId, $dienst->unsubscribe($token[0], NotificationChannel::AnzeigeAblauf));
+        self::assertSame($this->userId, $dienst->unsubscribe($token[1], NotificationChannel::NachrichtNeu));
+
+        self::assertFalse($dienst->mayNotify($this->userId, NotificationChannel::AnzeigeAblauf));
+        self::assertFalse($dienst->mayNotify($this->userId, NotificationChannel::NachrichtNeu));
+    }
+
+    /**
+     * Kein Schreibzugriff auf users beim Versand — geprueft mit einem Trigger,
+     * der jede Schreiboperation abbricht. Ein Vergleich der Zeile vorher und
+     * nachher wuerde nur zeigen, dass sich nichts geaendert hat, nicht dass
+     * nichts geschrieben wurde.
+     */
+    public function testEinVersandSchreibtNichtInDieKontotabelle(): void
+    {
+        $this->database->execute(
+            <<<'SQL'
+                CREATE TRIGGER users_ist_beim_versand_tabu
+                BEFORE UPDATE ON users
+                BEGIN SELECT RAISE(ABORT, 'Der Versand hat in users geschrieben.'); END
+                SQL,
+        );
+
+        $this->mailer()->send(new MailMessage(
+            'halter@example.tld',
+            'Deine Anzeige läuft ab',
+            'Text',
+            'Halter',
+            NotificationChannel::AnzeigeAblauf->value,
+            $this->userId,
+        ));
+
+        self::assertSame(1, $this->zeilen());
+    }
+
+    public function testDerWechselDesGeheimnissesEntwertetAlleLinks(): void
     {
         $dienst = $this->service();
         $alt = $dienst->issueUnsubscribeToken($this->userId);
-        $dienst->issueUnsubscribeToken($this->userId);
 
-        $this->expectException(NotificationException::class);
+        $dienst->rotateUnsubscribeSecret($this->userId);
+
+        $neu = $dienst->issueUnsubscribeToken($this->userId);
+        self::assertNotSame($alt, $neu);
+        self::assertNull($dienst->accountForToken($alt));
+
+        self::assertSame(
+            1,
+            (int) (string) $this->database->scalar(
+                "SELECT COUNT(*) FROM audit_log WHERE action = 'notification.unsubscribe_secret_rotated'",
+            ),
+        );
 
         try {
             $dienst->unsubscribe($alt, NotificationChannel::AnzeigeAblauf);
-        } finally {
-            self::assertTrue($dienst->mayNotify($this->userId, NotificationChannel::AnzeigeAblauf));
+            self::fail('Ein entwerteter Link darf nichts abschalten.');
+        } catch (NotificationException) {
+            // erwartet
         }
+
+        self::assertTrue($dienst->mayNotify($this->userId, NotificationChannel::AnzeigeAblauf));
+        self::assertSame($this->userId, $dienst->unsubscribe($neu, NotificationChannel::AnzeigeAblauf));
     }
 
-    public function testEinLeererTokenTrifftNichtDasKontoOhneToken(): void
+    public function testEinLeererTokenTrifftNichtDasKontoOhneGeheimnis(): void
     {
-        $ohneToken = $this->createUser('zweiter@example.tld');
+        $ohneGeheimnis = $this->createUser('zweiter@example.tld');
+        $this->database->execute(
+            'UPDATE users SET unsubscribe_secret = NULL WHERE id = :id',
+            ['id' => $ohneGeheimnis],
+        );
 
         $this->expectException(NotificationException::class);
 
         try {
             $this->service()->unsubscribe('', NotificationChannel::AnzeigeAblauf);
         } finally {
-            self::assertTrue($this->service()->mayNotify($ohneToken, NotificationChannel::AnzeigeAblauf));
+            self::assertTrue($this->service()->mayNotify($ohneGeheimnis, NotificationChannel::AnzeigeAblauf));
         }
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function tokensAusDemPostausgang(): array
+    {
+        $token = [];
+
+        foreach ($this->database->select('SELECT body FROM mail_outbox ORDER BY id') as $zeile) {
+            if (preg_match('#/abmelden/([^?\s]+)#', (string) $zeile['body'], $treffer) === 1) {
+                $token[] = rawurldecode($treffer[1]);
+            }
+        }
+
+        return $token;
     }
 
     public function testDieAenderungStehtImVerlauf(): void

@@ -353,6 +353,27 @@ final readonly class AccountController
     }
 
     /**
+     * Macht alle Abmeldelinks des Kontos ungueltig.
+     *
+     * Der Abmeldelink gilt seit Phase 12 dauerhaft — er wird aus einem
+     * konto-eigenen Geheimnis abgeleitet, statt bei jedem Versand neu
+     * ausgestellt zu werden. Damit braucht es einen bewussten Weg, ihn zu
+     * entwerten: fuer den Fall, dass eine alte Mail in fremde Haende geraten
+     * ist. Hier, nicht bei jedem Versand — sonst waeren die Links wieder nach
+     * einer Mail tot.
+     */
+    public function resetUnsubscribeLinks(Request $request): Response
+    {
+        $user = $this->currentUser->require();
+        $this->guardCsrf($request);
+
+        $this->notifications->rotateUnsubscribeSecret($user->id ?? 0);
+        $this->session->flash('erfolg', $this->translator->translate('benachrichtigung.abmeldelinks.erneuert'));
+
+        return Response::redirect('/konto/benachrichtigungen');
+    }
+
+    /**
      * Der Abmeldelink aus einer Mail.
      *
      * Ohne Anmeldung, wie der Bestaetigungslink: Wer die Mail hat, hat den

@@ -91,22 +91,60 @@ final readonly class NotificationPreferenceService
     }
 
     /**
-     * Stellt einen Abmeldetoken aus und liefert den Klartext.
+     * Der Abmeldetoken des Kontos — bei jedem Aufruf derselbe.
      *
-     * Der vorige Token gilt danach nicht mehr. Das ist kein Versehen, sondern
-     * die Folge davon, dass in der Datenbank nur der Hash steht: Der Klartext
-     * laesst sich nicht rekonstruieren, also muss jede Mail ihren eigenen
-     * bekommen. Der Preis ist, dass der Abmeldelink einer aelteren Mail ins
-     * Leere laeuft — die Bestaetigungsseite sagt das und verweist auf die
-     * Einstellungen, statt den Nutzer ratlos stehen zu lassen.
+     * Abgeleitet statt gespeichert: Der Token ist die user_id und ein
+     * HMAC-SHA-256 darueber, gebildet mit einem konto-eigenen Geheimnis
+     * (users.unsubscribe_secret). Damit steht in der Datenbank weiterhin kein
+     * Klartexttoken, der Link ist aber jederzeit reproduzierbar — er muss es
+     * sein, weil die Mail im Job-Worker gebaut wird und nicht im Request, der
+     * den Anlass ausgeloest hat. Der frueher uebliche Weg, pro Versand einen
+     * neuen Zufallstoken auszustellen, entwertete den Abmeldelink jeder
+     * aelteren Mail und machte damit genau den Knopf kaputt, den Mailprogramme
+     * anbieten.
+     *
+     * Ungueltig machen bleibt moeglich, aber bewusst: Nur ein Wechsel des
+     * Geheimnisses (rotateUnsubscribeSecret) entwertet die Links — an der
+     * Kontoloeschung und auf Knopfdruck, nicht bei jedem Versand.
      */
     public function issueUnsubscribeToken(int $userId): string
     {
-        $plain = bin2hex(random_bytes(32));
+        $secret = $this->preferences->unsubscribeSecret($userId);
 
-        $this->preferences->storeUnsubscribeHash($userId, self::hash($plain), $this->clock->now());
+        if ($secret === null) {
+            // Der Regelfall ist das nicht: Neue Konten bekommen ihr Geheimnis
+            // beim Anlegen, Bestandskonten haben es aus der Migration. Bleibt
+            // eine Zeile uebrig, die auf anderem Weg entstanden ist, waere die
+            // Alternative eine Ausnahme — und damit eine Mail, die wegen ihres
+            // Abmeldelinks nicht rausgeht. Einmal nachziehen ist der bessere
+            // Tausch; ein zweites Mal kommt es hier nicht vorbei.
+            $secret = self::newSecret();
+            $this->preferences->storeUnsubscribeSecret($userId, $secret, $this->clock->now());
+        }
 
-        return $plain;
+        return $userId . '-' . self::signature($userId, $secret);
+    }
+
+    /**
+     * Wechselt das Geheimnis und entwertet damit alle Abmeldelinks des Kontos.
+     *
+     * Der bewusste Gegenpol zum stabilen Token: Wer den Verdacht hat, dass eine
+     * alte Mail in fremde Haende geraten ist, macht hier alle Links auf einmal
+     * ungueltig. Abmelden kann ein fremder Link ohnehin nur Kanaele des eigenen
+     * Kontos, aber "kann nichts Schlimmes" ist kein Grund, es nicht abstellen
+     * zu koennen.
+     */
+    public function rotateUnsubscribeSecret(int $userId, ?int $actorId = null): void
+    {
+        $this->preferences->storeUnsubscribeSecret($userId, self::newSecret(), $this->clock->now());
+
+        $this->audit->record(new AuditEntry(
+            'notification.unsubscribe_secret_rotated',
+            'user',
+            $userId,
+            [],
+            $actorId ?? $userId,
+        ));
     }
 
     /**
@@ -124,7 +162,7 @@ final readonly class NotificationPreferenceService
             );
         }
 
-        $userId = $this->preferences->findUserIdByUnsubscribeHash(self::hash(trim($plainToken)));
+        $userId = $this->accountForToken($plainToken);
 
         // Eine gemeinsame Meldung fuer "gibt es nicht" und "ueberholt": Der
         // Unterschied hilft nur dem, der Token durchprobiert.
@@ -151,11 +189,47 @@ final readonly class NotificationPreferenceService
     }
 
     /**
-     * SHA-256 wie bei den uebrigen Token: Der Wert ist schon 256 Bit Zufall,
-     * ein langsames Verfahren schuetzt hier vor nichts.
+     * Das Konto zu einem Abmeldetoken — oder null, wenn er nicht passt.
+     *
+     * Nachgeschlagen wird ueber die user_id aus dem Token; erst danach
+     * entscheidet der Vergleich der Signatur. Wer eine fremde id einsetzt,
+     * kommt an dieser Stelle nicht weiter, weil er das Geheimnis des Kontos
+     * nicht kennt.
      */
-    private static function hash(string $plain): string
+    public function accountForToken(string $plainToken): ?int
     {
-        return hash('sha256', $plain);
+        $teile = explode('-', trim($plainToken), 2);
+
+        if (\count($teile) !== 2 || $teile[0] === '' || !ctype_digit($teile[0]) || $teile[1] === '') {
+            return null;
+        }
+
+        $userId = (int) $teile[0];
+        $secret = $this->preferences->unsubscribeSecret($userId);
+
+        if ($secret === null) {
+            return null;
+        }
+
+        // hash_equals statt "===": Die Laufzeit des Vergleichs soll nicht
+        // verraten, wie viele Zeichen einer geratenen Signatur stimmen.
+        return hash_equals(self::signature($userId, $secret), $teile[1]) ? $userId : null;
+    }
+
+    /**
+     * 256 Bit — dieselbe Groesse wie bei den uebrigen Geheimnissen im Bestand.
+     */
+    private static function newSecret(): string
+    {
+        return bin2hex(random_bytes(32));
+    }
+
+    /**
+     * HMAC-SHA-256 statt schlichtem Hash: Der Token soll sich nur mit dem
+     * Geheimnis bilden lassen, nicht aus der oeffentlich bekannten user_id.
+     */
+    private static function signature(int $userId, string $secret): string
+    {
+        return hash_hmac('sha256', (string) $userId, $secret);
     }
 }

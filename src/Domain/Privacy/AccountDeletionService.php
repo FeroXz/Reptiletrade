@@ -137,8 +137,11 @@ final readonly class AccountDeletionService
                            lng = NULL,
                            totp_secret = NULL,
                            totp_confirmed_at = NULL,
-                           unsubscribe_token = NULL,
-                           unsubscribe_token_at = NULL,
+                           -- Ohne Geheimnis laesst sich kein Abmeldelink mehr
+                           -- ableiten: Jeder Link aus einer alten Mail an dieses
+                           -- Konto ist damit auf einen Schlag tot.
+                           unsubscribe_secret = NULL,
+                           unsubscribe_secret_at = NULL,
                            status = 'geloescht',
                            anonymized_at = :now,
                            updated_at = :now

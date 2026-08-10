@@ -408,6 +408,15 @@ return [
     'benachrichtigung.kanal.system.wichtig.beschreibung' => 'Kontosperren, Sicherheitshinweise und Änderungen '
         . 'an den Rechtstexten. Ohne diese Nachrichten könntest du auf nichts davon reagieren.',
 
+    'benachrichtigung.abmeldelinks.titel' => 'Abmeldelinks',
+    'benachrichtigung.abmeldelinks.erklaerung' => 'Jede Benachrichtigung enthält denselben Abmeldelink zu '
+        . 'deinem Konto. Wenn eine alte E-Mail in fremde Hände geraten ist, machst du hier alle bisherigen '
+        . 'Links auf einmal ungültig — künftige E-Mails tragen dann einen neuen. Deine Einstellungen und '
+        . 'deine Anmeldung bleiben davon unberührt.',
+    'benachrichtigung.abmeldelinks.knopf' => 'Abmeldelinks erneuern',
+    'benachrichtigung.abmeldelinks.erneuert' => 'Die bisherigen Abmeldelinks sind ungültig. '
+        . 'Neue E-Mails tragen einen neuen Link.',
+
     'benachrichtigung.abmelden.titel' => 'Benachrichtigung abbestellt',
     'benachrichtigung.abmelden.erfolg' => 'Du bekommst keine E-Mails mehr zu: {kanal}.',
     'benachrichtigung.abmelden.rest_laeuft_weiter' => 'Alle anderen Benachrichtigungen bleiben unverändert, '
