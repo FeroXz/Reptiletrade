@@ -9,7 +9,7 @@
 {% endblock %}
 
 {% block inhalt %}
-    <article class="mx-auto max-w-4xl space-y-5">
+    <article class="mx-auto max-w-6xl space-y-8 lg:space-y-12">
         {% include 'partials/meldungen.html.twig' %}
 
         {% if not listing.status.isPubliclyVisible %}
@@ -18,46 +18,68 @@
             </p>
         {% endif %}
 
-        {# Galerie. Das erste Bild laeuft ueber beide Spalten und ist damit das
-           Hero — es traegt den grossen Radius, die uebrigen bleiben Kacheln.
-           Das overflow-hidden sitzt am Rahmen, damit der abgerundete Ausschnitt
-           auch das Bild beschneidet. #}
+        {# ----------------------------------------------------------- Hero #}
+        {# Das erste Bild traegt den Kopf der Seite: Anzeigenart, Art und Titel
+           liegen auf dem Bild, lesbar durch den Verlauf aus .bild-verlauf.
+           Ohne Bild uebernimmt die Buehne dieselbe Rolle — die
+           Ueberschriftenebene ist in beiden Faellen dieselbe. #}
         {% if medien is not empty %}
-            <div class="grid gap-2 sm:grid-cols-2">
-                {% for bild in medien %}
-                    <div class="karte overflow-hidden {{ loop.first ? 'karte-gross sm:col-span-2' : '' }}">
-                        <img src="/uploads/{{ bild.path }}" alt="{{ listing.title }}" loading="lazy"
-                             class="w-full object-cover {{ loop.first ? 'aspect-video' : 'aspect-4/3' }}">
+            {# Kein bild-verlauf hier: Der Verlauf sitzt am Textblock selbst und
+               waechst mit ihm. Zwei Verlaeufe uebereinander wuerden das Foto
+               unnoetig zudecken. #}
+            <header class="detail-hero">
+                {# Das Hero-Bild steht im sichtbaren Bereich — kein
+                   loading="lazy", das kostet hier nur Zeit. #}
+                <img src="/uploads/{{ medien|first.path }}" alt="{{ listing.title }}">
+
+                <div class="bild-inhalt detail-hero-text">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="badge-akzent">{{ listing.type.label }}</span>
+                        <span class="text-sm text-white/90">
+                            {{ art.commonNameDe }}
+                            <span class="italic">({{ art.scientificName }})</span>
+                        </span>
+                    </div>
+                    <h1 class="mt-3 max-w-3xl text-h1 text-balance">{{ listing.title }}</h1>
+                </div>
+            </header>
+        {% else %}
+            <header class="buehne">
+                <div class="max-w-3xl space-y-4">
+                    <p class="vorzeile">{{ listing.type.label }}</p>
+                    <h1 class="text-h1 text-balance">{{ listing.title }}</h1>
+                    <p class="gedaempft">
+                        <a class="underline" href="/art/{{ art.slug }}/">{{ art.commonNameDe }}</a>
+                        <span class="italic">({{ art.scientificName }})</span>
+                    </p>
+                </div>
+            </header>
+        {% endif %}
+
+        {# Zwei Spalten ab lg: links die Anzeige, rechts die Handlungskarte,
+           die dort mitlaeuft. Darunter stehen sie untereinander — die
+           Handlungskarte zuerst, weil sie das Ziel der Seite ist. #}
+        <div class="grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-10">
+        <div class="order-2 space-y-6 lg:order-1">
+
+        {# Die weiteren Bilder. Das erste steckt im Hero. #}
+        {% if medien|length > 1 %}
+            <div class="detail-galerie" data-einblenden-gruppe>
+                {% for bild in medien|slice(1) %}
+                    <div class="karte overflow-hidden">
+                        <img src="/uploads/{{ bild.path }}" alt="{{ listing.title }}" loading="lazy">
                     </div>
                 {% endfor %}
             </div>
         {% endif %}
 
-        <header class="karte karte-gross space-y-1 p-6">
-            <h1 class="text-2xl font-semibold sm:text-3xl">{{ listing.title }}</h1>
-            <p class="gedaempft">
-                <a class="underline" href="/art/{{ art.slug }}/">{{ art.commonNameDe }}</a>
-                <span class="italic">({{ art.scientificName }})</span>
-            </p>
+        <section class="karte karte-gross p-6 sm:p-8">
+            <h2 class="text-h3">Details</h2>
             {% if morph_string %}
-                <p class="text-primary-700">{{ morph_string }}</p>
+                <p class="morph-name mt-2">{{ morph_string }}</p>
                 <p class="text-xs gedaempft">Genotyp: {{ genotyp }}</p>
             {% endif %}
-
-            {# Der Preis ist die eine Zahl, wegen der die Seite aufgerufen wird.
-               Er stand bisher in derselben Groesse wie der Rest des Kopfes. #}
-            <p class="pt-3 text-2xl font-semibold tracking-tight">
-                {% if listing.priceCents %}
-                    {{ (listing.priceCents / 100)|number_format(2, ',', '.') }} {{ listing.currency }}{{ listing.negotiable ? ' VB' : '' }}
-                {% else %}
-                    <span class="gedaempft">{{ listing.type.value == 'tausch' ? 'Nur Tausch' : 'Preis auf Anfrage' }}</span>
-                {% endif %}
-            </p>
-        </header>
-
-        <section class="karte p-6">
-            <h2 class="text-base font-semibold">Details</h2>
-            <dl class="mt-3 grid gap-3 sm:grid-cols-3">
+            <dl class="mt-5 grid gap-3 sm:grid-cols-3">
                 {% for feld in [
                     { t: 'Anzeigenart', w: listing.type.label },
                     { t: 'Geschlecht', w: listing.sex.label },
@@ -77,28 +99,42 @@
         </section>
 
         {% if listing.description %}
-            <section class="karte p-6">
-                <h2 class="text-base font-semibold">Beschreibung</h2>
-                <p class="mt-2 whitespace-pre-line text-sm">{{ listing.description }}</p>
+            <section class="karte karte-gross p-6 sm:p-8">
+                <h2 class="text-h3">Beschreibung</h2>
+                <p class="mt-3 whitespace-pre-line">{{ listing.description }}</p>
             </section>
         {% endif %}
 
         {% if listing.tradeWanted %}
-            <section class="karte p-6">
-                <h2 class="text-base font-semibold">Tauschwunsch</h2>
-                <p class="mt-2 text-sm">{{ listing.tradeWanted }}</p>
+            <section class="karte karte-gross p-6 sm:p-8">
+                <h2 class="text-h3">Tauschwunsch</h2>
+                <p class="mt-3">{{ listing.tradeWanted }}</p>
             </section>
         {% endif %}
 
-        {# ------------------------------------------------------------- Anbieter #}
-        {% if anbieter %}
-            {# Die Handlungsaufforderung der Seite. karte-gross und der grosse
-               Innenabstand heben sie aus der Reihe der Textkaesten heraus —
-               dieser Kasten ist der Grund, warum die Seite existiert. #}
-            <section class="karte karte-gross space-y-4 p-6 sm:p-8">
-                <h2 class="text-base font-semibold">Anbieter</h2>
+        </div>
 
-                <div class="flex flex-wrap items-baseline justify-between gap-3">
+        {# ------------------------------------------------------------- Anbieter #}
+        <div class="order-1 space-y-6 lg:order-2">
+        {% if anbieter %}
+            {# Die Handlungsaufforderung der Seite. Als karte-featured mit
+               Verlaufsrand und auf breiten Bildschirmen mitlaufend: Dieser
+               Kasten ist der Grund, warum die Seite existiert, und er soll
+               erreichbar bleiben, ohne dass man nach oben scrollt. #}
+            <section class="karte karte-featured haftend-desktop space-y-5 p-6 sm:p-7">
+                {# Der Preis steht hier und nicht mehr im Kopf: an der Stelle,
+                   an der man sich fuer den naechsten Schritt entscheidet. #}
+                <p class="preis-gross">
+                    {% if listing.priceCents %}
+                        {{ (listing.priceCents / 100)|number_format(2, ',', '.') }} {{ listing.currency }}{{ listing.negotiable ? ' VB' : '' }}
+                    {% else %}
+                        <span class="gedaempft">{{ listing.type.value == 'tausch' ? 'Nur Tausch' : 'Preis auf Anfrage' }}</span>
+                    {% endif %}
+                </p>
+
+                <h2 class="vorzeile">Anbieter</h2>
+
+                <div class="space-y-4">
                     <p>
                         {% if anbieter_profil and anbieter_profil.isPublic %}
                             <a class="font-medium underline" href="/zuechter/{{ anbieter_profil.slug }}/">
@@ -115,15 +151,16 @@
                         {% endif %}
                     </p>
 
-                    {# flex-wrap: Auf 360 Pixeln standen "Anbieter schreiben",
-                       "Merken" und "Melden" bisher nebeneinander in einer
-                       Zeile, die nicht umbrechen konnte. #}
+                    {# Untereinander statt nebeneinander: Die Handlungskarte ist
+                       auf dem Desktop knapp 22rem breit, und auf 360 Pixeln
+                       passten "Anbieter schreiben", "Merken" und "Melden" auch
+                       vorher nicht in eine Zeile. #}
                     {% if not ist_eigene %}
-                        <span class="flex flex-wrap items-center gap-3">
+                        <span class="flex flex-col gap-3">
                             {% if betrachter.isAuthenticated %}
                                 <form method="post" action="/anzeige/{{ listing.id }}/nachricht">
                                     <input type="hidden" name="_csrf" value="{{ csrf }}">
-                                    <button type="submit" class="knopf knopf-primaer">Anbieter schreiben</button>
+                                    <button type="submit" class="knopf knopf-primaer w-full justify-center">Anbieter schreiben</button>
                                 </form>
 
                                 {# Echtes Formular. merkliste.js tauscht nur den
@@ -132,7 +169,7 @@
                                       action="/anzeige/{{ listing.id }}/{{ gemerkt ? 'entmerken' : 'merken' }}">
                                     <input type="hidden" name="_csrf" value="{{ csrf }}">
                                     <input type="hidden" name="weiter" value="/anzeige/{{ listing.id }}/">
-                                    <button type="submit" class="knopf" aria-pressed="{{ gemerkt ? 'true' : 'false' }}">
+                                    <button type="submit" class="knopf w-full justify-center" aria-pressed="{{ gemerkt ? 'true' : 'false' }}">
                                         {{ gemerkt ? t('merkliste.entmerken') : t('merkliste.merken') }}
                                     </button>
                                 </form>
@@ -141,7 +178,7 @@
                                     {{ t('meldung.titel') }}
                                 </a>
                             {% else %}
-                                <a class="knopf knopf-primaer"
+                                <a class="knopf knopf-primaer w-full justify-center"
                                    href="/anmelden?weiter={{ ('/anzeige/' ~ listing.id ~ '/')|url_encode }}">
                                     Zum Schreiben anmelden
                                 </a>
@@ -169,10 +206,12 @@
         {% endif %}
 
         {% if ist_eigene %}
-            <p class="text-right">
-                <a class="knopf" href="/meine-anzeigen/">Zu meinen Anzeigen</a>
+            <p>
+                <a class="knopf w-full justify-center" href="/meine-anzeigen/">Zu meinen Anzeigen</a>
             </p>
         {% endif %}
+        </div>
+        </div>
     </article>
 {% endblock %}
 

@@ -3,15 +3,18 @@
 {% block kopf %}<meta name="robots" content="noindex">{% endblock %}
 
 {% block inhalt %}
-    <div class="mx-auto max-w-3xl space-y-6">
+    <div class="mx-auto max-w-4xl space-y-8">
         {% include 'partials/meldungen.html.twig' %}
 
-        <h1 class="text-xl font-semibold">{{ t('konto.titel') }}</h1>
+        <div class="space-y-3">
+            <p class="vorzeile">{{ nutzer.email }}</p>
+            <h1 class="text-h1">{{ t('konto.titel') }}</h1>
+        </div>
 
         {# ------------------------------------------------------ Verifizierung #}
-        <section class="karte space-y-4 p-6">
-            <div class="flex items-baseline justify-between">
-                <h2 class="font-semibold">{{ t('konto.verifizierung') }}</h2>
+        <section class="karte karte-gross space-y-4 p-6 sm:p-8">
+            <div class="flex items-baseline justify-between gap-3">
+                <h2 class="text-h3">{{ t('konto.verifizierung') }}</h2>
                 <span class="text-sm gedaempft">{{ stufe.label }}</span>
             </div>
             <p class="text-sm gedaempft">{{ t('verifizierung.hinweis') }}</p>
@@ -105,8 +108,8 @@
         </section>
 
         {# ---------------------------------------------------------- Sicherheit #}
-        <section class="karte space-y-4 p-6">
-            <h2 class="font-semibold">{{ t('konto.sicherheit') }}</h2>
+        <section class="karte karte-gross space-y-4 p-6 sm:p-8">
+            <h2 class="text-h3">{{ t('konto.sicherheit') }}</h2>
 
             <form method="post" action="/konto/passwort" class="grid gap-2 sm:grid-cols-3">
                 <input type="hidden" name="_csrf" value="{{ csrf }}">
@@ -144,19 +147,34 @@
            Liste kaum zu ueberfliegen — welcher Link wohin fuehrt, stand nur im
            Wort selbst. Als Kachelraster hat jeder Eintrag eine eigene Flaeche
            und eine Zeile Erklaerung. Die Ziele sind unveraendert. #}
+        {# Die Zeichen liegen als Pfaddaten am Eintrag und werden unten in ein
+           einziges svg-Geruest gegossen. Als fertiges Markup im Array
+           braeuchte es |raw — und damit eine Stelle, an der Twig nicht mehr
+           escaped. Pfaddaten enthalten weder Anfuehrungszeichen noch spitze
+           Klammern und ueberstehen das Escaping unveraendert. #}
         <nav aria-label="{{ t('konto.titel') }}">
-            <ul class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" data-einblenden-gruppe>
                 {% for eintrag in [
-                    { pfad: '/konto/profil', titel: t('profil.bearbeiten'), text: 'Anzeigename, Beschreibung und öffentliches Züchterprofil.' },
-                    { pfad: '/konto/statistik', titel: t('statistik.titel'), text: 'Aufrufe und Nachfragen zu deinen Anzeigen.' },
-                    { pfad: '/konto/nachzuchten', titel: t('nachzucht.titel'), text: 'Erwartete und gemeldete Nachzuchten.' },
-                    { pfad: '/paarung/simulator', titel: t('genetik.titel'), text: 'Vererbung einer geplanten Verpaarung durchrechnen.' },
-                    { pfad: '/konto/abrechnung', titel: t('abrechnung.titel'), text: 'Tarif, Zahlungen und Rechnungen.' },
-                    { pfad: '/konto/sitzungen', titel: t('sitzungen.titel'), text: 'Angemeldete Geräte einsehen und abmelden.' },
-                    { pfad: '/konto/merkliste', titel: t('merkliste.titel'), text: 'Gemerkte Anzeigen.' },
-                    { pfad: '/konto/suchen', titel: t('suchen.titel'), text: 'Gespeicherte Suchen und ihre Benachrichtigungen.' },
-                    { pfad: '/konto/benachrichtigungen', titel: t('benachrichtigung.titel'), text: 'Wann dich eine E-Mail erreichen soll.' },
-                    { pfad: '/konto/daten', titel: t('daten.titel'), text: 'Auskunft, Export und Löschung deines Kontos.' }
+                    { pfad: '/konto/profil', titel: t('profil.bearbeiten'), text: 'Anzeigename, Beschreibung und öffentliches Züchterprofil.',
+                      zeichen: ['M12 4a4 4 0 1 1 0 8 4 4 0 0 1 0-8', 'M4 20c0-3.3 3.6-5.5 8-5.5s8 2.2 8 5.5'] },
+                    { pfad: '/konto/statistik', titel: t('statistik.titel'), text: 'Aufrufe und Nachfragen zu deinen Anzeigen.',
+                      zeichen: ['M3 20h18', 'M6 20v-6', 'M12 20V5', 'M18 20v-9'] },
+                    { pfad: '/konto/nachzuchten', titel: t('nachzucht.titel'), text: 'Erwartete und gemeldete Nachzuchten.',
+                      zeichen: ['M12 21v-7', 'M12 14c0-3.3 2.7-6 6-6 0 3.3-2.7 6-6 6', 'M12 14c0-2.5-2-4.5-4.5-4.5C7.5 12 9.5 14 12 14'] },
+                    { pfad: '/paarung/simulator', titel: t('genetik.titel'), text: 'Vererbung einer geplanten Verpaarung durchrechnen.',
+                      zeichen: ['M7 3c0 4.5 10 4.5 10 9s-10 4.5-10 9', 'M17 3c0 4.5-10 4.5-10 9s10 4.5 10 9', 'M9 7h6', 'M9 17h6'] },
+                    { pfad: '/konto/abrechnung', titel: t('abrechnung.titel'), text: 'Tarif, Zahlungen und Rechnungen.',
+                      zeichen: ['M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z', 'M3 10.5h18', 'M6.5 15h3'] },
+                    { pfad: '/konto/sitzungen', titel: t('sitzungen.titel'), text: 'Angemeldete Geräte einsehen und abmelden.',
+                      zeichen: ['M4 5.5h16v9H4z', 'M2 18.5h20'] },
+                    { pfad: '/konto/merkliste', titel: t('merkliste.titel'), text: 'Gemerkte Anzeigen.',
+                      zeichen: ['M12 20S4.5 15.3 4.5 10.6A4.1 4.1 0 0 1 12 8a4.1 4.1 0 0 1 7.5 2.6C19.5 15.3 12 20 12 20'] },
+                    { pfad: '/konto/suchen', titel: t('suchen.titel'), text: 'Gespeicherte Suchen und ihre Benachrichtigungen.',
+                      zeichen: ['M11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14', 'M16.2 16.2 21 21'] },
+                    { pfad: '/konto/benachrichtigungen', titel: t('benachrichtigung.titel'), text: 'Wann dich eine E-Mail erreichen soll.',
+                      zeichen: ['M18 16v-5a6 6 0 1 0-12 0v5l-1.5 2.5h15z', 'M10 21a2.2 2.2 0 0 0 4 0'] },
+                    { pfad: '/konto/daten', titel: t('daten.titel'), text: 'Auskunft, Export und Löschung deines Kontos.',
+                      zeichen: ['M12 3l7.5 3v5.5c0 4.5-3.2 8-7.5 9.5-4.3-1.5-7.5-5-7.5-9.5V6z', 'M9 12.2l2.2 2.2L15.5 10'] }
                 ] %}
                     <li>
                         {# Die ganze Kachel ist der Link — ein Ziel, eine
@@ -164,7 +182,15 @@
                            die Tastaturbedienung zwei Stationen fuer denselben
                            Weg. #}
                         <a class="karte karte-interaktiv konto-kachel" href="{{ eintrag.pfad }}">
-                            <span class="font-medium">{{ eintrag.titel }}</span>
+                            {# Das Zeichen wiederholt nur, was daneben steht —
+                               deshalb aria-hidden. #}
+                            <span class="konto-zeichen" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
+                                     stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                                    {% for d in eintrag.zeichen %}<path d="{{ d }}"></path>{% endfor %}
+                                </svg>
+                            </span>
+                            <span class="font-semibold">{{ eintrag.titel }}</span>
                             <span class="text-xs gedaempft">{{ eintrag.text }}</span>
                         </a>
                     </li>

@@ -26,7 +26,39 @@
 {% endblock %}
 
 {% block inhalt %}
-    <div class="grid gap-6 lg:grid-cols-[18rem_1fr]" data-markt>
+    {# data-markt bleibt der Anker fuer markt.js — der Filterwechsel tauscht
+       genau diesen Knoten aus. Neu ist nur, dass die Buehne mit darunter
+       liegt: Ueberschrift und Trefferzahl aendern sich beim Filtern, also
+       muessen sie mitgetauscht werden. #}
+    <div class="space-y-8 lg:space-y-12" data-markt>
+
+        {# --------------------------------------------------------------- Buehne #}
+        {# Der Kopfbereich der Seite. Er stand vorher als fette Zeile ueber der
+           Trefferliste in der rechten Spalte; jetzt laeuft er ueber die volle
+           Breite und traegt die Ueberschrift in der Displaystufe. #}
+        <section class="buehne">
+            <div class="max-w-3xl space-y-5">
+                <p class="vorzeile">
+                    {% if art %}{{ art.scientificName }}{% else %}Terrarientiere im DACH-Raum{% endif %}
+                </p>
+
+                <h1 class="text-h1 text-balance">
+                    {% if art %}
+                        {{ art.commonNameDe }}
+                    {% else %}
+                        Finde das Tier, das zu dir passt.
+                    {% endif %}
+                </h1>
+
+                <p class="max-w-xl text-base gedaempft sm:text-lg">
+                    {{ ergebnis.total }} Anzeigen
+                    {%- if kriterien.radius %} im Umkreis von {{ kriterien.radius.label }}{% endif %}
+                    von Züchtern und Haltern in Deutschland, Österreich und der Schweiz.
+                </p>
+            </div>
+        </section>
+
+        <div class="grid gap-8 lg:grid-cols-[19rem_1fr] lg:gap-10">
 
         {# ------------------------------------------------------------ Facetten #}
         {# Der Umschalter haengt an markt.js statt an Alpine-Ausdruecken im
@@ -36,14 +68,14 @@
         {# Auf breiten Bildschirmen laeuft die Filterspalte mit: Wer weit unten
            in der Trefferliste steht, soll nicht erst nach oben scrollen. top-20
            haelt Abstand zur stehenden Kopfleiste. #}
-        <aside class="karte h-fit p-4 lg:sticky lg:top-20" data-facetten>
-            <div class="flex items-center justify-between lg:block">
-                <h2 class="text-sm font-semibold">Filter</h2>
-                <button type="button" class="knopf facetten-schalter lg:hidden" data-facetten-schalter
+        <aside class="karte karte-gross h-fit p-5 lg:sticky lg:top-24" data-facetten>
+            <div class="flex items-center justify-between gap-3 lg:block">
+                <h2 class="vorzeile">Filter</h2>
+                <button type="button" class="knopf glass facetten-schalter lg:hidden" data-facetten-schalter
                         aria-expanded="false" aria-controls="facetten-inhalt">Anzeigen</button>
             </div>
 
-            <div id="facetten-inhalt" class="mt-3 space-y-5 hidden lg:block" data-facetten-inhalt>
+            <div id="facetten-inhalt" class="mt-5 space-y-6 hidden lg:block" data-facetten-inhalt>
                 {% if kriterien.isFiltered %}
                     <a href="/markt/" class="knopf w-full justify-center">Alle Filter zurücksetzen</a>
 
@@ -211,14 +243,15 @@
 
         {# ------------------------------------------------------------ Treffer #}
         <section>
-            <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+            {# Die Ueberschrift steht jetzt in der Buehne. Hier bleibt, was sich
+               auf die Liste darunter bezieht: wie viele Treffer, wie sortiert. #}
+            <div class="mb-6 flex flex-wrap items-end justify-between gap-4 border-b pb-4" style="border-color: var(--rand)">
                 <div>
-                    <h1 class="text-xl font-semibold">
+                    <h2 class="text-h3">
                         {% if art %}{{ art.commonNameDe }}{% else %}Alle Anzeigen{% endif %}
-                    </h1>
+                    </h2>
                     <p class="text-sm gedaempft">
                         {{ ergebnis.total }} Treffer
-                        {%- if kriterien.radius %} im Umkreis von {{ kriterien.radius.label }}{% endif %}
                         <span class="ml-1 text-xs">({{ ergebnis.durationMs|number_format(0) }} ms)</span>
                     </p>
                 </div>
@@ -364,15 +397,21 @@
 
             <div data-treffer>
                 {% if ergebnis.isEmpty %}
-                    <div class="karte karte-gross p-8 text-center sm:p-12">
-                        <p class="font-medium">Keine Anzeigen gefunden.</p>
-                        <p class="mx-auto mt-1 max-w-sm text-sm gedaempft">Weniger Filter oder ein größerer Umkreis bringen meist mehr Treffer.</p>
+                    <div class="karte karte-gross p-10 text-center sm:p-16">
+                        <p class="text-h3">Keine Anzeigen gefunden.</p>
+                        <p class="mx-auto mt-2 max-w-sm gedaempft">Weniger Filter oder ein größerer Umkreis bringen meist mehr Treffer.</p>
                         {% if kriterien.isFiltered %}
-                            <a class="knopf mt-4" href="/markt/">Alle Filter zurücksetzen</a>
+                            <a class="knopf knopf-primaer mt-6" href="/markt/">Alle Filter zurücksetzen</a>
                         {% endif %}
                     </div>
                 {% else %}
-                    <div class="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
+                    {# data-einblenden-gruppe ist der Anker fuer einblenden.js:
+                       Es setzt den Ausgangszustand auf den direkten Kindern und
+                       blendet sie beim Hereinscrollen ein. Ohne Skript bleibt
+                       das Attribut wirkungslos und die Kacheln stehen sofort
+                       da — der Ausgangszustand kommt aus dem Skript, nicht aus
+                       dem Stylesheet. #}
+                    <div class="raster-treffer" data-einblenden-gruppe>
                         {% for anzeige in ergebnis.listings %}
                             {% include 'partials/kachel.html.twig' with { anzeige: anzeige, zuerst: loop.first } only %}
                         {% endfor %}
@@ -382,6 +421,7 @@
                 {% include 'partials/paginierung.html.twig' %}
             </div>
         </section>
+        </div>
     </div>
 {% endblock %}
 
