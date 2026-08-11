@@ -40,9 +40,17 @@
     --color-grau-900: oklch(0.212 0.009 250);
     --color-grau-950: oklch(0.158 0.007 250);
 
-    --radius-token-sm: 0.375rem;
-    --radius-token-md: 0.625rem;
-    --radius-token-lg: 1rem;
+    /*
+     * Radien. Deutlich weicher als zuvor (0.375/0.625/1rem): Bei grossen
+     * Bildflaechen liest sich ein knapper Radius als Versehen, nicht als
+     * Entscheidung. Vier Stufen, weil die Spanne jetzt von der Marke bis zur
+     * Heroflaeche reicht — dazwischen waere ein Wert immer der falsche.
+     */
+    --radius-token-sm: 0.5rem;
+    --radius-token-md: 0.875rem;
+    --radius-token-lg: 1.5rem;
+    --radius-token-xl: 2rem;
+    --radius-token-pille: 9999px;
 
     /*
      * Schatten. Zwei Lagen je Stufe — eine enge Kontaktschatten-Lage und eine
@@ -50,12 +58,20 @@
      * Sehr niedrige Deckkraft: Der Schatten soll die Kante ablesbar machen,
      * nicht die Karte anheben. Die Dunkelvariante steht weiter unten separat,
      * dort traegt derselbe Wert deutlich zu dick auf.
+     *
+     * Vier Stufen mit spuerbarem Abstand: sm liegt fast auf der Flaeche, xl
+     * schwebt darueber. Eine Skala, deren Stufen sich nur im Nebeneinander
+     * unterscheiden, taugt nicht zum Ordnen — dann ist am Ende alles gleich
+     * wichtig.
      */
-    --shadow-sm: 0 1px 2px -1px oklch(0.212 0.009 250 / 0.08);
-    --shadow-md: 0 1px 2px -1px oklch(0.212 0.009 250 / 0.06),
-                 0 6px 14px -6px oklch(0.212 0.009 250 / 0.12);
-    --shadow-lg: 0 2px 4px -2px oklch(0.212 0.009 250 / 0.06),
-                 0 16px 32px -12px oklch(0.212 0.009 250 / 0.16);
+    --shadow-sm: 0 1px 2px -1px oklch(0.212 0.009 250 / 0.1),
+                 0 1px 3px -2px oklch(0.212 0.009 250 / 0.08);
+    --shadow-md: 0 2px 4px -2px oklch(0.212 0.009 250 / 0.08),
+                 0 8px 18px -8px oklch(0.212 0.009 250 / 0.16);
+    --shadow-lg: 0 4px 8px -4px oklch(0.212 0.009 250 / 0.08),
+                 0 20px 40px -16px oklch(0.212 0.009 250 / 0.22);
+    --shadow-xl: 0 8px 16px -8px oklch(0.212 0.009 250 / 0.1),
+                 0 32px 64px -24px oklch(0.212 0.009 250 / 0.28);
 
     /*
      * Bewegung. Die Kurve startet sofort und laeuft weich aus — das liest sich
@@ -64,10 +80,124 @@
      * base fuer alles, was sich bewegt oder seine Groesse aendert.
      */
     --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+    /* Fuer Eingangsanimationen: laeuft am Ende leicht ueber den Zielwert
+       hinaus. Auf einer Karte, die von unten einschwebt, ist das der
+       Unterschied zwischen "wird eingeblendet" und "kommt an". */
+    --ease-auftritt: cubic-bezier(0.16, 1, 0.3, 1);
     --duration-fast: 120ms;
     --duration-base: 220ms;
+    --duration-slow: 520ms;
 
     --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+    /*
+     * Typografische Skala. Der Sprung ist Absicht: Body bleibt bei 1rem, die
+     * Displaystufe geht bis 5rem — dazwischen liegt nichts Halbes. Eine Seite,
+     * deren Ueberschrift zwei Punkt groesser ist als der Fliesstext, hat keine
+     * Hierarchie, sondern nur unterschiedlich grossen Text.
+     *
+     * clamp() statt Breakpoint-Varianten im Markup: Die Groesse gehoert zur
+     * Stufe, nicht zur Stelle, an der sie steht. Die untere Grenze ist so
+     * gewaehlt, dass auf 360 Pixeln nichts aus dem Fenster laeuft.
+     *
+     * Enge Zeilenhoehe und negative Laufweite kommen erst ab h2 dazu — bei
+     * grossem Schriftgrad wirken die Normalwerte auseinandergezogen, bei
+     * kleinem waeren sie unleserlich.
+     */
+    --text-display: clamp(2.5rem, 1.4rem + 5vw, 5rem);
+    --text-display--line-height: 0.94;
+    --text-display--letter-spacing: -0.04em;
+    --text-display--font-weight: 800;
+
+    --text-h1: clamp(1.875rem, 1.2rem + 2.8vw, 3.25rem);
+    --text-h1--line-height: 1.03;
+    --text-h1--letter-spacing: -0.032em;
+    --text-h1--font-weight: 800;
+
+    --text-h2: clamp(1.5rem, 1.2rem + 1.3vw, 2.125rem);
+    --text-h2--line-height: 1.12;
+    --text-h2--letter-spacing: -0.022em;
+    --text-h2--font-weight: 700;
+
+    --text-h3: clamp(1.125rem, 1.05rem + 0.35vw, 1.375rem);
+    --text-h3--line-height: 1.25;
+    --text-h3--letter-spacing: -0.012em;
+    --text-h3--font-weight: 700;
+
+    /* Die kleine Grossbuchstabenzeile ueber einer Ueberschrift. Ohne
+       zusaetzliche Laufweite kleben Versalien in dieser Groesse aneinander. */
+    --text-vorzeile: 0.6875rem;
+    --text-vorzeile--line-height: 1.1;
+    --text-vorzeile--letter-spacing: 0.16em;
+    --text-vorzeile--font-weight: 700;
+
+    /*
+     * Zweiter Farbtraeger. Primary allein hat die Seite bisher komplett
+     * getragen — jede Marke, jeder Knopf, jeder aktive Filter in demselben
+     * Gruen. Kupfer/Bernstein steht weit genug davon weg, um eine eigene
+     * Aussage zu machen, und bleibt warm genug, um nicht als Fehlerfarbe
+     * gelesen zu werden (dafuer ist Rot reserviert).
+     */
+    --color-akzent-50: oklch(0.97 0.025 70);
+    --color-akzent-100: oklch(0.94 0.055 68);
+    --color-akzent-200: oklch(0.89 0.095 65);
+    --color-akzent-300: oklch(0.83 0.13 62);
+    --color-akzent-400: oklch(0.76 0.155 56);
+    --color-akzent-500: oklch(0.7 0.165 50);
+    --color-akzent-600: oklch(0.62 0.17 46);
+    --color-akzent-700: oklch(0.52 0.15 42);
+    --color-akzent-800: oklch(0.42 0.12 40);
+    --color-akzent-900: oklch(0.33 0.09 40);
+
+    /*
+     * Verlaeufe als Token, nicht als Utility-Kette im Markup: Der Duoton aus
+     * Primary und Akzent ist eine Markenaussage und steht an einem Dutzend
+     * Stellen. Wer ihn aendern will, soll das hier tun.
+     */
+    --gradient-akzent: linear-gradient(135deg,
+        var(--color-primary-700) 0%,
+        var(--color-primary-500) 42%,
+        var(--color-akzent-500) 100%);
+    /* Dieselbe Geste, aber dunkel genug fuer weisse Schrift ab 11 Pixeln —
+       der helle Verlauf traegt sie nicht. */
+    --gradient-akzent-tief: linear-gradient(135deg,
+        var(--color-primary-800) 0%,
+        var(--color-primary-700) 45%,
+        var(--color-akzent-800) 100%);
+    --gradient-akzent-weich: linear-gradient(135deg,
+        var(--color-primary-50) 0%,
+        var(--color-akzent-50) 100%);
+    /*
+     * Ueber Fotos. Oben durchsichtig, unten fast deckend.
+     *
+     * Die Stufen sind nicht nach Augenmass gesetzt: Der schlimmste Fall ist
+     * ein rein weisses Foto, und weisse Schrift braucht darauf 4.5:1. Das
+     * verlangt eine Deckkraft von mindestens 0.82 an der Stelle, an der die
+     * Schrift steht. Deshalb haelt der Verlauf sein Maximum ueber das untere
+     * Viertel und faellt erst darueber ab — die Preiszeile sitzt tiefer, als
+     * eine gleichmaessige Rampe es erlauben wuerde.
+     */
+    --gradient-bild: linear-gradient(to top,
+        oklch(0.16 0.02 150 / 0.92) 0%,
+        oklch(0.16 0.02 150 / 0.86) 22%,
+        oklch(0.16 0.02 150 / 0.55) 45%,
+        oklch(0.16 0.02 150 / 0.12) 72%,
+        transparent 100%);
+    /* Fuer den Hero der Detailseite. Dort steht ein ganzer Textblock auf dem
+       Bild, nicht eine Zeile — der Verlauf traegt deshalb bis weit nach oben
+       und laeuft erst im leeren Innenabstand darueber aus. */
+    --gradient-bild-hero: linear-gradient(to top,
+        oklch(0.16 0.02 150 / 0.94) 0%,
+        oklch(0.16 0.02 150 / 0.9) 55%,
+        oklch(0.16 0.02 150 / 0.84) 70%,
+        oklch(0.16 0.02 150 / 0.4) 88%,
+        transparent 100%);
+    /* Grundflaeche fuer Seiten ohne eigenen Inhalt im Hintergrund —
+       Anmeldung, Registrierung. Zwei sehr blasse Lichter, kein Bild. */
+    --gradient-buehne: radial-gradient(60rem 40rem at 12% -10%,
+            color-mix(in oklab, var(--color-primary-200) 55%, transparent) 0%, transparent 62%),
+        radial-gradient(52rem 38rem at 92% 8%,
+            color-mix(in oklab, var(--color-akzent-200) 45%, transparent) 0%, transparent 58%);
 }
 
 @layer base {
@@ -81,7 +211,11 @@
         --flaeche-2: var(--color-grau-100);
         --rand: var(--color-grau-200);
         --text: var(--color-grau-900);
-        --text-gedaempft: var(--color-grau-500);
+        /* grau-600 statt grau-500: Der hellere Ton kam auf Weiss nur auf
+           4.24:1 und lag damit unter der Schwelle — auf der Buehne, deren
+           Grund noch eine Spur waermer ist, auf 3.87:1. Die Farbe ist die
+           gedaempfte Textfarbe der ganzen Seite; sie muss lesbar sein. */
+        --text-gedaempft: var(--color-grau-600);
 
         /* Hinweisfarbe fuer Zaehler und Marken, ebenfalls bisher nur als
            Hex-Rueckfall im Markup vorhanden. */
@@ -127,8 +261,22 @@
                          0 6px 14px -8px oklch(0 0 0 / 0.6),
                          inset 0 1px 0 0 oklch(1 0 0 / 0.04);
             --shadow-lg: 0 4px 8px -4px oklch(0 0 0 / 0.5),
-                         0 16px 32px -16px oklch(0 0 0 / 0.7),
+                         0 20px 40px -18px oklch(0 0 0 / 0.72),
                          inset 0 1px 0 0 oklch(1 0 0 / 0.05);
+            --shadow-xl: 0 8px 16px -8px oklch(0 0 0 / 0.55),
+                         0 36px 64px -28px oklch(0 0 0 / 0.8),
+                         inset 0 1px 0 0 oklch(1 0 0 / 0.06);
+
+            /* Die hellen Verlaufsflaechen wuerden im Dunkeln als Scheinwerfer
+               auf schwarzem Grund stehen. Dieselbe Geste, nur als schwaches
+               Glimmen — die Farbe bleibt ablesbar, die Flaeche dunkel. */
+            --gradient-akzent-weich: linear-gradient(135deg,
+                oklch(0.3 0.05 150) 0%,
+                oklch(0.3 0.05 55) 100%);
+            --gradient-buehne: radial-gradient(60rem 40rem at 12% -10%,
+                    oklch(0.4 0.09 150 / 0.32) 0%, transparent 62%),
+                radial-gradient(52rem 38rem at 92% 8%,
+                    oklch(0.42 0.1 50 / 0.26) 0%, transparent 58%);
         }
     }
 
@@ -153,16 +301,20 @@
     /*
      * Wer Bewegung abbestellt hat, bekommt keine. Das gilt global und nicht je
      * Komponente: Sonst rutscht bei der naechsten Ergaenzung eine Animation
-     * durch, an die niemand gedacht hat. Nicht auf 0 gesetzt, sondern auf
-     * 1ms — Uebergaenge feuern weiterhin ihr transitionend-Ereignis.
+     * durch, an die niemand gedacht hat.
+     *
+     * Abgeschaltet, nicht verkuerzt. Vorher standen hier 1ms, damit
+     * transitionend weiterhin feuert — kein Skript im Haus hoert darauf, und
+     * eine Bewegung, die in einer Millisekunde ablaeuft, ist trotzdem eine.
+     * Die Eingangsanimationen und der View Transition beim Filterwechsel
+     * werden zusaetzlich schon im JavaScript gar nicht erst gestartet.
      */
     @media (prefers-reduced-motion: reduce) {
         *,
         *::before,
         *::after {
-            animation-duration: 1ms !important;
-            animation-iteration-count: 1 !important;
-            transition-duration: 1ms !important;
+            animation: none !important;
+            transition: none !important;
             scroll-behavior: auto !important;
         }
     }
@@ -200,14 +352,146 @@
        der Fokus sitzt dann auf dem Link darin, nicht auf der Karte. */
     .karte-interaktiv:hover,
     .karte-interaktiv:focus-within {
-        box-shadow: var(--shadow-lg);
-        border-color: var(--color-grau-300);
-        transform: translateY(-2px);
+        box-shadow: var(--shadow-xl);
+        border-color: var(--color-primary-300);
+        transform: translateY(-4px);
     }
 
     @media (prefers-reduced-motion: reduce) {
         .karte-interaktiv:hover,
         .karte-interaktiv:focus-within {
+            transform: none;
+        }
+    }
+
+    /*
+     * Die hervorgehobene Anzeige. Sie unterscheidet sich nicht nur durch ihre
+     * Groesse im Raster (das regelt .raster-treffer), sondern traegt einen
+     * Verlaufsrand: zwei Hintergruende uebereinander, der obere auf die
+     * Innenflaeche beschnitten, der untere auf die Randflaeche. Ein
+     * border-image koennte das auch, verliert dabei aber den Radius.
+     *
+     * Semantisch bleibt sie eine Kachel wie jede andere — dasselbe article,
+     * dasselbe h3, derselbe Link.
+     */
+    .karte-featured {
+        border: 2px solid transparent;
+        border-radius: var(--radius-token-lg);
+        background:
+            linear-gradient(var(--flaeche), var(--flaeche)) padding-box,
+            var(--gradient-akzent) border-box;
+        box-shadow: var(--shadow-lg);
+    }
+
+    .karte-featured.karte-interaktiv:hover,
+    .karte-featured.karte-interaktiv:focus-within {
+        box-shadow: var(--shadow-xl);
+        /* Der Rand ist hier der Verlauf, nicht --rand. border-color wuerde
+           ihn abschalten und die Karte beim Zeigen entfaerben. */
+        border-color: transparent;
+    }
+
+    /*
+     * Verlaufsmarke. Traegt Weiss, deshalb der tiefe Verlauf und nicht der
+     * helle: Auf primary-500 kaeme eine 11-Pixel-Zeile in Weiss nicht auf
+     * das geforderte Kontrastverhaeltnis.
+     */
+    .badge-akzent {
+        display: inline-flex;
+        flex-shrink: 0;
+        align-items: center;
+        gap: 0.25rem;
+        border-radius: var(--radius-token-pille);
+        background: var(--gradient-akzent-tief);
+        color: white;
+        padding: 0.2rem 0.6rem;
+        font-size: 0.6875rem;
+        font-weight: 700;
+        line-height: 1.1;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        box-shadow: var(--shadow-sm);
+    }
+
+    /*
+     * Verlauf ueber einem Foto, damit Text darauf lesbar bleibt. Als
+     * Pseudoelement des Rahmens: Ein zweites div im Markup waere fuer jede
+     * Kachel eine Zeile mehr, und der Screenreader liest hier nichts.
+     */
+    .bild-verlauf {
+        position: relative;
+    }
+
+    .bild-verlauf::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: var(--gradient-bild);
+        pointer-events: none;
+    }
+
+    /* Der Inhalt auf dem Bild muss ueber dem Verlauf liegen. */
+    .bild-inhalt {
+        position: absolute;
+        inset-inline: 0;
+        bottom: 0;
+        z-index: 1;
+    }
+
+    /*
+     * Eingangsanimation. Der Ausgangszustand steht bewusst nicht im
+     * Stylesheet, sondern wird von einblenden.js gesetzt: Ohne Skript — oder
+     * bevor es laeuft — bleibt der Inhalt schlicht sichtbar. Eine per CSS
+     * ausgeblendete Karte, die auf JavaScript wartet, ist bei einem Fehler
+     * dauerhaft weg.
+     */
+    [data-einblenden='bereit'] {
+        opacity: 0;
+        transform: translateY(1.5rem);
+    }
+
+    [data-einblenden='sichtbar'] {
+        opacity: 1;
+        transform: none;
+        transition:
+            opacity var(--duration-slow) var(--ease-auftritt),
+            transform var(--duration-slow) var(--ease-auftritt);
+    }
+
+    /* Gestaffelt, damit ein Raster nicht als Block umspringt. Sechs Stufen
+       reichen: Danach wiederholt sich der Versatz, und mehr als eine halbe
+       Sekunde Gesamtverzug will niemand abwarten. */
+    [data-einblenden='sichtbar'][data-verzug='1'] { transition-delay: 60ms; }
+    [data-einblenden='sichtbar'][data-verzug='2'] { transition-delay: 120ms; }
+    [data-einblenden='sichtbar'][data-verzug='3'] { transition-delay: 180ms; }
+    [data-einblenden='sichtbar'][data-verzug='4'] { transition-delay: 240ms; }
+    [data-einblenden='sichtbar'][data-verzug='5'] { transition-delay: 300ms; }
+
+    /*
+     * Netz und doppelter Boden: einblenden.js ruehrt bei abbestellter Bewegung
+     * gar nichts an. Sollte das Attribut trotzdem gesetzt sein — aus dem Cache,
+     * durch eine spaetere Aenderung —, ist der Inhalt hier sichtbar und die
+     * Bewegung aus. Nicht verkuerzt, sondern weg.
+     */
+    @media (prefers-reduced-motion: reduce) {
+        [data-einblenden='bereit'],
+        [data-einblenden='sichtbar'] {
+            opacity: 1;
+            transform: none;
+            transition: none;
+            transition-delay: 0ms;
+        }
+    }
+
+    /*
+     * Beim Drucken gibt es kein Scrollen und damit keinen Ausloeser. Ohne
+     * diese Regel kaeme aus einer Trefferliste nur das aufs Papier, was der
+     * Nutzer vorher am Bildschirm gesehen hat.
+     */
+    @media print {
+        [data-einblenden='bereit'],
+        [data-einblenden='sichtbar'] {
+            opacity: 1;
             transform: none;
         }
     }
@@ -227,9 +511,12 @@
     }
 
     .knopf {
-        border-radius: var(--radius-token-sm);
-        padding: 0.5rem 0.9rem;
-        font-weight: 500;
+        /* Pillenform. Der Knopf ist damit auch dann als Bedienelement zu
+           erkennen, wenn er ohne Fuellung neben einem Link steht — vorher
+           unterschied ihn nur ein Rand mit 6 Pixel Radius. */
+        border-radius: var(--radius-token-pille);
+        padding: 0.55rem 1.15rem;
+        font-weight: 600;
         font-size: 0.875rem;
         line-height: 1.25rem;
         display: inline-flex;
@@ -254,8 +541,15 @@
 
     .knopf:hover {
         background: var(--flaeche-2);
-        border-color: var(--color-grau-300);
+        border-color: var(--color-grau-400);
         box-shadow: var(--shadow-md);
+        transform: translateY(-1px);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .knopf:hover {
+            transform: none;
+        }
     }
 
     /* Der Druckpunkt: einen Pixel tiefer, Schatten weg. Das ist die einzige
@@ -281,15 +575,50 @@
         box-shadow: none;
     }
 
+    /*
+     * Der primaere Knopf traegt jetzt den Duoton statt eines flachen Gruens.
+     * Der Verlauf laeuft ueber 160% der Knopfbreite und wird beim Zeigen
+     * verschoben — eine Bewegung *im* Knopf, nicht am Knopf. Eine reine
+     * Farbaenderung waere bei einem Verlauf ein Sprung.
+     */
     .knopf-primaer {
-        background: var(--color-primary-600);
-        border-color: var(--color-primary-600);
+        background: var(--gradient-akzent-tief);
+        background-size: 160% 100%;
+        background-position: 0% 50%;
+        border-color: transparent;
         color: white;
+        box-shadow: var(--shadow-md);
+        transition:
+            background-position var(--duration-base) var(--ease-standard),
+            box-shadow var(--duration-fast) var(--ease-standard),
+            transform var(--duration-fast) var(--ease-standard);
     }
 
     .knopf-primaer:hover {
-        background: var(--color-primary-700);
-        border-color: var(--color-primary-700);
+        background-position: 100% 50%;
+        border-color: transparent;
+        box-shadow: var(--shadow-lg);
+    }
+
+    .knopf-primaer:disabled:hover,
+    .knopf-primaer[disabled]:hover,
+    .knopf-primaer[aria-disabled='true']:hover {
+        background: var(--gradient-akzent-tief);
+        border-color: transparent;
+    }
+
+    /*
+     * Der Fokusring steht zwei Pixel ausserhalb des Knopfes, also auf der
+     * Flaeche dahinter — gegen die er auf 5.8:1 kommt. Was er frueher nicht
+     * brauchte: Der Knopf war hell genug, dass der Ring auch direkt an ihm
+     * ablesbar blieb. Mit dem dunklen Verlauf ist er das nicht mehr.
+     *
+     * Der helle Ring aus box-shadow legt den Absatz deshalb ausdruecklich an,
+     * statt sich darauf zu verlassen, was gerade hinter dem Knopf liegt — auf
+     * der Buehne oder auf einem Foto koennte das alles sein.
+     */
+    .knopf-primaer:focus-visible {
+        box-shadow: 0 0 0 2px var(--flaeche), var(--shadow-lg);
     }
 
     /* Fuer Handlungen, die sich nicht zuruecknehmen lassen — Kontoloeschung,
@@ -422,18 +751,23 @@
     .feld {
         border: 1px solid var(--rand);
         border-radius: var(--radius-token-sm);
-        background: var(--flaeche);
+        /* Leicht eingelassen statt auf gleicher Hoehe wie die Karte: Bei
+           Formularen auf weisser Flaeche war der Rand allein zu wenig, um das
+           Feld als Eingabe zu lesen. */
+        background: var(--flaeche-gedaempft);
         color: var(--text);
-        padding: 0.45rem 0.65rem;
-        font-size: 0.875rem;
+        padding: 0.6rem 0.85rem;
+        font-size: 0.9375rem;
         width: 100%;
         transition:
             border-color var(--duration-fast) var(--ease-standard),
-            background-color var(--duration-fast) var(--ease-standard);
+            background-color var(--duration-fast) var(--ease-standard),
+            box-shadow var(--duration-fast) var(--ease-standard);
     }
 
     .feld:hover:not(:disabled):not([readonly]) {
-        border-color: var(--color-grau-300);
+        border-color: var(--color-grau-400);
+        background: var(--flaeche);
     }
 
     /*
@@ -445,6 +779,11 @@
     .feld:focus,
     .feld:focus-visible {
         border-color: var(--ring-fokus);
+        /* Im Fokus tritt das Feld auf die volle Flaechenhelligkeit heraus —
+           zusammen mit dem Ring ist das aus dem Augenwinkel zu sehen, ohne
+           dass man die Stelle sucht. */
+        background: var(--flaeche);
+        box-shadow: var(--shadow-md);
     }
 
     .feld:focus-visible {
@@ -468,6 +807,23 @@
     }
 
     /*
+     * Merkmalsnamen — "Pastel het Clown". Sie stehen in Primaerfarbe, weil sie
+     * die fachliche Information der Anzeige sind. Als Komponente und nicht als
+     * text-primary-700 im Markup: Die Utility kennt den Dunkelmodus nicht, und
+     * dort war dunkles Gruen auf dunkler Flaeche kaum zu lesen.
+     */
+    .morph-name {
+        color: var(--color-primary-700);
+        font-weight: 500;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        .morph-name {
+            color: var(--color-primary-300);
+        }
+    }
+
+    /*
      * Die Kopfleiste bleibt beim Scrollen stehen. Damit liegt Inhalt
      * darunter, und eine deckende Flaeche wuerde ihn hart abschneiden — die
      * Leiste saehe aus, als klebe sie auf dem Text. Mit leicht durchlaessigem
@@ -477,16 +833,68 @@
      * eine halbtransparente Leiste kein Effekt, sondern ein Lesefehler. Wo der
      * Browser sie nicht kennt, bleibt es deshalb bei der deckenden Flaeche.
      */
-    .kopfleiste {
+    /*
+     * .glass steht bewusst hier unten und nicht bei den Karten: Die
+     * Klasse kommt zu einer anderen Komponente dazu (.karte, .knopf,
+     * .kopfleiste) und muss deren Flaeche ueberschreiben. Bei gleicher
+     * Spezifitaet entscheidet die Reihenfolge — weiter oben haette
+     * .knopf den Milchglasgrund des Facettenschalters wieder
+     * zugedeckt.
+     *
+     * .kopfleiste folgt direkt darunter, weil sie umgekehrt die
+     * Randkurzschreibweise von .glass zurechtruecken muss.
+     */
+    /*
+     * Milchglas. Ueberall dort, wo Inhalt ueber anderem Inhalt liegt:
+     * Kopfleiste, Marken auf Fotos, der Facettenumschalter.
+     *
+     * Ohne backdrop-filter ist eine halbtransparente Flaeche kein Effekt,
+     * sondern ein Lesefehler — deshalb steht der deckende Grund als
+     * Ausgangswert und die Durchlaessigkeit kommt erst im @supports dazu.
+     */
+    .glass {
         background: var(--flaeche);
+        border: 1px solid var(--rand);
+    }
+
+    /* Auf Fotos. Weiss auf dieser Flaeche traegt ueber 4.5:1, auch wenn das
+       Bild darunter rein weiss ist — die Deckkraft ist dafuer gerechnet, nicht
+       nach dem Effekt gewaehlt: Unter 0.85 reisst der Kontrast, und ein
+       lesbarer Preis ist wichtiger als ein durchscheinendes Bild. */
+    .glass-dunkel {
+        background: oklch(0.2 0.02 150 / 0.9);
+        border: 1px solid oklch(1 0 0 / 0.18);
+        color: white;
     }
 
     @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-        .kopfleiste {
-            background: color-mix(in oklab, var(--flaeche) 82%, transparent);
-            -webkit-backdrop-filter: blur(12px) saturate(140%);
-            backdrop-filter: blur(12px) saturate(140%);
+        .glass {
+            background: color-mix(in oklab, var(--flaeche) 68%, transparent);
+            border-color: color-mix(in oklab, var(--rand) 70%, transparent);
+            -webkit-backdrop-filter: blur(16px) saturate(150%);
+            backdrop-filter: blur(16px) saturate(150%);
         }
+
+        .glass-dunkel {
+            /* Mit Unschaerfe darf die Flaeche etwas durchlaessiger sein — aber
+               nur etwas: Der Weichzeichner mittelt das Bild, er dunkelt es
+               nicht ab. 0.85 ist die Untergrenze fuer 4.5:1 auf Weiss. */
+            background: oklch(0.2 0.02 150 / 0.86);
+            -webkit-backdrop-filter: blur(10px) saturate(140%);
+            backdrop-filter: blur(10px) saturate(140%);
+        }
+    }
+
+    /*
+     * Die Kopfleiste bringt ihre Flaeche jetzt aus .glass mit — die Regeln
+     * standen hier vorher ein zweites Mal. Was bleibt, ist das, was nur eine
+     * stehende Leiste braucht: kein Rand rundum, sondern eine Linie nach
+     * unten, und ein Schatten, der den Inhalt darunter abloest.
+     */
+    .kopfleiste {
+        border-width: 0 0 1px 0;
+        border-radius: 0;
+        box-shadow: var(--shadow-sm);
     }
 
     /* Das Suchfeld ist das meistbenutzte Bedienelement der Seite. In der
@@ -515,15 +923,86 @@
         transform: translateY(0);
     }
 
+    /*
+     * Der Schriftzug. Der Verlauf laeuft durch die Buchstaben, nicht dahinter
+     * — background-clip: text. Kennt ein Browser das nicht, greift die
+     * ausgeschriebene Textfarbe darueber und der Schriftzug bleibt lesbar;
+     * deshalb steht color vor dem transparenten Ueberschreiben und nicht
+     * danach.
+     */
+    .wortmarke {
+        font-size: 1.0625rem;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        color: var(--text);
+    }
+
+    @media (min-width: 640px) {
+        .wortmarke {
+            font-size: 1.25rem;
+        }
+    }
+
+    @supports ((background-clip: text) or (-webkit-background-clip: text)) {
+        .wortmarke {
+            background: var(--gradient-akzent);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .wortmarke {
+                background: linear-gradient(135deg,
+                    var(--color-primary-300) 0%,
+                    var(--color-akzent-300) 100%);
+                -webkit-background-clip: text;
+                background-clip: text;
+            }
+        }
+    }
+
+    /* Der Fokusring des Schriftzugs braucht wieder eine Farbe — im Zustand
+       oben ist der Text durchsichtig, der Ring kommt aus outline und ist
+       davon nicht betroffen. Hier nur der Abstand. */
+    .wortmarke:focus-visible {
+        outline-offset: 4px;
+    }
+
+    /*
+     * Navigationslinks in der Kopfleiste. Die Unterstreichung faehrt von links
+     * ein, statt schlagartig da zu sein — bei sechs Links nebeneinander ist
+     * das der Unterschied zwischen "etwas blinkt" und "hier stehe ich".
+     */
     .kopf-link {
+        position: relative;
         color: var(--text);
         text-underline-offset: 0.25em;
         transition: color var(--duration-fast) var(--ease-standard);
     }
 
-    .kopf-link:hover {
+    .kopf-link::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: -0.35rem;
+        height: 2px;
+        border-radius: 2px;
+        background: var(--gradient-akzent);
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform var(--duration-base) var(--ease-standard);
+    }
+
+    .kopf-link:hover,
+    .kopf-link:focus-visible {
         color: var(--color-primary-700);
-        text-decoration: underline;
+    }
+
+    .kopf-link:hover::after,
+    .kopf-link:focus-visible::after {
+        transform: scaleX(1);
     }
 
     /*
@@ -544,24 +1023,124 @@
     }
 
     @media (prefers-color-scheme: dark) {
-        .kopf-link:hover {
+        .kopf-link:hover,
+        .kopf-link:focus-visible {
             color: var(--color-primary-300);
         }
     }
 
     /*
-     * Bild einer Trefferkachel. Der Zoom sitzt am Bild, der Beschnitt am
-     * Rahmen — deshalb overflow-hidden im Markup. Ein transform statt einer
-     * Breitenaenderung: Das laeuft auf der Grafikkarte und loest kein neues
-     * Layout der ganzen Trefferliste aus.
+     * Der Fussbereich war eine Trennlinie und zwei Absaetze — er las sich wie
+     * der letzte Satz der Seite. Jetzt ist er eine eigene Flaeche mit eigener
+     * Farbe, die das Dokument abschliesst.
+     *
+     * Die Linie oben ist der Verlauf selbst: drei Pixel, ueber die ganze
+     * Breite. Sie kostet kein Markup und nimmt die Markenfarbe noch einmal
+     * auf, bevor die Seite endet.
      */
+    .fussbereich {
+        position: relative;
+        background: var(--flaeche);
+        border-top: 1px solid var(--rand);
+    }
+
+    .fussbereich::before {
+        content: '';
+        position: absolute;
+        top: -1px;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: var(--gradient-akzent);
+    }
+
+    /* Ueberschrift einer Fussbereichsspalte. Klein, in Versalien, weit
+       gelaufen — sie soll die Spalte gliedern, nicht mit den Links um
+       Aufmerksamkeit ringen. */
+    .fuss-titel {
+        margin-bottom: 0.75rem;
+        font-size: 0.6875rem;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        line-height: 1.1;
+        text-transform: uppercase;
+        color: var(--text-gedaempft);
+    }
+
+    /*
+     * ------------------------------------------------------------ Trefferraster
+     *
+     * Kein gleichfoermiges Kachelraster mehr: Hervorgehobene Anzeigen nehmen
+     * ab drei Spalten das Viertel des Rasters ein, das ihnen zusteht — zwei
+     * Spalten breit, zwei Reihen hoch. Auf dem Telefon faellt das weg; bei
+     * zwei Spalten ist eine doppelt breite Karte keine Betonung, sondern nur
+     * eine ganze Zeile.
+     *
+     * Als Komponente und nicht als Utility-Kette im Markup, weil die
+     * Spannweite und die Spaltenzahl zusammengehoeren: Wer die eine aendert,
+     * muss die andere sehen.
+     */
+    .raster-treffer {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    @media (min-width: 768px) {
+        .raster-treffer {
+            gap: 1.25rem;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .raster-treffer > .treffer-featured {
+            grid-column: span 2;
+            grid-row: span 2;
+        }
+    }
+
+    @media (min-width: 1280px) {
+        .raster-treffer {
+            gap: 1.5rem;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+    }
+
+    /*
+     * Die Kachel selbst. height: 100%, damit sie ihre Rasterzelle ausfuellt —
+     * ohne das stuende die hervorgehobene Karte oben in ihrem doppelt hohen
+     * Feld und liesse die Haelfte leer.
+     */
+    .kachel-flaeche {
+        display: flex;
+        height: 100%;
+        flex-direction: column;
+    }
+
+    /*
+     * Der Bildausschnitt. aspect-ratio setzt die Ausgangshoehe, flex-grow
+     * laesst ihn darueber hinaus wachsen — in einer normalen Zelle bleibt es
+     * beim Hochformat 4:5, in der doppelt hohen Zelle der Featured-Karte
+     * nimmt das Bild den ganzen Rest.
+     */
+    .kachel-bild {
+        position: relative;
+        flex: 1 1 auto;
+        min-height: 0;
+        aspect-ratio: 4 / 5;
+        overflow: hidden;
+        background: var(--flaeche-2);
+    }
+
     .kachel-bild img {
-        transition: transform var(--duration-base) var(--ease-standard);
+        height: 100%;
+        width: 100%;
+        object-fit: cover;
+        transition: transform var(--duration-slow) var(--ease-standard);
     }
 
     .karte-interaktiv:hover .kachel-bild img,
     .karte-interaktiv:focus-within .kachel-bild img {
-        transform: scale(1.04);
+        transform: scale(1.06);
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -572,24 +1151,106 @@
     }
 
     /*
-     * "Top" — eine bezahlte Hervorhebung. Vorher ein blasses Rechteck in
-     * primary-100, das neben der Ueberschrift kaum auffiel; wer dafuer zahlt,
-     * darf gesehen werden. Volle Primaerfarbe, Pillenform, eigener Schatten.
+     * Kachel ohne Foto. Vorher ein grauer Kasten mit "Kein Bild" — eine Luecke
+     * im Raster. Jetzt traegt sie den Verlauf der Marke und damit dieselbe
+     * weisse Schrift wie eine Kachel mit Foto; die Preiszeile sitzt an
+     * derselben Stelle.
      */
-    .marke-top {
-        display: inline-flex;
-        flex-shrink: 0;
+    .kachel-leer {
+        display: flex;
+        height: 100%;
+        width: 100%;
         align-items: center;
-        gap: 0.2rem;
-        border-radius: 9999px;
-        background: var(--color-primary-600);
+        justify-content: center;
+        background: var(--gradient-akzent-tief);
+        color: oklch(1 0 0 / 0.55);
+        font-size: 0.75rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    /* Preis und Entfernung liegen auf dem Bild, nicht daneben. Der Verlauf
+       darunter kommt aus .bild-verlauf. */
+    .kachel-fuss {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 0.5rem;
+        padding: 0.75rem 0.85rem;
         color: white;
-        padding: 0.1rem 0.45rem;
-        font-size: 11px;
-        font-weight: 600;
-        line-height: 1rem;
-        letter-spacing: 0.02em;
-        box-shadow: var(--shadow-sm);
+    }
+
+    .kachel-preis {
+        font-size: 1.0625rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        line-height: 1.2;
+        /* Ein Textschatten zusaetzlich zum Verlauf: Bei einem Foto, das unten
+           zufaellig hell und unruhig ist, traegt der Verlauf allein die Kante
+           der Ziffern nicht. */
+        text-shadow: 0 1px 3px oklch(0 0 0 / 0.5);
+    }
+
+    /* Die Entfernung steht weiter oben im Verlauf als der Preis und damit auf
+       einem helleren Grund. Statt den Verlauf fuer alle Kacheln nachzuziehen,
+       bringt der Chip seine eigene Flaeche mit — .glass-dunkel ist genau
+       dafuer da. */
+    .kachel-entfernung {
+        flex-shrink: 0;
+        border-radius: var(--radius-token-pille);
+        padding: 0.15rem 0.55rem;
+        font-size: 0.75rem;
+        font-weight: 500;
+        line-height: 1.25rem;
+        white-space: nowrap;
+    }
+
+    /* Die Marke oben rechts auf dem Bild. */
+    .kachel-marke {
+        position: absolute;
+        top: 0.65rem;
+        right: 0.65rem;
+        z-index: 1;
+    }
+
+    .kachel-text {
+        padding: 0.85rem 0.9rem 1rem;
+    }
+
+    /*
+     * Artnamen sind lang und zusammengesetzt — "Schlangenhalsschildkroete"
+     * passt in keine Spalte des Rasters. Ohne Trennung schneidet line-clamp
+     * mitten im Wort ab, und zwar ohne Auslassungszeichen: Es sieht aus, als
+     * fehle etwas im Datensatz. Die Silbentrennung greift, weil das
+     * html-Element lang="de" traegt; anywhere ist der Notnagel fuer alles,
+     * was der Trennalgorithmus nicht kennt.
+     */
+    .kachel-titel {
+        hyphens: auto;
+        overflow-wrap: anywhere;
+    }
+
+    /* Die hervorgehobene Karte hat mehr Flaeche — also darf ihre Ueberschrift
+       auch groesser sein. Ohne das saehe sie aus wie eine normale Kachel, die
+       versehentlich gedehnt wurde. */
+    @media (min-width: 768px) {
+        .treffer-featured .kachel-text {
+            padding: 1.15rem 1.35rem 1.35rem;
+        }
+
+        .treffer-featured .kachel-titel {
+            font-size: 1.25rem;
+            line-height: 1.25;
+            letter-spacing: -0.015em;
+        }
+
+        .treffer-featured .kachel-preis {
+            font-size: 1.5rem;
+        }
+
+        .treffer-featured .kachel-fuss {
+            padding: 1.1rem 1.35rem;
+        }
     }
 
     /*
@@ -674,8 +1335,61 @@
         display: flex;
         height: 100%;
         flex-direction: column;
-        gap: 0.25rem;
-        padding: 0.9rem 1rem;
+        align-items: flex-start;
+        gap: 0.35rem;
+        padding: 1.25rem 1.25rem 1.4rem;
+    }
+
+    /*
+     * Das Zeichen einer Kontokachel. Zehn Kacheln mit derselben Textform
+     * unterscheiden sich beim Ueberfliegen nur durch das erste Wort — das
+     * Zeichen gibt jeder eine Silhouette. Der Verlauf kommt im Ruhezustand
+     * gedaempft daher und faerbt erst beim Zeigen voll durch; sonst waeren
+     * zehn bunte Quadrate das Lauteste auf der Seite.
+     */
+    .konto-zeichen {
+        display: flex;
+        margin-bottom: 0.5rem;
+        height: 2.5rem;
+        width: 2.5rem;
+        flex-shrink: 0;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-token-md);
+        background: var(--gradient-akzent-weich);
+        color: var(--color-primary-700);
+        transition:
+            background var(--duration-base) var(--ease-standard),
+            color var(--duration-base) var(--ease-standard);
+    }
+
+    .karte-interaktiv:hover .konto-zeichen,
+    .karte-interaktiv:focus-within .konto-zeichen {
+        background: var(--gradient-akzent-tief);
+        color: white;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        .konto-zeichen {
+            color: var(--color-primary-200);
+        }
+    }
+
+    /*
+     * Der Grund fuer Seiten ohne eigenen Inhalt im Hintergrund — Anmeldung,
+     * Registrierung, Passwort. Fest im Bild und hinter allem: Der Verlauf
+     * soll beim Scrollen stehen bleiben, sonst wandert das Licht mit dem
+     * Formular nach oben.
+     *
+     * Negativer z-index statt eines body-Hintergrunds, damit die Flaeche nur
+     * dort auftaucht, wo eine Seite sie anfordert.
+     */
+    .hintergrund-buehne {
+        position: fixed;
+        inset: 0;
+        z-index: -10;
+        background: var(--gradient-buehne);
+        pointer-events: none;
     }
 
     .feld-marke {
@@ -730,4 +1444,254 @@
             color: oklch(0.75 0.15 25);
         }
     }
+
+    /*
+     * ------------------------------------------------------------------ Buehne
+     *
+     * Der Kopfbereich einer Seite als eigene Flaeche. Traegt den weichen
+     * Duoton und viel Luft — die Ueberschrift steht damit nicht mehr als
+     * fettes Wort ueber einer Liste, sondern in einem Raum.
+     *
+     * Der Verlauf ist blass genug, dass die normale Textfarbe darauf ueber
+     * 4.5:1 kommt; im Dunkelmodus wird er ueber das Token getauscht, nicht
+     * hier.
+     */
+    .buehne {
+        position: relative;
+        overflow: hidden;
+        border-radius: var(--radius-token-xl);
+        background: var(--gradient-akzent-weich);
+        padding: 2rem 1.5rem;
+    }
+
+    @media (min-width: 640px) {
+        .buehne {
+            padding: 3rem 2.5rem;
+        }
+    }
+
+    @media (min-width: 1024px) {
+        .buehne {
+            padding: 4rem 3.5rem;
+        }
+    }
+
+    /*
+     * Ein sehr schwaches Punktraster ueber der Buehne. Rein dekorativ,
+     * deshalb als Pseudoelement und ohne Markup. Die Deckkraft ist so
+     * gewaehlt, dass es die Flaeche belebt, ohne unter dem Text zu stoeren.
+     */
+    .buehne::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(currentColor 1px, transparent 1px);
+        background-size: 22px 22px;
+        opacity: 0.05;
+        pointer-events: none;
+    }
+
+    .buehne > * {
+        position: relative;
+    }
+
+    /* Die kleine Zeile ueber der Ueberschrift. Sie nennt den Zusammenhang,
+       nicht den Inhalt — deshalb gedaempft und klein. */
+    .vorzeile {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: var(--text-vorzeile);
+        font-weight: 700;
+        letter-spacing: var(--text-vorzeile--letter-spacing);
+        line-height: 1.1;
+        text-transform: uppercase;
+        color: var(--color-primary-700);
+    }
+
+    @media (prefers-color-scheme: dark) {
+        .vorzeile {
+            color: var(--color-primary-300);
+        }
+    }
+
+    /* Der Strich vor der Vorzeile. Kein Zeichen im Text, damit ihn niemand
+       vorgelesen bekommt. */
+    .vorzeile::before {
+        content: '';
+        width: 1.75rem;
+        height: 2px;
+        border-radius: 2px;
+        background: var(--gradient-akzent);
+    }
+
+    /*
+     * Der Kontaktkasten auf der Detailseite haengt auf breiten Bildschirmen
+     * mit. Nur dort: Auf dem Telefon waere ein mitlaufender Kasten der halbe
+     * Bildschirm, und der Rest der Anzeige verschwindet dahinter.
+     */
+    @media (min-width: 1024px) {
+        .haftend-desktop {
+            position: sticky;
+            top: 5.5rem;
+        }
+    }
+
+    /*
+     * ------------------------------------------------------- Detailseite: Hero
+     *
+     * Das erste Bild einer Anzeige traegt Titel, Art und Preis. Vorher standen
+     * die Bilder als gleich grosse Kacheln oben und der Kopf als Textkasten
+     * darunter — zwei Bloecke, die nichts miteinander zu tun hatten.
+     *
+     * Das Seitenverhaeltnis ist auf dem Telefon hochkant und wird zum
+     * Breitbild, sobald Platz da ist: Ein 16:9-Ausschnitt auf 360 Pixeln
+     * waere ein Streifen, in dem vom Tier nichts zu erkennen ist.
+     */
+    .detail-hero {
+        position: relative;
+        aspect-ratio: 4 / 5;
+        overflow: hidden;
+        border-radius: var(--radius-token-xl);
+        background: var(--flaeche-2);
+    }
+
+    @media (min-width: 640px) {
+        .detail-hero {
+            aspect-ratio: 3 / 2;
+        }
+    }
+
+    @media (min-width: 1024px) {
+        .detail-hero {
+            aspect-ratio: 16 / 9;
+        }
+    }
+
+    .detail-hero img {
+        height: 100%;
+        width: 100%;
+        object-fit: cover;
+    }
+
+    /*
+     * Der Textblock auf dem Bild. Weiss auf dem Verlauf aus .bild-verlauf; der
+     * Textschatten kommt dazu, weil ein Foto unten auch hell und unruhig sein
+     * kann und der Verlauf dann allein die Kanten nicht traegt.
+     */
+    /*
+     * Der Textblock auf dem Bild. Er bringt seinen Verlauf selbst mit, statt
+     * sich auf .bild-verlauf zu verlassen: Wie hoch der Block wird, haengt am
+     * Titel — bei drei Zeilen reicht er weiter nach oben, als ein am Bild
+     * ausgerichteter Verlauf traegt. So wandert der dunkle Bereich mit dem
+     * Text mit.
+     *
+     * Der grosse obere Innenabstand ist der Auslauf: Dort faellt der Verlauf
+     * auf null, ohne dass eine Kante durch den Text laeuft.
+     */
+    .detail-hero-text {
+        padding: clamp(4rem, 14vw, 8rem) 1.25rem 1.25rem;
+        background: var(--gradient-bild-hero);
+        color: white;
+        text-shadow: 0 1px 4px oklch(0 0 0 / 0.55);
+    }
+
+    @media (min-width: 640px) {
+        .detail-hero-text {
+            padding-right: 2.25rem;
+            padding-bottom: 2rem;
+            padding-left: 2.25rem;
+        }
+    }
+
+    /* Die weiteren Bilder. Kleiner als das Hero, aber deutlich groesser als
+       die bisherigen Kacheln — und im Hochformat, weil Tiere so fotografiert
+       werden. */
+    .detail-galerie {
+        display: grid;
+        gap: 0.75rem;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    @media (min-width: 640px) {
+        .detail-galerie {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+    }
+
+    .detail-galerie img {
+        aspect-ratio: 4 / 5;
+        height: 100%;
+        width: 100%;
+        object-fit: cover;
+    }
+
+    /* Der Preis in der Handlungskarte. Die eine Zahl, wegen der die Seite
+       aufgerufen wird — sie darf die groesste Ziffernfolge der Spalte sein. */
+    .preis-gross {
+        font-size: clamp(1.75rem, 1.4rem + 1.2vw, 2.25rem);
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        line-height: 1.1;
+    }
+}
+
+/*
+ * ------------------------------------------------------------ View Transitions
+ *
+ * Der Filterwechsel tauscht die Trefferliste gegen frisch gerendertes Markup
+ * aus (markt.js). uebergang.js legt einen View Transition darum, sobald der
+ * Browser die API kennt. Ohne die Regeln hier waere das eine Ueberblendung der
+ * ganzen Seite — mitsamt Kopfleiste und Facettenspalte, die sich gar nicht
+ * geaendert haben.
+ *
+ * Mit einem eigenen view-transition-name auf der Trefferliste animiert der
+ * Browser nur diesen Bereich: Die alte Liste geht nach oben weg, die neue
+ * kommt von unten nach. Die Namen stehen ausserhalb der Layer, damit sie von
+ * keiner Utility ueberschrieben werden.
+ *
+ * Ein Name muss im Dokument eindeutig sein. [data-treffer] und [data-facetten]
+ * gibt es je genau einmal — beides sind ohnehin die JS-Anker fuer denselben
+ * Austausch.
+ */
+@media (prefers-reduced-motion: no-preference) {
+    [data-treffer] {
+        view-transition-name: treffer;
+    }
+
+    ::view-transition-old(treffer) {
+        animation: uebergang-raus var(--duration-base) var(--ease-standard) both;
+    }
+
+    ::view-transition-new(treffer) {
+        animation: uebergang-rein var(--duration-slow) var(--ease-auftritt) both;
+    }
+
+    /* Die Facettenspalte aendert beim Filterwechsel nur ihre Zahlen. Eine
+       kurze Ueberblendung reicht; ein Versatz wuerde die stehende Spalte
+       springen lassen. */
+    [data-facetten] {
+        view-transition-name: facetten;
+    }
+
+    ::view-transition-old(facetten),
+    ::view-transition-new(facetten) {
+        animation-duration: var(--duration-fast);
+    }
+}
+
+/*
+ * Bewegung abbestellt: Der Uebergang wird schon in uebergang.js gar nicht
+ * erst gestartet. Die Namen bleiben hier trotzdem ungesetzt — ein
+ * view-transition-name kostet den Browser eine eigene Ebene, auch wenn nie
+ * eine Animation darauf laeuft.
+ */
+@keyframes uebergang-raus {
+    from { opacity: 1; transform: none; }
+    to { opacity: 0; transform: translateY(-0.75rem); }
+}
+
+@keyframes uebergang-rein {
+    from { opacity: 0; transform: translateY(1.25rem); }
+    to { opacity: 1; transform: none; }
 }

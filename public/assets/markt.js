@@ -48,7 +48,11 @@
             anwenden();
         }
 
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        // Weiches Scrollen nur, wenn Bewegung nicht abbestellt ist. Die
+        // CSS-Regel fuer prefers-reduced-motion greift hier nicht: Die Option
+        // im Aufruf sticht scroll-behavior aus dem Stylesheet.
+        var sanft = !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+        window.scrollTo({ top: 0, behavior: sanft ? 'smooth' : 'auto' });
     }
 
     function laden(url, verlaufSchreiben) {

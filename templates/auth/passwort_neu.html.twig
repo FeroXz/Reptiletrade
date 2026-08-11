@@ -4,13 +4,21 @@
 
 {% block inhalt %}
     {# Auth-Flows stehen fuer sich: keine Navigation im Blick, eine Karte
-       in der Mitte. min-h rechnet Kopfleiste und Innenabstand des main
-       heraus, damit die Karte optisch mittig sitzt und nicht oben klebt. #}
-    <div class="mx-auto flex min-h-[calc(100dvh-14rem)] max-w-sm flex-col justify-center gap-4 py-4">
+       in der Mitte. Der Grund dahinter ist ein Verlauf aus zwei Tokenfarben
+       und liegt fest im Bild — kein Bildasset, kein zusaetzlicher Ladevorgang,
+       und beim Scrollen wandert das Licht nicht mit.
+       min-h rechnet Kopfleiste und Innenabstand des main heraus, damit die
+       Karte optisch mittig sitzt und nicht oben klebt. #}
+    <div class="hintergrund-buehne" aria-hidden="true"></div>
+
+    <div class="mx-auto flex min-h-[calc(100dvh-18rem)] max-w-md flex-col justify-center gap-5 py-6">
         {% include 'partials/meldungen.html.twig' %}
 
-        <form method="post" action="/passwort/neu" class="karte karte-gross space-y-4 p-6 sm:p-8">
-            <h1 class="text-xl font-semibold tracking-tight">Neues Passwort vergeben</h1>
+        <form method="post" action="/passwort/neu" class="karte karte-gross glass space-y-5 p-7 sm:p-9">
+            <div class="space-y-2">
+                <p class="vorzeile">Zugang wiederherstellen</p>
+                <h1 class="text-h2">Neues Passwort vergeben</h1>
+            </div>
             <input type="hidden" name="_csrf" value="{{ csrf }}">
             <input type="hidden" name="token" value="{{ token }}">
 

@@ -1,10 +1,15 @@
 {# Eine Anzeige in der Trefferliste. #}
-{# karte-interaktiv statt hover:shadow-md: Der Schatten kommt damit aus den
-   Tokens und stimmt im Dunkelmodus mit; die Tailwind-Utility haette den
-   Hellwert fest eingebacken. #}
-<article class="karte karte-interaktiv overflow-hidden">
-    <a href="/anzeige/{{ anzeige.id }}/" class="block">
-        <div class="kachel-bild aspect-4/3 w-full overflow-hidden" style="background: var(--flaeche-gedaempft)">
+{# Hervorgehobene Anzeigen bekommen zwei zusaetzliche Klassen und sonst nichts:
+   .karte-featured faerbt den Rand mit dem Verlauf, .treffer-featured spannt sie
+   im Raster ueber zwei Spalten und zwei Reihen. Struktur, Ueberschriftenebene
+   und Link bleiben identisch — fuer einen Screenreader ist das dieselbe Kachel
+   wie jede andere, nur weiter oben in der Aufmerksamkeit des Auges. #}
+<article class="karte karte-interaktiv overflow-hidden{{ anzeige.isFeatured ? ' karte-featured treffer-featured' : '' }}">
+    <a href="/anzeige/{{ anzeige.id }}/" class="kachel-flaeche">
+        {# bild-verlauf legt den Farbverlauf als Pseudoelement ueber den
+           Ausschnitt. Ohne ihn stuende der weisse Preis auf einem beliebig
+           hellen Foto. #}
+        <div class="kachel-bild bild-verlauf">
             {% if anzeige.imagePath %}
                 {# srcset statt einer Größe für alle: Auf dem Telefon lädt sonst
                    jede Kachel das Bild in voller Breite. sizes beschreibt die
@@ -22,46 +27,49 @@
                      {% if not zuerst|default(false) %}loading="lazy"{% endif %}
                      class="h-full w-full object-cover">
             {% else %}
-                <div class="flex h-full items-center justify-center text-xs gedaempft">Kein Bild</div>
+                <div class="kachel-leer">Kein Bild</div>
             {% endif %}
-        </div>
 
-        <div class="space-y-1 p-3">
-            <div class="flex items-start justify-between gap-2">
-                <h3 class="line-clamp-2 text-sm font-medium">{{ anzeige.title }}</h3>
-                {% if anzeige.isFeatured %}
-                    {# Der Stern traegt keine eigene Aussage — daneben steht
-                       "Top". Deshalb aria-hidden, sonst liest der Screenreader
-                       dieselbe Information zweimal. #}
-                    <span class="marke-top">
-                        <svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor" aria-hidden="true">
-                            <path d="M12 2.6l2.9 5.9 6.5.95-4.7 4.6 1.1 6.45L12 17.45 6.2 20.5l1.1-6.45-4.7-4.6 6.5-.95z"/>
-                        </svg>
-                        Top
-                    </span>
+            {% if anzeige.isFeatured %}
+                {# Der Stern traegt keine eigene Aussage — daneben steht
+                   "Top". Deshalb aria-hidden, sonst liest der Screenreader
+                   dieselbe Information zweimal. #}
+                <span class="badge-akzent kachel-marke">
+                    <svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor" aria-hidden="true">
+                        <path d="M12 2.6l2.9 5.9 6.5.95-4.7 4.6 1.1 6.45L12 17.45 6.2 20.5l1.1-6.45-4.7-4.6 6.5-.95z"/>
+                    </svg>
+                    Top
+                </span>
+            {% endif %}
+
+            {# Preis und Entfernung liegen auf dem Bild statt in einer eigenen
+               Zeile darunter: Es ist die Zahl, nach der die Liste ueberflogen
+               wird, und auf der Bildflaeche hat sie Platz fuer eine Groesse,
+               die das auch hergibt. #}
+            <div class="bild-inhalt kachel-fuss">
+                <span class="kachel-preis">{{ anzeige.formattedPrice }}</span>
+                {% if anzeige.formattedDistance %}
+                    <span class="glass-dunkel kachel-entfernung">{{ anzeige.formattedDistance }}</span>
                 {% endif %}
             </div>
+        </div>
+
+        <div class="kachel-text space-y-1">
+            <h3 class="kachel-titel line-clamp-2 text-sm font-semibold">{{ anzeige.title }}</h3>
 
             <p class="text-xs gedaempft">{{ anzeige.speciesCommonName }}</p>
 
             {% if anzeige.morphNames is not empty %}
-                <p class="line-clamp-1 text-xs text-primary-700">{{ anzeige.morphLabel }}</p>
+                <p class="morph-name line-clamp-1 text-xs">{{ anzeige.morphLabel }}</p>
             {% endif %}
 
-            <div class="flex items-center gap-2 pt-1 text-xs gedaempft">
+            <div class="flex flex-wrap items-center gap-x-2 pt-1 text-xs gedaempft">
                 <span>{{ anzeige.sex.symbol }}</span>
-                <span>·</span>
+                <span aria-hidden="true">·</span>
                 <span>{{ anzeige.cbStatus.label }}</span>
                 {% if anzeige.postalCode %}
-                    <span>·</span>
+                    <span aria-hidden="true">·</span>
                     <span>{{ anzeige.country ? anzeige.country.value ~ '-' : '' }}{{ anzeige.postalCode }}</span>
-                {% endif %}
-            </div>
-
-            <div class="flex items-baseline justify-between pt-1">
-                <span class="text-sm font-semibold">{{ anzeige.formattedPrice }}</span>
-                {% if anzeige.formattedDistance %}
-                    <span class="text-xs gedaempft">{{ anzeige.formattedDistance }}</span>
                 {% endif %}
             </div>
         </div>
