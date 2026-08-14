@@ -45,7 +45,7 @@ final readonly class AdminMediaController
         $this->requireEditor();
 
         $suche = $request->queryString('q');
-        $seite = max(1, $request->queryInt('seite', 1) ?? 1);
+        $seite = $request->queryPage();
 
         $medien = $this->repository->latest(self::PER_PAGE, ($seite - 1) * self::PER_PAGE, $suche);
         $ids = array_values(array_filter(array_map(static fn($m): ?int => $m->id, $medien)));

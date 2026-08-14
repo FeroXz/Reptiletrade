@@ -194,7 +194,7 @@ final readonly class ListingManagementController
      */
     private function apply(Listing $listing, Request $request): Listing
     {
-        $preis = str_replace(',', '.', $this->input($request, 'preis'));
+        $preis = $this->input($request, 'preis');
         $plz = $this->input($request, 'plz');
         $land = Country::tryFrom($this->input($request, 'land')) ?? $listing->country ?? Country::De;
         $ort = $plz === '' ? null : $this->postalCodes->find($land, $plz);
@@ -208,7 +208,7 @@ final readonly class ListingManagementController
             $listing->speciesId,
             mb_substr($this->input($request, 'titel'), 0, 120),
             mb_substr($this->input($request, 'beschreibung'), 0, 5000),
-            is_numeric($preis) ? (int) round((float) $preis * 100) : null,
+            Listing::priceCentsFromInput($preis),
             $land->currency(),
             $this->input($request, 'verhandelbar') !== '',
             $this->input($request, 'tauschwunsch') === '' ? null : $this->input($request, 'tauschwunsch'),
@@ -281,6 +281,14 @@ final readonly class ListingManagementController
 
         if ($preis !== '' && (!is_numeric($preis) || (float) $preis < 0)) {
             $fehler['preis'] = 'Der Preis muss eine Zahl ab 0 sein.';
+        } elseif ($preis !== '' && (float) $preis * 100 > Listing::MAX_PRICE_CENTS) {
+            // Ohne Obergrenze kaeme eine Eingabe wie "1e30" durch diese
+            // Pruefung und wuerde erst beim Umrechnen in Cent zu einer
+            // beliebigen Zahl aus dem Ueberlauf.
+            $fehler['preis'] = \sprintf(
+                'Der Preis darf höchstens %s Euro betragen.',
+                number_format(Listing::MAX_PRICE_CENTS / 100, 0, ',', '.'),
+            );
         }
 
         return $fehler;

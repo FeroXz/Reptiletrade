@@ -41,7 +41,7 @@ final readonly class NewsController
      */
     public function index(Request $request): Response
     {
-        $seite = max(1, $request->queryInt('seite', 1) ?? 1);
+        $seite = $request->queryPage();
         $suche = $request->queryString('q');
 
         if ($suche !== null) {
@@ -79,7 +79,7 @@ final readonly class NewsController
             ]), 404);
         }
 
-        $seite = max(1, $request->queryInt('seite', 1) ?? 1);
+        $seite = $request->queryPage();
         $id = $kategorie->id ?? 0;
 
         return Response::html($this->twig->render('inhalt/news.html.twig', [

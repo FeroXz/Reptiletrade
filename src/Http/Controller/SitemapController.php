@@ -53,7 +53,12 @@ final readonly class SitemapController
             return $this->xml($this->index($urls, $basis), $urls);
         }
 
-        $seite = $teil === null ? $urls : \array_slice($urls, ((max(1, $teil)) - 1) * self::MAX_URLS, self::MAX_URLS);
+        // Die Teilnummer wird wie eine Seitenzahl gedeckelt: Ohne Obergrenze
+        // kippt (Teil - 1) * MAX_URLS bei einem Wert nahe PHP_INT_MAX in eine
+        // Fliesskommazahl, und array_slice() nimmt keinen Float als Versatz.
+        $seite = $teil === null
+            ? $urls
+            : \array_slice($urls, (min(Request::MAX_PAGE, max(1, $teil)) - 1) * self::MAX_URLS, self::MAX_URLS);
 
         return $this->xml($this->urlSet($seite, $basis), $seite, $request);
     }
