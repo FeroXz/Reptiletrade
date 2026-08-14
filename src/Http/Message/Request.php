@@ -12,6 +12,11 @@ namespace Reptilienmarkt\Http\Message;
 final class Request
 {
     /**
+     * Hoechste Seitenzahl, die aus einer Adresse gelesen wird — siehe queryPage().
+     */
+    public const int MAX_PAGE = 10000;
+
+    /**
      * @param array<string, string|list<string>> $query
      * @param array<string, mixed>               $body
      * @param array<string, string>              $headers
@@ -185,6 +190,22 @@ final class Request
         $value = $this->queryString($name);
 
         return $value !== null && is_numeric($value) ? (int) $value : $default;
+    }
+
+    /**
+     * Eine Seitenzahl aus der Adresse — mindestens 1, hoechstens MAX_PAGE.
+     *
+     * Die Obergrenze ist kein Geschmacksurteil, sondern Rechenschutz: Aus der
+     * Seitenzahl wird ueberall ein Versatz (Seite - 1) * Treffer je Seite. Mit
+     * einer Seitenzahl nahe PHP_INT_MAX kippt dieses Produkt in eine
+     * Fliesskommazahl, und die naechste Funktion mit int-Rueckgabetyp bricht
+     * mit einem TypeError ab — aus einem Tippfehler in der Adresse wird so ein
+     * Serverfehler. Jenseits von MAX_PAGE liegt ohnehin kein Treffer mehr:
+     * Selbst bei 96 Anzeigen je Seite waeren das knapp eine Million.
+     */
+    public function queryPage(string $name = 'seite'): int
+    {
+        return min(self::MAX_PAGE, max(1, $this->queryInt($name, 1) ?? 1));
     }
 
     public function queryBool(string $name): bool

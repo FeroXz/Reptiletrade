@@ -15,6 +15,11 @@ use Reptilienmarkt\Domain\Geo\Country;
 final readonly class Listing
 {
     /**
+     * Hoechster Preis, den eine Anzeige tragen kann — eine Million Euro in Cent.
+     */
+    public const int MAX_PRICE_CENTS = 100000000;
+
+    /**
      * @param array<string, scalar|null> $legalConfirmations Bestaetigungen aus Schritt 5
      */
     public function __construct(
@@ -63,5 +68,37 @@ final readonly class Listing
         $value = $this->legalConfirmations[$key] ?? null;
 
         return \is_scalar($value) ? (string) $value : null;
+    }
+
+    /**
+     * Der Preis aus einem Formularfeld, in Cent.
+     *
+     * Die Umrechnung steht hier und nicht in den beiden Controllern, die sie
+     * brauchen (Assistent und Nachbearbeitung), damit ein Preis auf beiden
+     * Wegen dieselben Grenzen hat.
+     *
+     * Ohne Grenzen liesse "-20" einen negativen Preis in die Datenbank, und
+     * eine Angabe wie "1e30" ergaebe nach (int) round(...) irgendeine Zahl aus
+     * dem Ueberlauf — im Zweifel eine grosse negative. Beides sieht in der
+     * Liste aus wie ein Preis und ist keiner. Wer mehr als MAX_PRICE_CENTS
+     * eintraegt, bekommt die Obergrenze; das ist sichtbar falsch und damit
+     * korrigierbar, waehrend eine stillschweigend verworfene Eingabe es nicht
+     * ist.
+     */
+    public static function priceCentsFromInput(string $input): ?int
+    {
+        $normalised = str_replace(',', '.', trim($input));
+
+        if (!is_numeric($normalised)) {
+            return null;
+        }
+
+        $cents = round((float) $normalised * 100);
+
+        if ($cents <= 0.0) {
+            return 0;
+        }
+
+        return (int) min($cents, (float) self::MAX_PRICE_CENTS);
     }
 }

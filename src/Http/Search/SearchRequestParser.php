@@ -33,6 +33,11 @@ use Reptilienmarkt\Support\Slugger;
  */
 final readonly class SearchRequestParser
 {
+    /**
+     * Obergrenze des Preisfilters in Euro — siehe euroToCents().
+     */
+    private const int MAX_PRICE_EURO = 1000000;
+
     public function __construct(
         private SpeciesRepository $species,
         private MorphRepository $morphs,
@@ -64,7 +69,7 @@ final readonly class SearchRequestParser
             radius: $radius,
             admin1: $admin1,
             sort: SortOrder::tryFrom($request->queryString('sortierung', '') ?? '') ?? SortOrder::Neueste,
-            page: max(1, $request->queryInt('seite', 1) ?? 1),
+            page: $request->queryPage(),
             perPage: 24,
         );
 
@@ -288,9 +293,22 @@ final readonly class SearchRequestParser
         return $result;
     }
 
+    /**
+     * Der Preisfilter kommt in Euro herein und wird in Cent gerechnet.
+     *
+     * Die Deckelung auf MAX_PRICE_EURO faengt den Fall ab, dass jemand eine
+     * Zahl nahe PHP_INT_MAX in die Adresse schreibt: Die Multiplikation mit 100
+     * kippt dann in eine Fliesskommazahl, und der int-Rueckgabetyp bricht mit
+     * einem TypeError ab. Als Filtergrenze aendert die Deckelung nichts —
+     * oberhalb einer Million Euro steht auf diesem Marktplatz kein Tier.
+     */
     private function euroToCents(?int $euro): ?int
     {
-        return $euro === null || $euro < 0 ? null : $euro * 100;
+        if ($euro === null || $euro < 0) {
+            return null;
+        }
+
+        return min($euro, self::MAX_PRICE_EURO) * 100;
     }
 
     private function positive(?int $value): ?int

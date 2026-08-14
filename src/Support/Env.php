@@ -61,15 +61,29 @@ final class Env
         self::$loaded = true;
     }
 
+    /**
+     * Die echte Prozessumgebung geht der .env-Datei vor.
+     *
+     * Andersherum waere die Datei nicht zu uebergehen: Ein Aufruf wie
+     * `DB_DATABASE=/tmp/probe.sqlite php bin/migrate.php up` liefe still gegen
+     * die Datenbank aus der .env, und wer eine Sicherung einspielt oder einen
+     * Befehl einmalig gegen eine andere Ablage fahren will, merkt davon nichts,
+     * bis der Schaden angerichtet ist. Dieselbe Reihenfolge gilt ueberall sonst
+     * (Docker, systemd, CI): Die Datei ist der Satz Voreinstellungen, die
+     * Umgebung ist die Ausnahme fuer diesen einen Aufruf.
+     */
     public static function get(string $key, ?string $default = null): ?string
     {
+        $fromEnv = getenv($key);
+        if ($fromEnv !== false) {
+            return $fromEnv;
+        }
+
         if (\array_key_exists($key, self::$values)) {
             return self::$values[$key];
         }
 
-        $fromEnv = getenv($key);
-
-        return $fromEnv === false ? $default : $fromEnv;
+        return $default;
     }
 
     public static function string(string $key, string $default = ''): string

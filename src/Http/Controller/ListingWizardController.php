@@ -301,14 +301,14 @@ final readonly class ListingWizardController
 
     private function withPriceAndLocation(Listing $listing, Request $request): Listing
     {
-        $priceInput = str_replace(',', '.', $this->input($request, 'preis'));
+        $priceInput = $this->input($request, 'preis');
         $postalCode = $this->input($request, 'plz');
         $country = Country::tryFrom($this->input($request, 'land')) ?? $listing->country ?? Country::De;
 
         $place = $postalCode === '' ? null : $this->postalCodes->find($country, $postalCode);
 
         return $this->copy($listing, [
-            'priceCents' => is_numeric($priceInput) ? (int) round((float) $priceInput * 100) : null,
+            'priceCents' => Listing::priceCentsFromInput($priceInput),
             'currency' => $country->currency(),
             'negotiable' => $this->input($request, 'verhandelbar') !== '',
             'tradeWanted' => $this->input($request, 'tauschwunsch') === '' ? null : $this->input($request, 'tauschwunsch'),

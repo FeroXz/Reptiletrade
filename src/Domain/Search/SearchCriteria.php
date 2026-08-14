@@ -20,6 +20,11 @@ final readonly class SearchCriteria
     public const int MAX_PER_PAGE = 96;
 
     /**
+     * Hoechste Seitenzahl, aus der noch ein Versatz gerechnet wird — siehe offset().
+     */
+    public const int MAX_PAGE = 10000;
+
+    /**
      * @param list<MorphFilter>  $morphs
      * @param list<Sex>          $sexes
      * @param list<ListingType>  $types
@@ -69,9 +74,17 @@ final readonly class SearchCriteria
             : SortOrder::Neueste;
     }
 
+    /**
+     * Der Versatz fuer die Abfrage.
+     *
+     * Die Seitenzahl wird hier noch einmal gedeckelt, obwohl die Adresse sie
+     * bereits begrenzt: Kriterien entstehen auch aus gespeicherten Suchen, und
+     * ein Wert nahe PHP_INT_MAX liesse dieses Produkt in eine Fliesskommazahl
+     * kippen — der int-Rueckgabetyp braeche dann mit einem TypeError ab.
+     */
     public function offset(): int
     {
-        return (max(1, $this->page) - 1) * $this->limit();
+        return (min(self::MAX_PAGE, max(1, $this->page)) - 1) * $this->limit();
     }
 
     public function limit(): int

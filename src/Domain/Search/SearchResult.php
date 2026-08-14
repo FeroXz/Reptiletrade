@@ -22,9 +22,13 @@ final readonly class SearchResult
         return $this->listings === [];
     }
 
+    /**
+     * Dieselbe Deckelung wie in SearchCriteria::offset() — sonst zeigte die
+     * Blaetterleiste eine Seitenzahl an, aus der gar nicht gelesen wurde.
+     */
     public function page(): int
     {
-        return max(1, $this->criteria->page);
+        return min(SearchCriteria::MAX_PAGE, max(1, $this->criteria->page));
     }
 
     public function pageCount(): int
